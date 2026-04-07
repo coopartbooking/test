@@ -39,6 +39,7 @@ createApp({
             // Navigation & auth
             pageTitle: 'Tableau de bord',
             currentUser: null,
+            currentUserName: '',
             tab: 'dashboard',
             authEmail: '', authPassword: '', isLoginMode: true,
 
@@ -968,7 +969,7 @@ async removeGlobalTag(familyName, tag) {
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 this.currentUser = user.uid;
-
+                this.currentUserName = user.displayName || user.email || user.uid;
                 // Données privées (projets, tâches, affaires, templates)
                 onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
@@ -1046,6 +1047,7 @@ async removeGlobalTag(familyName, tag) {
 
             } else {
                 this.currentUser = null;
+                this.currentUserName = '';
             }
         });
     },
