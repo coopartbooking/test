@@ -58,8 +58,8 @@
             <h1 class="font-bold text-white tracking-wide">BOOKING<span class="text-indigo-400 font-light">PRO</span></h1>
         </div>
         <div v-if="currentUser" class="p-4 border-b border-slate-800 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-slate-300 border border-slate-600">{{ (currentUser || '').substring(0,2).toUpperCase() }}</div>
-            <div><div class="text-white font-bold text-xs">{{ currentUser }}</div><div class="text-[10px] text-slate-500 cursor-pointer hover:text-indigo-400" @click="logout">Se déconnecter</div></div>
+            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-slate-300 border border-slate-600">{{ (currentUserName || '').substring(0,2).toUpperCase() }}</div>
+            <div><div class="text-white font-bold text-xs">{{ currentUserName }}</div><div class="text-[10px] text-slate-500 cursor-pointer hover:text-indigo-400" @click="logout">Se déconnecter</div></div>
         </div>
         <nav class="flex-1 overflow-y-auto py-2">
             <div class="nav-header">Pilotage</div>
