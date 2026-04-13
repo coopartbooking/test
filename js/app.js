@@ -1155,15 +1155,15 @@ async removeGlobalTag(familyName, tag) {
             const CONTACT_FIELDS = ['Prénom','Nom','Adresse','Suite adresse','CP','Ville','Pays',
                 'Tél. perso','Tél. direct','Mobile pro','Mobile','Mobile 2',
                 'E-mail direct','Email perso','Est prioritaire','Tchat','Code du tchat',
-                'Site','Fonction','Créé le','Modifié le','Est actif','Suivi par'];
+                'Site','Fonction','Créé le','Modifié le','Est actif','Suivi par','Visibilité'];
 
-            // Ligne 0 : en-têtes de sections (fusionnées visuellement)
-            const row0 = new Array(90).fill('');
+            // Ligne 0 : en-têtes de sections (24 champs par contact maintenant)
+            const row0 = new Array(93).fill('');
             row0[0]  = 'Structure';
             row0[17] = 'Contact 1';
-            row0[40] = 'Contact 2';
-            row0[63] = 'Contact 3';
-            row0[86] = 'Tags';
+            row0[41] = 'Contact 2';
+            row0[65] = 'Contact 3';
+            row0[89] = 'Tags';
 
             // Ligne 1 : noms de champs
             const row1 = [
@@ -1196,9 +1196,10 @@ async removeGlobalTag(familyName, tag) {
                 c.createdDate  ? new Date(c.createdDate).toLocaleDateString('fr-FR') : '',
                 c.modifiedDate ? new Date(c.modifiedDate).toLocaleDateString('fr-FR') : '',
                 c.isActive !== false ? '1' : '0',
-                c.suiviPar     || ''
+                c.suiviPar     || '',
+                c.isPrivate    ? 'Privé' : 'Public'
             ];
-            const emptyContact = () => new Array(23).fill('');
+            const emptyContact = () => new Array(24).fill('');
 
             const dataRows = entries.map(({ struct: s, contacts }) => {
                 const tags = s.tags || {};
@@ -1236,9 +1237,9 @@ async removeGlobalTag(familyName, tag) {
             // Largeurs colonnes
             const colWidths = [
                 30,14,28,18,12,20,12,14,14,28,14,10,28,10,10,16,14, // Structure (17)
-                14,20,22,16,10,16,10,12,12,12,12,12,26,26,10,14,16,26,22,14,14,10,16, // Contact 1 (23)
-                14,20,22,16,10,16,10,12,12,12,12,12,26,26,10,14,16,26,22,14,14,10,16, // Contact 2 (23)
-                14,20,22,16,10,16,10,12,12,12,12,12,26,26,10,14,16,26,22,14,14,10,16, // Contact 3 (23)
+                14,20,22,16,10,16,10,12,12,12,12,12,26,26,10,14,16,26,22,14,14,10,16,12, // Contact 1 (24)
+                14,20,22,16,10,16,10,12,12,12,12,12,26,26,10,14,16,26,22,14,14,10,16,12, // Contact 2 (24)
+                14,20,22,16,10,16,10,12,12,12,12,12,26,26,10,14,16,26,22,14,14,10,16,12, // Contact 3 (24)
                 30,35,20,20 // Tags (4)
             ];
             ws['!cols'] = colWidths.map(wch => ({ wch }));
