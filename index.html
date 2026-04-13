@@ -78,6 +78,7 @@
             <div @click="tab='geo'" :class="['nav-item', tab==='geo'?'active':'']"><i class="fas fa-map-marked-alt text-emerald-400"></i> Carte & Invitations</div>
             <div @click="tab='mailing'" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
             <div @click="tab='settings'" :class="['nav-item', tab==='settings'?'active':'']"><i class="fas fa-cog text-slate-400"></i> Paramètres</div>
+            <div v-if="isAdmin" @click="tab='admin'; loadAdminUsers()" :class="['nav-item', tab==='admin'?'active':'']"><i class="fas fa-shield-alt text-red-400"></i> Administration</div>
         </nav>
         <div class="p-4 bg-slate-900 border-t border-slate-800 space-y-2">
 
@@ -163,6 +164,120 @@
         </header>
 
         <div class="flex-1 overflow-hidden relative bg-slate-50">
+
+            <!-- ── BANNIÈRE CHANGELOG (visible par tous) ── -->
+            <div v-if="showChangelogBanner && latestChangelog && !changelogDismissed"
+                 class="absolute top-0 left-0 right-0 z-20 bg-indigo-600 text-white px-6 py-3 flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-bell text-indigo-200 text-lg"></i>
+                    <div>
+                        <span class="font-black text-sm uppercase tracking-wide mr-2">Nouveauté ·</span>
+                        <span class="text-sm">{{ latestChangelog.text }}</span>
+                        <span class="text-indigo-300 text-xs ml-3">— {{ latestChangelog.date }}</span>
+                    </div>
+                </div>
+                <button @click="changelogDismissed = true; showChangelogBanner = false"
+                        class="text-indigo-200 hover:text-white ml-6 flex-shrink-0">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- ── ONGLET ADMIN ── -->
+            <div v-if="tab==='admin' && isAdmin" class="p-8 h-full overflow-y-auto bg-slate-50 w-full custom-scrollbar">
+                <div class="max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-black text-slate-800 mb-2"><i class="fas fa-shield-alt text-red-500 mr-3"></i>Administration</h2>
+                    <p class="text-slate-500 text-sm mb-8">Panneau réservé aux administrateurs. Visible uniquement par vous.</p>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+                        <!-- Bloc 1 : Utilisateurs inscrits -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex justify-between items-center mb-5">
+                                <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-users text-indigo-500 mr-2"></i> Utilisateurs inscrits</h3>
+                                <button @click="loadAdminUsers()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition">
+                                    <i class="fas fa-sync-alt mr-1"></i> Actualiser
+                                </button>
+                            </div>
+                            <div v-if="!adminUsers.length" class="text-center text-slate-400 py-8">
+                                <i class="fas fa-user-slash text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Aucun utilisateur chargé. Cliquez sur Actualiser.</p>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="u in adminUsers" :key="u.uid"
+                                     class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                                    <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm flex-shrink-0">
+                                        {{ (u.email || '?').substring(0,2).toUpperCase() }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-bold text-slate-800 text-sm truncate flex items-center gap-2">
+                                            {{ u.email }}
+                                            <span v-if="adminEmails.includes(u.email)" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">Admin</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">
+                                            <i class="fas fa-sign-in-alt mr-1"></i> Dernière connexion : {{ u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bloc 2 : Gestion des admins -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 text-lg mb-5"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
+                            <div class="flex gap-2 mb-4">
+                                <input v-model="newAdminEmail" @keyup.enter="addAdminEmail" class="input-field text-sm flex-1" placeholder="email@exemple.com">
+                                <button @click="addAdminEmail" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="email in adminEmails" :key="email"
+                                     class="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-shield-alt text-amber-500 text-sm"></i>
+                                        <span class="font-bold text-slate-700 text-sm">{{ email }}</span>
+                                        <span v-if="email === auth?.currentUser?.email" class="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-black">Vous</span>
+                                    </div>
+                                    <button @click="removeAdminEmail(email)" class="text-slate-300 hover:text-red-500 transition text-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bloc 3 : Notes de version / Changelog -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 xl:col-span-2">
+                            <h3 class="font-bold text-slate-800 text-lg mb-2"><i class="fas fa-bell text-indigo-500 mr-2"></i> Notes & Améliorations <span class="text-sm text-slate-400 font-normal">(visibles par tous les utilisateurs au démarrage)</span></h3>
+                            <div class="flex gap-2 mb-5 mt-4">
+                                <input v-model="newChangelogEntry" @keyup.enter="addChangelogEntry" class="input-field flex-1" placeholder="Ex: Nouvelle fonctionnalité — Commentaires horodatés ajoutés dans les fiches CRM">
+                                <button @click="addChangelogEntry" :disabled="!newChangelogEntry.trim()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-5 py-2 rounded-lg font-bold shadow transition">
+                                    <i class="fas fa-paper-plane mr-1"></i> Publier
+                                </button>
+                            </div>
+                            <div v-if="!adminChangelog.length" class="text-center text-slate-400 py-6 border-2 border-dashed rounded-xl">
+                                <i class="fas fa-clipboard-list text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Aucune note publiée. Les utilisateurs verront une bannière à chaque nouvelle entrée.</p>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="entry in adminChangelog" :key="entry.id"
+                                     class="flex items-start justify-between gap-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
+                                    <div class="flex-1">
+                                        <div class="font-bold text-slate-800 text-sm">{{ entry.text }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-1 font-medium">
+                                            <i class="fas fa-calendar mr-1"></i>{{ entry.date }}
+                                            &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i>{{ entry.author }}
+                                        </div>
+                                    </div>
+                                    <button @click="deleteChangelogEntry(entry.id)" class="text-slate-300 hover:text-red-500 transition flex-shrink-0 mt-0.5">
+                                        <i class="fas fa-trash text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
             
             <div v-if="tab==='pipeline'" class="p-6 h-full flex flex-col bg-white">
                 <div class="flex justify-between items-center mb-6">
@@ -790,13 +905,28 @@
             <div v-if="tab==='settings'" class="p-8 h-full overflow-y-auto bg-slate-50 w-full custom-scrollbar">
                 <div class="max-w-5xl mx-auto">
                     <h2 class="text-3xl font-black text-slate-800 mb-8"><i class="fas fa-cog text-indigo-500 mr-3"></i>Paramètres du CRM</h2>
-                    
+
+                    <!-- Bloc activation admin -->
+                    <div v-if="!isAdmin" class="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mb-8 flex items-center justify-between gap-6">
+                        <div>
+                            <h3 class="font-bold text-slate-800 mb-1"><i class="fas fa-shield-alt text-amber-500 mr-2"></i> Accès Administrateur</h3>
+                            <p class="text-sm text-slate-500">Vous n'êtes pas encore enregistré comme administrateur. Cliquez pour activer l'accès admin avec votre compte actuel.</p>
+                        </div>
+                        <button @click="activateSelfAsAdmin"
+                                class="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-3 rounded-xl shadow transition flex items-center gap-2">
+                            <i class="fas fa-shield-alt"></i> M'activer comme Admin
+                        </button>
+                    </div>
+                    <div v-else class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-8 flex items-center gap-3">
+                        <i class="fas fa-check-circle text-emerald-500 text-xl"></i>
+                        <div>
+                            <span class="font-bold text-emerald-800 text-sm">Vous êtes administrateur.</span>
+                            <span class="text-emerald-600 text-sm ml-2">L'onglet "Administration" est disponible dans le menu.</span>
+                        </div>
+                    </div>
+
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 mb-6 gap-4">
-       <div class="text-[10px] text-red-500 font-mono bg-red-50 p-2 rounded mb-4">
-    DEBUG CLOUD: {{ db.tagCategories }}
-</div>
-       
         <div>
             <h3 class="text-lg font-bold text-slate-800">
                 <i class="fas fa-tags text-indigo-400 mr-2"></i>Gestion des Tags & Étiquettes

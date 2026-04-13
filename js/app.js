@@ -3,7 +3,7 @@
 // --- IMPORTS FIREBASE ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey:            "AIzaSyD_Cu2VR2YhFMOB65-5155d2hFVaHymGwU",
@@ -128,6 +128,17 @@ createApp({
             // Statut de synchronisation Firebase : 'idle' | 'saving' | 'saved' | 'error'
             saveStatus: 'idle',
             saveStatusMessage: '',
+
+            // Admin
+            isAdmin: false,
+            adminEmails: [],
+            adminUsers: [],
+            adminChangelog: [],
+            newChangelogEntry: '',
+            newAdminEmail: '',
+            showChangelogBanner: false,
+            latestChangelog: null,
+            changelogDismissed: false,
         };
     },
 
@@ -437,15 +448,101 @@ async removeGlobalTag(familyName, tag) {
 
         addCrmComment() {
             if (!this.newCrmComment.trim()) return;
-            this.currentCrmStruct.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.newCrmComment.trim(), user: this.currentUser });
+            if (!this.currentCrmStruct.comments) this.currentCrmStruct.comments = [];
+            this.currentCrmStruct.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.newCrmComment.trim(), user: this.currentUserName });
             this.newCrmComment = '';
+            // Sauvegarde automatique immédiate
+            this.saveDB();
         },
 
         addContactComment() {
             if (!this.newContactComment.trim()) return;
             if (!this.currentCrmContact.comments) this.currentCrmContact.comments = [];
-            this.currentCrmContact.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.newContactComment.trim(), user: this.currentUser });
+            this.currentCrmContact.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.newContactComment.trim(), user: this.currentUserName });
             this.newContactComment = '';
+            // Sauvegarde automatique immédiate
+            this.saveDB();
+        },
+
+        // --- ADMIN ---
+        async loadAdminUsers() {
+            try {
+                const snapshot = await getDocs(collection(dbFirestore, "users_registry"));
+                this.adminUsers = snapshot.docs.map(d => d.data()).sort((a, b) => (b.lastLogin || '').localeCompare(a.lastLogin || ''));
+            } catch (e) {
+                console.error("Erreur chargement utilisateurs:", e);
+            }
+        },
+
+        async activateSelfAsAdmin() {
+            const email = auth.currentUser?.email;
+            if (!email) return Swal.fire('Erreur', 'Impossible de récupérer votre email.', 'error');
+            const r = await Swal.fire({
+                title: 'Activer les droits Admin ?',
+                html: `Votre compte <b>${email}</b> sera enregistré comme administrateur dans Firebase.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#f59e0b',
+                confirmButtonText: 'Oui, m\'activer',
+                cancelButtonText: 'Annuler'
+            });
+            if (!r.isConfirmed) return;
+            if (!this.adminEmails.includes(email)) this.adminEmails.push(email);
+            await this.saveAdminConfig();
+            this.isAdmin = true;
+            Swal.fire({ title: '✅ Admin activé !', text: "L'onglet Administration est maintenant disponible dans le menu.", icon: 'success', confirmButtonColor: '#f59e0b' });
+        },
+
+        async addChangelogEntry() {
+            if (!this.newChangelogEntry.trim()) return;
+            const entry = {
+                id: Date.now().toString(),
+                text: this.newChangelogEntry.trim(),
+                date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }),
+                author: this.currentUserName
+            };
+            this.adminChangelog.unshift(entry);
+            this.newChangelogEntry = '';
+            await this.saveAdminConfig();
+            Swal.fire({ title: 'Note publiée ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        },
+
+        async deleteChangelogEntry(id) {
+            this.adminChangelog = this.adminChangelog.filter(e => e.id !== id);
+            await this.saveAdminConfig();
+        },
+
+        async addAdminEmail() {
+            const email = (this.newAdminEmail || '').trim().toLowerCase();
+            if (!email || !email.includes('@')) return Swal.fire('Erreur', 'Email invalide.', 'warning');
+            if (this.adminEmails.includes(email)) return Swal.fire('Info', 'Cet email est déjà admin.', 'info');
+            this.adminEmails.push(email);
+            this.newAdminEmail = '';
+            await this.saveAdminConfig();
+            Swal.fire({ title: 'Admin ajouté ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        },
+
+        async removeAdminEmail(email) {
+            if (email === this.currentUserName || email === auth.currentUser?.email) {
+                return Swal.fire('Attention', 'Vous ne pouvez pas vous retirer vous-même.', 'warning');
+            }
+            const r = await Swal.fire({ title: 'Retirer cet admin ?', text: email, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+            if (r.isConfirmed) {
+                this.adminEmails = this.adminEmails.filter(e => e !== email);
+                await this.saveAdminConfig();
+            }
+        },
+
+        async saveAdminConfig() {
+            try {
+                await setDoc(doc(dbFirestore, "shared", "config"), {
+                    adminEmails: this.adminEmails,
+                    changelog:   this.adminChangelog,
+                });
+            } catch (e) {
+                console.error("Erreur sauvegarde config admin:", e);
+                Swal.fire('Erreur', 'Impossible de sauvegarder la configuration.', 'error');
+            }
         },
 
         // --- FILTRES TAGS CARTE GEO ---
@@ -1008,10 +1105,40 @@ async removeGlobalTag(familyName, tag) {
     // LIFECYCLE
     // ─────────────────────────────────────────────────────────────────────────
     mounted() {
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
-                this.currentUser = user.uid;
+                this.currentUser     = user.uid;
                 this.currentUserName = user.displayName || user.email || user.uid;
+
+                // ── Enregistrement de l'utilisateur dans le registre ──
+                try {
+                    await setDoc(doc(dbFirestore, "users_registry", user.uid), {
+                        uid:       user.uid,
+                        email:     user.email,
+                        lastLogin: new Date().toISOString(),
+                        createdAt: user.metadata?.creationTime || new Date().toISOString(),
+                    }, { merge: true });
+                } catch (e) { console.warn("Registre utilisateur:", e); }
+
+                // ── Écoute de la config admin (changelog + adminEmails) ──
+                onSnapshot(doc(dbFirestore, "shared", "config"), (snap) => {
+                    if (snap.exists()) {
+                        const cfg = snap.data();
+                        this.adminEmails    = cfg.adminEmails || [];
+                        this.adminChangelog = cfg.changelog   || [];
+                        this.isAdmin        = this.adminEmails.includes(user.email);
+                        // Afficher la dernière note de version si pas encore vue
+                        if (this.adminChangelog.length > 0 && !this.changelogDismissed) {
+                            this.latestChangelog    = this.adminChangelog[0];
+                            this.showChangelogBanner = true;
+                        }
+                    } else {
+                        // Premier lancement : initialiser avec l'email courant comme admin
+                        this.adminEmails = [user.email];
+                        this.isAdmin     = true;
+                        this.saveAdminConfig();
+                    }
+                });
                 // Données privées (projets, tâches, affaires, templates)
                 onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
