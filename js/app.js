@@ -94,6 +94,7 @@ createApp({
 
             // CRM
             newCrmComment: '',
+            newContactComment: '',
 
             // Mailing
             mailingSearch: '',
@@ -109,6 +110,7 @@ createApp({
             map: null, miniMap: null,
             searchRadius: 50, searchCenter: null,
             geoResults: [], mapMarkers: [], searchCircle: null,
+            geoTagFilter: {},
 
             // Recherche globale (omnibox)
             omniSearch: '', showOmniDropdown: false,
@@ -175,6 +177,10 @@ createApp({
             const set = new Set(this.tagKeywords);
             this.db.structures.forEach(s => (s.tags?.keywords || []).forEach(t => set.add(t)));
             return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+        },
+
+        hasActiveGeoTagFilters() {
+            return Object.values(this.geoTagFilter || {}).some(arr => arr && arr.length > 0);
         },
     },
 
@@ -362,6 +368,7 @@ async removeGlobalTag(familyName, tag) {
                     address: '', suite: '', zip: '', city: '', country: 'France',
                     phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
                     capacity: '', season: '', hours: '', lat: null, lng: null,
+                    progMonthStart: '', progMonthEnd: '',
                     tags: { categories: [], genres: [], reseaux: [], keywords: [] },
                     contacts: [], comments: [], venues: []
                 };
@@ -434,8 +441,31 @@ async removeGlobalTag(familyName, tag) {
             this.newCrmComment = '';
         },
 
+        addContactComment() {
+            if (!this.newContactComment.trim()) return;
+            if (!this.currentCrmContact.comments) this.currentCrmContact.comments = [];
+            this.currentCrmContact.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.newContactComment.trim(), user: this.currentUser });
+            this.newContactComment = '';
+        },
+
+        // --- FILTRES TAGS CARTE GEO ---
+        toggleGeoTagFilter(family, tag) {
+            if (!this.geoTagFilter[family]) this.geoTagFilter[family] = [];
+            const idx = this.geoTagFilter[family].indexOf(tag);
+            if (idx > -1) this.geoTagFilter[family].splice(idx, 1);
+            else this.geoTagFilter[family].push(tag);
+            this.updateMap();
+        },
+        isGeoTagActive(family, tag) {
+            return (this.geoTagFilter[family] || []).includes(tag);
+        },
+        clearGeoTagFilters() {
+            this.geoTagFilter = {};
+            this.updateMap();
+        },
+
         openCrmContact(c = null) {
-            if (!c) c = { id: Date.now().toString(), firstName: '', lastName: '', role: '', isVip: false, isActive: true, suiviPar: this.currentUser, isPrivate: false, emailPro: '', emailPerso: '', phoneDirect: '', phonePerso: '', mobilePro: '', mobilePerso: '', mobile2: '', tchat: '', tchatCode: '', website: '', address: '', suiteAddress: '', zip: '', city: '', country: '', createdDate: new Date().toISOString(), modifiedDate: '', notes: '' };
+            if (!c) c = { id: Date.now().toString(), firstName: '', lastName: '', role: '', isVip: false, isActive: true, suiviPar: this.currentUser, isPrivate: false, emailPro: '', emailPerso: '', phoneDirect: '', phonePerso: '', mobilePro: '', mobilePerso: '', mobile2: '', tchat: '', tchatCode: '', website: '', address: '', suiteAddress: '', zip: '', city: '', country: '', createdDate: new Date().toISOString(), modifiedDate: '', notes: '', comments: [] };
             this.currentCrmContact = JSON.parse(JSON.stringify(c));
         },
 
@@ -545,9 +575,22 @@ async removeGlobalTag(familyName, tag) {
                 }).addTo(window.myGlobalMap);
             }
 
+            // Filtrage par tags actifs
+            const activeGeoTags = this.geoTagFilter || {};
+            const hasGeoTagFilter = Object.values(activeGeoTags).some(arr => arr && arr.length > 0);
+            const matchesGeoTags = (s) => {
+                if (!hasGeoTagFilter) return true;
+                return Object.entries(activeGeoTags).every(([family, tags]) => {
+                    if (!tags || tags.length === 0) return true;
+                    const structTags = (s.tags && s.tags[family]) || [];
+                    return tags.some(t => structTags.includes(t));
+                });
+            };
+
             // Structures affichées sur la carte : uniquement celles avec GPS
             const geoStructures = this.db.structures.filter(s => {
                 if (!s.lat || !s.lng) return false;
+                if (!matchesGeoTags(s)) return false;
                 if (!this.searchCenter) return true;
                 return this.getDist(this.searchCenter.lat, this.searchCenter.lng, s.lat, s.lng) <= this.searchRadius;
             });
@@ -561,10 +604,10 @@ async removeGlobalTag(familyName, tag) {
                 this.mapMarkers.push(marker);
             });
 
-            // Liste de contacts dans le panneau latéral :
-            // - Si un rayon est défini → uniquement les structures dans le rayon (avec GPS)
-            // - Si aucun rayon → TOUTES les structures (avec ou sans GPS)
-            const contactSources = this.searchCenter ? geoStructures : this.db.structures;
+            // Liste de contacts dans le panneau latéral
+            const contactSources = this.searchCenter
+                ? geoStructures
+                : this.db.structures.filter(s => matchesGeoTags(s));
 
             contactSources.forEach(s => {
                 const structInfo = {
@@ -577,7 +620,6 @@ async removeGlobalTag(familyName, tag) {
                         this.selectedMailingContacts.push({ ...c, ...structInfo });
                     });
                 } else {
-                    // Structure sans contact → placeholder pour export
                     this.selectedMailingContacts.push({
                         firstName: '', lastName: 'Contact Lieu', role: '',
                         emailPro: s.email || '', ...structInfo
