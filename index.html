@@ -58,9 +58,9 @@
             <h1 class="font-bold text-white tracking-wide">BOOKING<span class="text-indigo-400 font-light">PRO</span></h1>
         </div>
         <div v-if="currentUser" class="p-4 border-b border-slate-800 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-slate-300 border border-slate-600">{{ (currentUserName || '').substring(0,2).toUpperCase() }}</div>
-            <div><div class="text-white font-bold text-xs">{{ currentUserName }}</div><div class="text-[10px] text-slate-500 cursor-pointer hover:text-indigo-400" @click="logout">Se déconnecter</div></div>
-        </div>
+         <div class="w-10 h-10 ...">{{ (currentUserName || '').substring(0,2).toUpperCase() }}</div>
+        <div class="text-white font-bold text-xs">{{ currentUserName }}
+       </div>
         <nav class="flex-1 overflow-y-auto py-2">
             <div class="nav-header">Pilotage</div>
             <div @click="tab='dashboard'" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
@@ -885,6 +885,59 @@
         <label class="text-xs font-bold text-slate-600">Rayon : <span class="text-indigo-600">{{ searchRadius }} km</span></label>
     </div>
     <input type="range" v-model="searchRadius" min="5" max="500" class="w-full accent-indigo-600">
+
+    <!-- FILTRES PAR TAGS -->
+    <div class="mt-4 pt-4 border-t border-slate-200">
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-tags text-indigo-400 mr-1"></i> Filtrer par Tags</span>
+            <button v-if="hasActiveGeoTagFilters" @click="clearGeoTagFilters" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold"><i class="fas fa-times mr-1"></i>Effacer</button>
+        </div>
+        <div class="space-y-2">
+            <div v-if="db.tagCategories.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Catégories</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagCategories" :key="tag"
+                        @click="toggleGeoTagFilter('categories', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('categories', tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-blue-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="db.tagGenres.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Genres</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagGenres" :key="tag"
+                        @click="toggleGeoTagFilter('genres', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('genres', tag) ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-pink-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="db.tagReseaux.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Réseaux</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagReseaux" :key="tag"
+                        @click="toggleGeoTagFilter('reseaux', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('reseaux', tag) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-emerald-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="db.tagKeywords.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Mots-clés</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagKeywords" :key="tag"
+                        @click="toggleGeoTagFilter('keywords', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('keywords', tag) ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-purple-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="!db.tagCategories.length && !db.tagGenres.length && !db.tagReseaux.length && !db.tagKeywords.length" class="text-[10px] text-slate-400 italic text-center py-1">
+                Aucun tag défini. Ajoutez-en dans Paramètres.
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="p-6 flex-1 flex flex-col min-h-0 bg-slate-50">
@@ -1226,6 +1279,30 @@
                                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">Source / Origine</label><input v-model="currentCrmStruct.source" class="input-field text-sm"></div>
                                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">Capacité / Jauge</label><input v-model="currentCrmStruct.capacity" class="input-field text-sm"></div>
                                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">Saison (ex: Oct-Mai)</label><input v-model="currentCrmStruct.season" class="input-field text-sm"></div>
+                                        <div class="col-span-2">
+                                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1"><i class="fas fa-calendar-check text-indigo-400 mr-1"></i> Période de Programmation</label>
+                                            <div class="flex items-center gap-2">
+                                                <select v-model="currentCrmStruct.progMonthStart" class="input-field text-sm flex-1">
+                                                    <option value="">De (mois)...</option>
+                                                    <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+                                                    <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+                                                    <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+                                                    <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+                                                </select>
+                                                <span class="text-slate-400 font-bold text-sm">→</span>
+                                                <select v-model="currentCrmStruct.progMonthEnd" class="input-field text-sm flex-1">
+                                                    <option value="">À (mois)...</option>
+                                                    <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+                                                    <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+                                                    <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+                                                    <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+                                                </select>
+                                            </div>
+                                            <div v-if="currentCrmStruct.progMonthStart && currentCrmStruct.progMonthEnd" class="mt-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded inline-flex items-center gap-1">
+                                                <i class="fas fa-info-circle"></i>
+                                                Programmation active de {{ ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][currentCrmStruct.progMonthStart] }} à {{ ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][currentCrmStruct.progMonthEnd] }}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
@@ -1251,6 +1328,35 @@
                                             <button @click="removeCrmVenue(v.id)" class="text-slate-300 hover:text-red-500 transition text-xs ml-3"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BLOC COMMENTAIRES HORODATÉS — STRUCTURE -->
+                        <div class="mb-8 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm p-5">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4"><i class="fas fa-comments text-amber-400 mr-2"></i> Journal & Commentaires</h4>
+                            <div class="flex gap-2 mb-4">
+                                <input v-model="newCrmComment" @keyup.enter="addCrmComment" class="input-field text-sm flex-1" placeholder="Ajouter une note, un suivi, une relance...">
+                                <button @click="addCrmComment" :disabled="!newCrmComment.trim()" class="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                                    <i class="fas fa-plus"></i> Ajouter
+                                </button>
+                            </div>
+                            <div v-if="!(currentCrmStruct.comments||[]).length" class="text-center text-slate-400 text-xs py-4 italic">
+                                <i class="fas fa-sticky-note opacity-30 text-2xl block mb-1"></i>Aucun commentaire enregistré.
+                            </div>
+                            <div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                <div v-for="(cm, idx) in [...(currentCrmStruct.comments||[])].reverse()" :key="cm.id"
+                                     class="bg-white border border-amber-100 rounded-xl px-4 py-3 shadow-sm flex justify-between items-start gap-3 group">
+                                    <div class="flex-1">
+                                        <div class="text-sm text-slate-700 leading-relaxed">{{ cm.text }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-1 font-medium">
+                                            <i class="fas fa-clock mr-1"></i>{{ cm.date }} &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i>{{ cm.user }}
+                                        </div>
+                                    </div>
+                                    <button @click="currentCrmStruct.comments.splice(currentCrmStruct.comments.findIndex(x=>x.id===cm.id),1)"
+                                            class="text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition mt-0.5 flex-shrink-0">
+                                        <i class="fas fa-trash text-xs"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1331,14 +1437,35 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- BLOC COMMENTAIRES HORODATÉS — CONTACT -->
+                            <div class="bg-amber-50 rounded-xl border border-amber-100 p-4 shadow-sm">
+                                <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3"><i class="fas fa-comments text-amber-400 mr-1"></i> Journal & Notes horodatées</h5>
+                                <div class="flex gap-2 mb-3">
+                                    <input v-model="newContactComment" @keyup.enter="addContactComment" class="input-field text-sm flex-1" placeholder="Appel, relance, compte-rendu...">
+                                    <button @click="addContactComment" :disabled="!newContactComment.trim()" class="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg font-bold text-sm shadow transition">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div v-if="!(currentCrmContact.comments||[]).length" class="text-center text-slate-400 text-xs py-2 italic">Aucune note enregistrée.</div>
+                                <div class="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                                    <div v-for="cm in [...(currentCrmContact.comments||[])].reverse()" :key="cm.id"
+                                         class="bg-white border border-amber-100 rounded-lg px-3 py-2 shadow-sm flex justify-between items-start gap-2 group">
+                                        <div class="flex-1">
+                                            <div class="text-xs text-slate-700">{{ cm.text }}</div>
+                                            <div class="text-[10px] text-slate-400 mt-0.5 font-medium"><i class="fas fa-clock mr-1"></i>{{ cm.date }} · {{ cm.user }}</div>
+                                        </div>
+                                        <button @click="currentCrmContact.comments.splice(currentCrmContact.comments.findIndex(x=>x.id===cm.id),1)"
+                                                class="text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
+                                            <i class="fas fa-trash text-xs"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="p-4 bg-white border-t border-slate-200 rounded-b-2xl flex justify-end">
                             <button @click="saveCrmContact" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow transition"><i class="fas fa-check mr-2"></i> Valider ce contact</button>
                         </div>
-                    </div>
-                </div>
-
-                <div class="w-80 flex flex-col border-r border-slate-200 bg-white">
     <div class="bg-slate-50 p-4 border-b border-slate-100 shrink-0">
         <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-tags text-indigo-400 mr-2"></i> Classement & Tags</h3>
     </div>
