@@ -973,7 +973,7 @@ async removeGlobalTag(familyName, tag) {
                         return s;
                     };
 
-                    const buildContact = (cols, base) => {
+                    const buildContact = (cols, base, hasVisibility) => {
                         const firstName = str(cols[base]);
                         const lastName  = str(cols[base + 1]);
                         if (!firstName && !lastName) return null;
@@ -1003,9 +1003,13 @@ async removeGlobalTag(familyName, tag) {
                             modifiedDate: str(cols[base + 20]),
                             isActive:     str(cols[base + 21]) !== '0' && str(cols[base + 21]).toLowerCase() !== 'false',
                             suiviPar:     str(cols[base + 22]) || this.currentUser,
-                            isPrivate:    false,
+                            // Colonne Visibilité (nouveau format) : base+23
+                            isPrivate:    hasVisibility
+                                            ? str(cols[base + 23]).toLowerCase() === 'privé' || str(cols[base + 23]).toLowerCase() === 'prive'
+                                            : false,
                             owner:        this.currentUser,
-                            notes:        ''
+                            notes:        '',
+                            comments:     []
                         };
                     };
 
@@ -1014,6 +1018,15 @@ async removeGlobalTag(familyName, tag) {
                     // ── Format natif (2 lignes d'en-tête) ───────────────────
                     if (isNativeFormat) {
                         const dataRows = raw.slice(2); // skip row0 (sections) + row1 (champs)
+
+                        // Détection format : nouveau (24 champs/contact avec Visibilité) ou ancien (23 champs)
+                        // Dans le nouveau format, la col index 40 (row1) est "Visibilité"
+                        const headerRow    = raw[1] || [];
+                        const hasVisibility = str(headerRow[40]).toLowerCase() === 'visibilité' || str(headerRow[40]).toLowerCase() === 'visibilite';
+                        // Bases de contact et positions tags selon le format
+                        const contactBases = hasVisibility ? [17, 41, 65] : [17, 40, 63];
+                        const tagBase      = hasVisibility ? 89 : 86;
+
                         dataRows.forEach(cols => {
                             if (!str(cols[0])) return; // ligne vide
                             const struct = findOrCreateStruct(str(cols[0]), str(cols[5]));
@@ -1038,18 +1051,18 @@ async removeGlobalTag(familyName, tag) {
 
                             // Tags
                             if (!struct.tags) struct.tags = { categories: [], genres: [], reseaux: [], keywords: [] };
-                            const cats   = splitTags(cols[86]);
-                            const genres = splitTags(cols[87]);
-                            const res    = splitTags(cols[88]);
-                            const kws    = splitTags(cols[89]);
+                            const cats   = splitTags(cols[tagBase]);
+                            const genres = splitTags(cols[tagBase + 1]);
+                            const res    = splitTags(cols[tagBase + 2]);
+                            const kws    = splitTags(cols[tagBase + 3]);
                             cats.forEach(t => { if (!struct.tags.categories.includes(t)) struct.tags.categories.push(t); });
                             genres.forEach(t => { if (!struct.tags.genres.includes(t)) struct.tags.genres.push(t); });
                             res.forEach(t => { if (!struct.tags.reseaux.includes(t)) struct.tags.reseaux.push(t); });
                             kws.forEach(t => { if (!struct.tags.keywords.includes(t)) struct.tags.keywords.push(t); });
 
                             // Contacts 1, 2, 3
-                            [17, 40, 63].forEach(base => {
-                                const c = buildContact(cols, base);
+                            contactBases.forEach(base => {
+                                const c = buildContact(cols, base, hasVisibility);
                                 if (!c) return;
                                 const exists = struct.contacts.some(x =>
                                     x.firstName === c.firstName && x.lastName === c.lastName
