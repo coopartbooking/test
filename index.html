@@ -275,6 +275,67 @@
                             </div>
                         </div>
 
+                        <!-- Bloc 4 : Gestion de la Base de Données -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6 xl:col-span-2">
+                            <h3 class="font-bold text-slate-800 text-lg mb-1"><i class="fas fa-database text-red-500 mr-2"></i> Gestion de la Base de Données</h3>
+                            <p class="text-xs text-slate-400 mb-6">Sauvegardez, restaurez ou réinitialisez les données de l'application.</p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                                <!-- Sauvegarde -->
+                                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-download text-emerald-600"></i>
+                                        </div>
+                                        <h4 class="font-bold text-slate-800">Exporter</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-4">Télécharge un fichier <code class="bg-white px-1 rounded">.json</code> complet de toute la base (structures, contacts, événements, projets, tags, config...).</p>
+                                    <button @click="exportFullDB"
+                                            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-file-download"></i> Télécharger la sauvegarde
+                                    </button>
+                                </div>
+
+                                <!-- Restauration -->
+                                <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-upload text-blue-600"></i>
+                                        </div>
+                                        <h4 class="font-bold text-slate-800">Restaurer</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> de sauvegarde et remplace la base actuelle. <span class="text-orange-500 font-bold">Écrase les données existantes.</span></p>
+                                    <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer">
+                                        <i class="fas fa-file-upload"></i> Charger un fichier
+                                        <input type="file" @change="importFullDB" class="hidden" accept=".json">
+                                    </label>
+                                </div>
+
+                                <!-- Vidage -->
+                                <div class="bg-red-50 border border-red-100 rounded-xl p-5">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-trash-alt text-red-600"></i>
+                                        </div>
+                                        <h4 class="font-bold text-slate-800">Vider</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-3">Supprime définitivement les données sélectionnées. <span class="text-red-600 font-bold">Action irréversible.</span></p>
+                                    <div class="space-y-2">
+                                        <button @click="clearAnnuaire"
+                                                class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                            <i class="fas fa-address-book"></i> Vider l'annuaire partagé
+                                        </button>
+                                        <button @click="clearAllData"
+                                                class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                            <i class="fas fa-bomb"></i> Tout réinitialiser
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
