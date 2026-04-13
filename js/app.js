@@ -39,17 +39,27 @@ createApp({
             // Navigation & auth
             pageTitle: 'Tableau de bord',
             currentUser: null,
+            currentUserName: '',
             tab: 'dashboard',
             authEmail: '', authPassword: '', isLoginMode: true,
 
             // Base de données locale (miroir Firestore)
             db: {
-                projects: [], structures: [], tasks: [], events: [],
-                templates: [
+            projects: [],
+            structures: [],
+            tasks: [],
+            events: [],
+            templates: [
                     { id: 't1', name: 'Prise de contact', subject: 'Proposition de spectacle', body: "Bonjour {{contactFirstName}},\n\nJe me permets de vous contacter concernant la programmation de {{structName}}.\nNous sommes en préparation de notre prochaine tournée...\n\nBien à vous,\n{{userName}}" }
                 ],
-                campaignHistory: [],
-            },
+            campaignHistory: [],
+            tagCategories: [],
+            tagGenres:     [],
+            tagReseaux:    [],
+            tagKeywords:   [],
+    
+            
+        },
 
             // Planning & calendrier
             viewMode: 'calendar',
@@ -84,6 +94,7 @@ createApp({
 
             // CRM
             newCrmComment: '',
+            newContactComment: '',
 
             // Mailing
             mailingSearch: '',
@@ -93,20 +104,18 @@ createApp({
             mailSubject: '', mailBody: '',
             previewContactIndex: 0,
             mailingTagFilter: {},
+            mailingRightTab: 'contacts',
 
             // Carte géographique
             map: null, miniMap: null,
             searchRadius: 50, searchCenter: null,
             geoResults: [], mapMarkers: [], searchCircle: null,
+            geoTagFilter: {},
 
             // Recherche globale (omnibox)
             omniSearch: '', showOmniDropdown: false,
 
-            // Tags & paramètres
-            tagCategories: ['Théâtre public', 'Centre culturel', 'Salle de concerts', 'Festival', 'SMAC', 'CDN', 'Scène Nationale', 'Mairie / Collectivité'],
-            tagGenres:     ['Musique', 'Cirque', 'Théâtre', 'Danse', 'Pluridisciplinaire', 'Jeune public', 'Arts de rue', 'Humour'],
-            tagReseaux:    ['Scène Conventionnée', 'Chaînon', 'Territoires de Cirque', 'Réseau SPEDIDAM', 'Fédération Musiques Actuelles'],
-            tagKeywords:   ['ENVOIS FAITS', 'À RELANCER', 'VIP', 'Abonné Newsletter', 'Ne plus contacter'],
+           
 
             // Icônes projets
             projectIcons: ['fas fa-music', 'fas fa-guitar', 'fas fa-theater-masks', 'fas fa-microphone', 'fas fa-drum', 'fas fa-compact-disc', 'fas fa-star', 'fas fa-bolt'],
@@ -139,13 +148,39 @@ createApp({
             if (this.omniSearch.length < 2) return {};
             const s = this.omniSearch.toLowerCase();
             const res = {};
-            const c = this.filteredContacts.filter(x => x.name.toLowerCase().includes(s) || (x.structName && x.structName.toLowerCase().includes(s)));
-            if (c.length) res['Contacts'] = c.map(x => ({ id: x.id, name: x.name, sub: x.structName, type: 'contact', original: x }));
+            const c = this.filteredContacts.filter(x => (x.name || '').toLowerCase().includes(s) || (x.structName && x.structName.toLowerCase().includes(s)));
+            if (c.length) res['Contacts'] = c.map(x => ({ id: x.id, name: x.name || `${x.firstName||''} ${x.lastName||''}`.trim(), sub: x.structName, type: 'contact', original: x }));
             const st = this.db.structures.filter(x => x.name.toLowerCase().includes(s) || x.city.toLowerCase().includes(s));
             if (st.length) res['Lieux & Structures'] = st.map(x => ({ id: x.id, name: x.name, sub: x.city, type: 'structure', original: x }));
             const p = this.db.projects.filter(x => x.name.toLowerCase().includes(s));
             if (p.length) res['Spectacles'] = p.map(x => ({ id: x.id, name: x.name, sub: x.genre, type: 'project', original: x }));
             return res;
+        },
+
+        // ── Tags dynamiques : liste statique + tous les tags réellement en base ──
+        allTagCategories() {
+            const set = new Set(this.tagCategories);
+            this.db.structures.forEach(s => (s.tags?.categories || []).forEach(t => set.add(t)));
+            return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+        },
+        allTagGenres() {
+            const set = new Set(this.tagGenres);
+            this.db.structures.forEach(s => (s.tags?.genres || []).forEach(t => set.add(t)));
+            return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+        },
+        allTagReseaux() {
+            const set = new Set(this.tagReseaux);
+            this.db.structures.forEach(s => (s.tags?.reseaux || []).forEach(t => set.add(t)));
+            return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+        },
+        allTagKeywords() {
+            const set = new Set(this.tagKeywords);
+            this.db.structures.forEach(s => (s.tags?.keywords || []).forEach(t => set.add(t)));
+            return [...set].sort((a, b) => a.localeCompare(b, 'fr'));
+        },
+
+        hasActiveGeoTagFilters() {
+            return Object.values(this.geoTagFilter || {}).some(arr => arr && arr.length > 0);
         },
     },
 
@@ -204,6 +239,8 @@ createApp({
             this.saveStatus = 'saving';
             this.saveStatusMessage = 'Synchronisation…';
             try {
+                // 1. Sauvegarde des données propres à l'utilisateur
+                // AJOUT DE .uid ICI
                 await setDoc(doc(dbFirestore, "users", this.currentUser), {
                     projects:        this.db.projects,
                     tasks:           this.db.tasks,
@@ -211,14 +248,22 @@ createApp({
                     templates:       this.db.templates       || [],
                     campaignHistory: this.db.campaignHistory || [],
                 });
+
+                // 2. Sauvegarde des tags et de l'annuaire (Partagé)
                 await setDoc(doc(dbFirestore, "shared", "annuaire"), {
-                    structures: this.db.structures
+                    structures:    this.db.structures,
+                    // Utilisation de this.db.tag... pour être raccord avec le reste
+                    tagCategories: this.db.tagCategories,
+                    tagGenres:     this.db.tagGenres,
+                    tagReseaux:    this.db.tagReseaux,
+                    tagKeywords:   this.db.tagKeywords,
                 });
+
                 this.saveStatus = 'saved';
                 this.saveStatusMessage = 'Synchronisé · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                // Repasse en idle après 4 secondes
                 setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle'; }, 4000);
             } catch (error) {
+                // ... reste de votre gestion d'erreur
                 console.error("Erreur sauvegarde cloud :", error);
                 this.saveStatus = 'error';
                 this.saveStatusMessage = 'Erreur de sauvegarde !';
@@ -232,7 +277,29 @@ createApp({
                 }).then(r => { if (r.isConfirmed) this.saveDB(); });
             }
         },
+        async refreshTags() {
+    this.saveStatus = 'saving';
+    this.saveStatusMessage = 'Actualisation des tags...';
+    try {
+        const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
+        const docRef = doc(dbFirestore, "shared", "annuaire");
+        const docSnap = await getDoc(docRef);
 
+        if (docSnap.exists()) {
+            const d = docSnap.data();
+            this.db.tagCategories = d.tagCategories || this.db.tagCategories;
+            this.db.tagGenres     = d.tagGenres     || this.db.tagGenres;
+            this.db.tagReseaux    = d.tagReseaux    || this.db.tagReseaux;
+            this.db.tagKeywords   = d.tagKeywords   || this.db.tagKeywords;
+            
+            this.saveStatus = 'saved';
+            Swal.fire({ title: 'Tags actualisés', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        }
+    } catch (error) {
+        console.error("Erreur refresh tags:", error);
+        this.saveStatus = 'error';
+    }
+},
         async saveData() {
             await this.saveDB();
             if (this.saveStatus === 'saved') {
@@ -240,33 +307,57 @@ createApp({
             }
         },
 
-        // --- TAGS & PARAMÈTRES ---
-        addGlobalTag(familyName) {
-            Swal.fire({
-                title: 'Nouveau tag', input: 'text', inputPlaceholder: 'Entrez le nom du tag...',
-                showCancelButton: true, confirmButtonText: 'Ajouter', cancelButtonText: 'Annuler'
-            }).then(r => {
-                if (r.isConfirmed && r.value.trim()) {
-                    this[familyName].push(r.value.trim());
-                    if (this.db.settings && this.db.settings.tags) this.db.settings.tags[familyName] = this[familyName];
-                    this.saveDB();
-                    Swal.fire({ title: 'Ajouté !', icon: 'success', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
-                }
-            });
-        },
+       // --- TAGS & PARAMÈTRES ---
+async addGlobalTag(familyName) {
+    const r = await Swal.fire({
+        title: 'Nouveau tag', 
+        input: 'text', 
+        inputPlaceholder: 'Entrez le nom du tag...',
+        showCancelButton: true, 
+        confirmButtonText: 'Ajouter', 
+        cancelButtonText: 'Annuler'
+    });
+    
+    
+    if (r.isConfirmed && r.value.trim()) {
+        // CORRECTION : On modifie dans this.db[familyName]
+        if (!this.db[familyName]) this.db[familyName] = [];
+        
+        // On crée une nouvelle copie du tableau dans db pour la réactivité
+        this.db[familyName] = [...this.db[familyName], r.value.trim()];
+        
+        // Sauvegarde de l'objet db (qui contient maintenant le nouveau tag)
+        await this.saveDB();
+        
+        Swal.fire({ 
+            title: 'Tag sauvegardé ✓', 
+            icon: 'success', 
+            toast: true, 
+            position: 'top-end', 
+            timer: 1500, 
+            showConfirmButton: false 
+        });
+    }
+},
 
-        removeGlobalTag(familyName, tag) {
-            Swal.fire({
-                title: 'Supprimer ce tag ?', text: `Le tag "${tag}" ne sera plus proposé.`,
-                icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Supprimer'
-            }).then(r => {
-                if (r.isConfirmed) {
-                    this[familyName] = this[familyName].filter(t => t !== tag);
-                    if (this.db.settings && this.db.settings.tags) this.db.settings.tags[familyName] = this[familyName];
-                    this.saveDB();
-                }
-            });
-        },
+async removeGlobalTag(familyName, tag) {
+    const r = await Swal.fire({
+        title: 'Supprimer ce tag ?', 
+        text: `Le tag "${tag}" ne sera plus proposé.`,
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonColor: '#ef4444', 
+        confirmButtonText: 'Supprimer'
+    });
+    
+    if (r.isConfirmed) {
+        // CORRECTION : On filtre dans this.db[familyName]
+        if (this.db[familyName]) {
+            this.db[familyName] = this.db[familyName].filter(t => t !== tag);
+            await this.saveDB();
+        }
+    }
+},
 
         // --- MOTEUR CRM ---
         openCrmView(struct = null) {
@@ -277,6 +368,7 @@ createApp({
                     address: '', suite: '', zip: '', city: '', country: 'France',
                     phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
                     capacity: '', season: '', hours: '', lat: null, lng: null,
+                    progMonthStart: '', progMonthEnd: '',
                     tags: { categories: [], genres: [], reseaux: [], keywords: [] },
                     contacts: [], comments: [], venues: []
                 };
@@ -349,8 +441,31 @@ createApp({
             this.newCrmComment = '';
         },
 
+        addContactComment() {
+            if (!this.newContactComment.trim()) return;
+            if (!this.currentCrmContact.comments) this.currentCrmContact.comments = [];
+            this.currentCrmContact.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.newContactComment.trim(), user: this.currentUser });
+            this.newContactComment = '';
+        },
+
+        // --- FILTRES TAGS CARTE GEO ---
+        toggleGeoTagFilter(family, tag) {
+            if (!this.geoTagFilter[family]) this.geoTagFilter[family] = [];
+            const idx = this.geoTagFilter[family].indexOf(tag);
+            if (idx > -1) this.geoTagFilter[family].splice(idx, 1);
+            else this.geoTagFilter[family].push(tag);
+            this.updateMap();
+        },
+        isGeoTagActive(family, tag) {
+            return (this.geoTagFilter[family] || []).includes(tag);
+        },
+        clearGeoTagFilters() {
+            this.geoTagFilter = {};
+            this.updateMap();
+        },
+
         openCrmContact(c = null) {
-            if (!c) c = { id: Date.now().toString(), firstName: '', lastName: '', role: '', isVip: false, isActive: true, suiviPar: this.currentUser, isPrivate: false, emailPro: '', emailPerso: '', phoneDirect: '', phonePerso: '', mobilePro: '', mobilePerso: '', mobile2: '', tchat: '', tchatCode: '', website: '', address: '', suiteAddress: '', zip: '', city: '', country: '', createdDate: new Date().toISOString(), modifiedDate: '', notes: '' };
+            if (!c) c = { id: Date.now().toString(), firstName: '', lastName: '', role: '', isVip: false, isActive: true, suiviPar: this.currentUser, isPrivate: false, emailPro: '', emailPerso: '', phoneDirect: '', phonePerso: '', mobilePro: '', mobilePerso: '', mobile2: '', tchat: '', tchatCode: '', website: '', address: '', suiteAddress: '', zip: '', city: '', country: '', createdDate: new Date().toISOString(), modifiedDate: '', notes: '', comments: [] };
             this.currentCrmContact = JSON.parse(JSON.stringify(c));
         },
 
@@ -460,9 +575,22 @@ createApp({
                 }).addTo(window.myGlobalMap);
             }
 
+            // Filtrage par tags actifs
+            const activeGeoTags = this.geoTagFilter || {};
+            const hasGeoTagFilter = Object.values(activeGeoTags).some(arr => arr && arr.length > 0);
+            const matchesGeoTags = (s) => {
+                if (!hasGeoTagFilter) return true;
+                return Object.entries(activeGeoTags).every(([family, tags]) => {
+                    if (!tags || tags.length === 0) return true;
+                    const structTags = (s.tags && s.tags[family]) || [];
+                    return tags.some(t => structTags.includes(t));
+                });
+            };
+
             // Structures affichées sur la carte : uniquement celles avec GPS
             const geoStructures = this.db.structures.filter(s => {
                 if (!s.lat || !s.lng) return false;
+                if (!matchesGeoTags(s)) return false;
                 if (!this.searchCenter) return true;
                 return this.getDist(this.searchCenter.lat, this.searchCenter.lng, s.lat, s.lng) <= this.searchRadius;
             });
@@ -476,10 +604,10 @@ createApp({
                 this.mapMarkers.push(marker);
             });
 
-            // Liste de contacts dans le panneau latéral :
-            // - Si un rayon est défini → uniquement les structures dans le rayon (avec GPS)
-            // - Si aucun rayon → TOUTES les structures (avec ou sans GPS)
-            const contactSources = this.searchCenter ? geoStructures : this.db.structures;
+            // Liste de contacts dans le panneau latéral
+            const contactSources = this.searchCenter
+                ? geoStructures
+                : this.db.structures.filter(s => matchesGeoTags(s));
 
             contactSources.forEach(s => {
                 const structInfo = {
@@ -492,7 +620,6 @@ createApp({
                         this.selectedMailingContacts.push({ ...c, ...structInfo });
                     });
                 } else {
-                    // Structure sans contact → placeholder pour export
                     this.selectedMailingContacts.push({
                         firstName: '', lastName: 'Contact Lieu', role: '',
                         emailPro: s.email || '', ...structInfo
@@ -883,8 +1010,8 @@ createApp({
     mounted() {
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                this.currentUser = user.email;
-
+                this.currentUser = user.uid;
+                this.currentUserName = user.displayName || user.email || user.uid;
                 // Données privées (projets, tâches, affaires, templates)
                 onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
@@ -914,11 +1041,36 @@ createApp({
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
                     }
                 });
+                onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
+    if (docSnap.exists()) {
+        const d = docSnap.data();
+        this.db.structures = d.structures || [];
+        
+        // C'est ici qu'on récupère la "Bibliothèque" des tags
+        if (d.tagCategories) this.db.tagCategories = d.tagCategories;
+        if (d.tagGenres)     this.db.tagGenres     = d.tagGenres;
+        if (d.tagReseaux)    this.db.tagReseaux    = d.tagReseaux;
+        if (d.tagKeywords)   this.db.tagKeywords   = d.tagKeywords;
+        
+        console.log("Bibliothèque de tags mise à jour !");
+    }
+});
 
                 // Annuaire partagé
                 onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
                     if (docSnap.exists()) {
-                        this.db.structures = docSnap.data().structures || [];
+                        const d = docSnap.data();
+                        this.db.structures = d.structures    || [];
+                        this.db.tagCategories = d.tagCategories || this.db.tagCategories;
+                        this.db.tagGenres     = d.tagGenres     || this.db.tagGenres;
+                        this.db.tagReseaux    = d.tagReseaux    || this.db.tagReseaux;
+                        this.db.tagKeywords   = d.tagKeywords   || this.db.tagKeywords;
+                        // Migration automatique : si les tags n'existent pas encore dans Firebase,
+                        // on les écrit immédiatement (une seule fois, transparente pour l'utilisateur)
+                        if (!d.tagCategories) {
+                            console.log('[Migration] Écriture des tags dans Firebase...');
+                            this.saveDB();
+                        }
                     } else {
                         const oldLocal = localStorage.getItem('bobBookingDB');
                         if (oldLocal) {
@@ -937,6 +1089,7 @@ createApp({
 
             } else {
                 this.currentUser = null;
+                this.currentUserName = '';
             }
         });
     },
