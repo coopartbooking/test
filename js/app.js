@@ -1611,7 +1611,7 @@ async removeGlobalTag(familyName, tag) {
                         this.saveAdminConfig();
                     }
                 });
-                // Données privées (projets, tâches, affaires, templates)
+                // ── Données privées (projets, tâches, affaires, templates) ──
                 onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
@@ -1621,7 +1621,6 @@ async removeGlobalTag(familyName, tag) {
                         this.db.templates       = data.templates       || this.db.templates;
                         this.db.campaignHistory = data.campaignHistory || [];
                     } else {
-                        // Migration depuis localStorage si première connexion
                         const savedPrivate = localStorage.getItem(`bobBookingDB_${this.currentUser}`);
                         if (savedPrivate) {
                             try {
@@ -1635,41 +1634,21 @@ async removeGlobalTag(familyName, tag) {
                             this.db.projects = []; this.db.tasks = []; this.db.events = [];
                         }
                     }
-                    // Sélectionner tous les projets par défaut au chargement
                     if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
                     }
                 });
-                onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
-    if (docSnap.exists()) {
-        const d = docSnap.data();
-        this.db.structures = d.structures || [];
-        
-        // C'est ici qu'on récupère la "Bibliothèque" des tags
-        if (d.tagCategories) this.db.tagCategories = d.tagCategories;
-        if (d.tagGenres)     this.db.tagGenres     = d.tagGenres;
-        if (d.tagReseaux)    this.db.tagReseaux    = d.tagReseaux;
-        if (d.tagKeywords)   this.db.tagKeywords   = d.tagKeywords;
-        
-        console.log("Bibliothèque de tags mise à jour !");
-    }
-});
 
-                // Annuaire partagé
+                // ── Annuaire partagé (structures + tags) ── UNIQUE listener ──
                 onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
                     if (docSnap.exists()) {
                         const d = docSnap.data();
-                        this.db.structures = d.structures    || [];
+                        this.db.structures    = d.structures    || [];
                         this.db.tagCategories = d.tagCategories || this.db.tagCategories;
                         this.db.tagGenres     = d.tagGenres     || this.db.tagGenres;
                         this.db.tagReseaux    = d.tagReseaux    || this.db.tagReseaux;
                         this.db.tagKeywords   = d.tagKeywords   || this.db.tagKeywords;
-                        // Migration automatique : si les tags n'existent pas encore dans Firebase,
-                        // on les écrit immédiatement (une seule fois, transparente pour l'utilisateur)
-                        if (!d.tagCategories) {
-                            console.log('[Migration] Écriture des tags dans Firebase...');
-                            this.saveDB();
-                        }
+                        if (!d.tagCategories) this.saveDB();
                     } else {
                         const oldLocal = localStorage.getItem('bobBookingDB');
                         if (oldLocal) {
