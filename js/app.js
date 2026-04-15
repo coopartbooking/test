@@ -195,6 +195,10 @@ createApp({
         },
 
         adminStats() {
+            // Protection si les données ne sont pas encore chargées
+            if (!this.db || !this.db.structures) {
+                return { totalContacts: 0, privateContacts: 0, structsWithGps: 0, gpsRate: 0, emailRate: 0, tagRate: 0, recentActivity: [], alerts: [] };
+            }
             const allContacts = this.db.structures.flatMap(s => s.contacts || []);
             const totalContacts   = allContacts.length;
             const privateContacts = allContacts.filter(c => c.isPrivate).length;
