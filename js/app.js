@@ -142,27 +142,6 @@ createApp({
                 filterType: '',
                 filterDept: '',
                 filterRegion: '',
-                activeTab: 'gouv',
-            },
-            // Import CSV libre
-            csvImport: {
-                headers: [],
-                rows: [],
-                mapping: {},
-                mappingFields: [
-                    { key: 'name',     label: 'Nom',         icon: 'fas fa-building',        required: true  },
-                    { key: 'address',  label: 'Adresse',     icon: 'fas fa-map-marker-alt',  required: false },
-                    { key: 'zip',      label: 'Code postal', icon: 'fas fa-mail-bulk',        required: false },
-                    { key: 'city',     label: 'Ville',       icon: 'fas fa-city',            required: false },
-                    { key: 'country',  label: 'Pays',        icon: 'fas fa-globe',           required: false },
-                    { key: 'phone',    label: 'Téléphone',   icon: 'fas fa-phone',           required: false },
-                    { key: 'email',    label: 'Email',       icon: 'fas fa-envelope',        required: false },
-                    { key: 'website',  label: 'Site web',    icon: 'fas fa-link',            required: false },
-                    { key: 'capacity', label: 'Jauge',       icon: 'fas fa-users',           required: false },
-                    { key: 'category', label: 'Catégorie',   icon: 'fas fa-tag',             required: false },
-                    { key: 'genre',    label: 'Genre musical',icon: 'fas fa-music',          required: false },
-                    { key: 'source',   label: 'Source',      icon: 'fas fa-database',        required: false },
-                ],
             },
 
             // Admin
@@ -1385,110 +1364,6 @@ async removeGlobalTag(familyName, tag) {
             this.gouvImport.error = '';
             this.gouvImport.totalFound = 0;
             this.gouvImport.page = 0;
-            this.gouvImport.activeTab = 'gouv';
-            this.csvImport.headers = [];
-            this.csvImport.rows = [];
-            this.csvImport.mapping = {};
-        },
-
-        // --- IMPORT CSV LIBRE ---
-        loadCsvFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            event.target.value = '';
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data     = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet    = workbook.Sheets[workbook.SheetNames[0]];
-                    const json     = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-                    if (!json.length) return Swal.fire('Fichier vide', 'Aucune donnée détectée.', 'info');
-                    this.csvImport.headers = Object.keys(json[0]);
-                    this.csvImport.rows    = json;
-                    // Auto-mapping intelligent
-                    this.csvImport.mapping = {};
-                    const autoMap = {
-                        name:     ['nom','name','structure','lieu','libelle','denomination','organisme','établissement'],
-                        address:  ['adresse','address','rue','voie','adresse_1'],
-                        zip:      ['cp','code_postal','zip','postal','codepostal','code postal'],
-                        city:     ['ville','city','commune','localite','municipalite'],
-                        country:  ['pays','country'],
-                        phone:    ['telephone','tel','phone','téléphone','tél'],
-                        email:    ['email','mail','courriel','e-mail'],
-                        website:  ['site','url','web','website','site_internet','site internet'],
-                        capacity: ['jauge','capacity','capacite','places'],
-                        category: ['categorie','type','category','label','appellation'],
-                        genre:    ['genre','style','musique','esthétique'],
-                        source:   ['source','origine','provenance'],
-                    };
-                    this.csvImport.headers.forEach(h => {
-                        const hl = h.toLowerCase().trim();
-                        Object.entries(autoMap).forEach(([key, aliases]) => {
-                            if (!this.csvImport.mapping[key] && aliases.some(a => hl.includes(a))) {
-                                this.csvImport.mapping[key] = h;
-                            }
-                        });
-                    });
-                    Swal.fire({ title: `${json.length} lignes détectées ✓`, text: `${this.csvImport.headers.length} colonnes trouvées. Vérifiez le mapping puis importez.`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
-                } catch (err) {
-                    Swal.fire('Erreur', 'Fichier non lisible : ' + err.message, 'error');
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        },
-
-        async importCsvStructures() {
-            const m = this.csvImport.mapping;
-            if (!m.name) return Swal.fire('Champ requis', 'Associez au minimum la colonne "Nom" pour importer.', 'warning');
-            let imported = 0, skipped = 0;
-            this.csvImport.rows.forEach(row => {
-                const name = String(row[m.name] || '').trim();
-                const city = String(row[m.city] || '').trim();
-                if (!name) return;
-                // Doublon check
-                const exists = this.db.structures.some(s => s.name.toLowerCase() === name.toLowerCase() && (s.city||'').toLowerCase() === city.toLowerCase());
-                if (exists) { skipped++; return; }
-                const catTag = m.category && row[m.category] ? this.gouvTypeToTag(String(row[m.category])) || String(row[m.category]).trim() : '';
-                const genreTag = m.genre && row[m.genre] ? String(row[m.genre]).trim() : '';
-                this.db.structures.push({
-                    id:           Date.now().toString() + Math.random().toString(36).slice(2),
-                    name,
-                    isClient:     false, isActive: true,
-                    clientCode:   '',
-                    source:       m.source && row[m.source] ? String(row[m.source]).trim() : (file ? file.name : 'Import CSV'),
-                    createdDate:  new Date().toISOString(),
-                    address:      m.address  ? String(row[m.address]  || '').trim() : '',
-                    suite:        '',
-                    zip:          m.zip      ? String(row[m.zip]      || '').trim() : '',
-                    city,
-                    country:      m.country  ? String(row[m.country]  || '').trim() : 'France',
-                    phone1:       m.phone    ? String(row[m.phone]    || '').trim() : '',
-                    phone2: '', mobile: '', fax: '',
-                    email:        m.email    ? String(row[m.email]    || '').trim() : '',
-                    website:      m.website  ? String(row[m.website]  || '').trim() : '',
-                    capacity:     m.capacity ? String(row[m.capacity] || '').trim() : '',
-                    season: '', hours: '', progMonthStart: '', progMonthEnd: '',
-                    lat: null, lng: null,
-                    tags: {
-                        categories: catTag   ? [catTag]   : [],
-                        genres:     genreTag ? [genreTag] : [],
-                        reseaux:    [], keywords: []
-                    },
-                    contacts: [], comments: [], venues: []
-                });
-                imported++;
-            });
-            await this.saveDB();
-            this.csvImport.headers = [];
-            this.csvImport.rows    = [];
-            this.csvImport.mapping = {};
-            this.showGouvImport    = false;
-            Swal.fire({
-                title: 'Import CSV terminé ✓',
-                html:  `<b>${imported}</b> structure(s) importée(s)${skipped > 0 ? `<br><span class="text-orange-500">${skipped} doublon(s) ignoré(s)</span>` : ''}`,
-                icon:  'success', confirmButtonColor: '#059669'
-            });
         },
 
         resetGouvSearch() {
