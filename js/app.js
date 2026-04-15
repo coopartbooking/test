@@ -193,6 +193,59 @@ createApp({
         hasActiveGeoTagFilters() {
             return Object.values(this.geoTagFilter || {}).some(arr => arr && arr.length > 0);
         },
+
+        adminStats() {
+            const allContacts = this.db.structures.flatMap(s => s.contacts || []);
+            const totalContacts   = allContacts.length;
+            const privateContacts = allContacts.filter(c => c.isPrivate).length;
+            const structsWithGps  = this.db.structures.filter(s => s.lat && s.lng).length;
+            const structsTotal    = this.db.structures.length || 1;
+            const gpsRate         = Math.round((structsWithGps / structsTotal) * 100);
+            const contactsWithEmail = allContacts.filter(c => c.emailPro || c.emailPerso).length;
+            const emailRate       = totalContacts > 0 ? Math.round((contactsWithEmail / totalContacts) * 100) : 0;
+            const structsWithTags = this.db.structures.filter(s => {
+                const t = s.tags || {};
+                return (t.categories||[]).length > 0 || (t.genres||[]).length > 0 || (t.reseaux||[]).length > 0 || (t.keywords||[]).length > 0;
+            }).length;
+            const tagRate = Math.round((structsWithTags / structsTotal) * 100);
+
+            // Activité récente : derniers commentaires + dernières structures créées
+            const recentActivity = [];
+            this.db.structures.forEach(s => {
+                // Commentaires structure
+                (s.comments || []).forEach(cm => {
+                    recentActivity.push({ id: 'sc_' + cm.id, type: 'comment', label: `Commentaire sur "${s.name}" : ${cm.text.substring(0,50)}${cm.text.length>50?'…':''}`, date: cm.date, user: cm.user });
+                });
+                // Commentaires contacts
+                (s.contacts || []).forEach(c => {
+                    (c.comments || []).forEach(cm => {
+                        recentActivity.push({ id: 'cc_' + cm.id, type: 'contact', label: `Note sur ${c.firstName} ${c.lastName} (${s.name}) : ${cm.text.substring(0,40)}${cm.text.length>40?'…':''}`, date: cm.date, user: cm.user });
+                    });
+                });
+                // Structure créée
+                if (s.createdDate) {
+                    recentActivity.push({ id: 'st_' + s.id, type: 'structure', label: `Structure créée : "${s.name}" — ${s.city || ''}`, date: new Date(s.createdDate).toLocaleDateString('fr-FR'), user: '' });
+                }
+            });
+            recentActivity.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+            // Alertes qualité
+            const alerts = [];
+            const noEmail = allContacts.filter(c => !c.emailPro && !c.emailPerso).length;
+            if (noEmail > 0) alerts.push({ id: 'a1', level: 'warn', message: 'Contacts sans email', detail: 'Ces contacts ne pourront pas recevoir de campagne mailing.', count: noEmail });
+            const noGps = this.db.structures.filter(s => !s.lat || !s.lng).length;
+            if (noGps > 0) alerts.push({ id: 'a2', level: 'warn', message: 'Structures sans GPS', detail: 'Non visibles sur la carte & invitations.', count: noGps });
+            const noContact = this.db.structures.filter(s => !(s.contacts||[]).length).length;
+            if (noContact > 0) alerts.push({ id: 'a3', level: 'warn', message: 'Structures sans contact', detail: 'Aucun interlocuteur renseigné pour ces structures.', count: noContact });
+            const noPhone = allContacts.filter(c => !c.phoneDirect && !c.mobilePro && !c.phonePerso && !c.mobilePerso).length;
+            if (noPhone > 0) alerts.push({ id: 'a4', level: 'warn', message: 'Contacts sans téléphone', detail: 'Aucun numéro renseigné.', count: noPhone });
+            const noCity = this.db.structures.filter(s => !s.city).length;
+            if (noCity > 0) alerts.push({ id: 'a5', level: 'error', message: 'Structures sans ville', detail: 'La ville est indispensable pour les recherches géographiques.', count: noCity });
+            const noTags = this.db.structures.filter(s => { const t = s.tags||{}; return !(t.categories||[]).length && !(t.genres||[]).length && !(t.reseaux||[]).length && !(t.keywords||[]).length; }).length;
+            if (noTags > 0) alerts.push({ id: 'a6', level: 'warn', message: 'Structures sans tags', detail: 'Non filtrables dans Mailing et Carte & Invitations.', count: noTags });
+
+            return { totalContacts, privateContacts, structsWithGps, gpsRate, emailRate, tagRate, recentActivity: recentActivity.slice(0, 20), alerts };
+        },
     },
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -465,6 +518,11 @@ async removeGlobalTag(familyName, tag) {
         },
 
         // --- ADMIN ---
+        async refreshAdminStats() {
+            await this.loadAdminUsers();
+            Swal.fire({ title: 'Données actualisées ✓', icon: 'success', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+        },
+
         async loadAdminUsers() {
             try {
                 const snapshot = await getDocs(collection(dbFirestore, "users_registry"));
@@ -1304,11 +1362,15 @@ async removeGlobalTag(familyName, tag) {
 
                 // ── Enregistrement de l'utilisateur dans le registre ──
                 try {
-                    await setDoc(doc(dbFirestore, "users_registry", user.uid), {
-                        uid:       user.uid,
-                        email:     user.email,
-                        lastLogin: new Date().toISOString(),
-                        createdAt: user.metadata?.creationTime || new Date().toISOString(),
+                    const userRef  = doc(dbFirestore, "users_registry", user.uid);
+                    const userSnap = await getDoc(userRef);
+                    const prevCount = userSnap.exists() ? (userSnap.data().loginCount || 0) : 0;
+                    await setDoc(userRef, {
+                        uid:        user.uid,
+                        email:      user.email,
+                        lastLogin:  new Date().toISOString(),
+                        createdAt:  user.metadata?.creationTime || new Date().toISOString(),
+                        loginCount: prevCount + 1,
                     }, { merge: true });
                 } catch (e) { console.warn("Registre utilisateur:", e); }
 

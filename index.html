@@ -184,25 +184,139 @@
 
             <!-- ── ONGLET ADMIN ── -->
             <div v-if="tab==='admin' && isAdmin" class="p-8 h-full overflow-y-auto bg-slate-50 w-full custom-scrollbar">
-                <div class="max-w-5xl mx-auto">
-                    <h2 class="text-3xl font-black text-slate-800 mb-2"><i class="fas fa-shield-alt text-red-500 mr-3"></i>Administration</h2>
+                <div class="max-w-6xl mx-auto">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-3xl font-black text-slate-800"><i class="fas fa-shield-alt text-red-500 mr-3"></i>Administration</h2>
+                        <button @click="refreshAdminStats()" class="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition">
+                            <i class="fas fa-sync-alt"></i> Actualiser tout
+                        </button>
+                    </div>
                     <p class="text-slate-500 text-sm mb-8">Panneau réservé aux administrateurs. Visible uniquement par vous.</p>
 
-                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- ═══ SECTION 1 : STATISTIQUES GLOBALES ═══ -->
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3"><i class="fas fa-chart-bar mr-2"></i>Statistiques globales</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mb-8">
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-indigo-600">{{ db.structures.length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Structures</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-blue-600">{{ adminStats.totalContacts }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Contacts</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-emerald-600">{{ db.events.filter(e=>e.status==='conf').length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Dates conf.</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-purple-600">{{ db.projects.length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Projets</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-orange-500">{{ db.tasks.filter(t=>!t.done).length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Tâches actives</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-emerald-700">{{ formatMoney(totalCA) }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">CA confirmé</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-orange-400">{{ adminStats.privateContacts }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Contacts privés</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-slate-600">{{ adminStats.structsWithGps }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Avec GPS</div>
+                        </div>
+                    </div>
 
-                        <!-- Bloc 1 : Utilisateurs inscrits -->
+                    <!-- Barres de qualité -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600"><i class="fas fa-map-marker-alt text-indigo-400 mr-1"></i> Structures géolocalisées</span>
+                                <span class="text-xs font-black text-indigo-600">{{ adminStats.gpsRate }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" :style="{width: adminStats.gpsRate + '%'}"></div></div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600"><i class="fas fa-envelope text-emerald-400 mr-1"></i> Contacts avec email</span>
+                                <span class="text-xs font-black text-emerald-600">{{ adminStats.emailRate }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-emerald-500 h-2 rounded-full transition-all" :style="{width: adminStats.emailRate + '%'}"></div></div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600"><i class="fas fa-tags text-pink-400 mr-1"></i> Structures avec tags</span>
+                                <span class="text-xs font-black text-pink-600">{{ adminStats.tagRate }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-pink-500 h-2 rounded-full transition-all" :style="{width: adminStats.tagRate + '%'}"></div></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+
+                        <!-- ═══ SECTION 2 : ACTIVITÉ RÉCENTE ═══ -->
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                            <div class="flex justify-between items-center mb-5">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-history text-indigo-500 mr-2"></i> Activité récente</h3>
+                            <div v-if="!adminStats.recentActivity.length" class="text-center text-slate-400 py-6 text-sm">Aucune activité récente détectée.</div>
+                            <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                <div v-for="act in adminStats.recentActivity" :key="act.id"
+                                     class="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                         :class="act.type==='comment' ? 'bg-amber-100 text-amber-600' : act.type==='structure' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'">
+                                        <i class="text-xs" :class="act.type==='comment' ? 'fas fa-comment' : act.type==='structure' ? 'fas fa-building' : 'fas fa-user'"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-bold text-slate-700 truncate">{{ act.label }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">
+                                            <i class="fas fa-clock mr-1"></i>{{ act.date }}
+                                            <span v-if="act.user"> · <i class="fas fa-user mr-1"></i>{{ act.user }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 3 : ALERTES QUALITÉ ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-exclamation-triangle text-orange-500 mr-2"></i> Alertes & Qualité des données</h3>
+                            <div v-if="!adminStats.alerts.length" class="text-center py-6">
+                                <i class="fas fa-check-circle text-emerald-400 text-3xl block mb-2"></i>
+                                <p class="text-sm text-emerald-600 font-bold">Aucune alerte — base en bonne santé !</p>
+                            </div>
+                            <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                <div v-for="alert in adminStats.alerts" :key="alert.id"
+                                     class="flex items-center gap-3 p-3 rounded-xl border"
+                                     :class="alert.level==='warn' ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100'">
+                                    <i class="fas flex-shrink-0"
+                                       :class="alert.level==='warn' ? 'fa-exclamation-circle text-orange-500' : 'fa-times-circle text-red-500'"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-bold text-slate-700">{{ alert.message }}</div>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">{{ alert.detail }}</div>
+                                    </div>
+                                    <span class="flex-shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full"
+                                          :class="alert.level==='warn' ? 'bg-orange-200 text-orange-700' : 'bg-red-200 text-red-700'">
+                                        {{ alert.count }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 4 : ACTIVITÉ PAR UTILISATEUR ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex justify-between items-center mb-4">
                                 <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-users text-indigo-500 mr-2"></i> Utilisateurs inscrits</h3>
                                 <button @click="loadAdminUsers()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition">
                                     <i class="fas fa-sync-alt mr-1"></i> Actualiser
                                 </button>
                             </div>
-                            <div v-if="!adminUsers.length" class="text-center text-slate-400 py-8">
+                            <div v-if="!adminUsers.length" class="text-center text-slate-400 py-6">
                                 <i class="fas fa-user-slash text-3xl opacity-30 block mb-2"></i>
-                                <p class="text-sm">Aucun utilisateur chargé. Cliquez sur Actualiser.</p>
+                                <p class="text-sm">Cliquez sur Actualiser.</p>
                             </div>
-                            <div class="space-y-3">
+                            <div class="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
                                 <div v-for="u in adminUsers" :key="u.uid"
                                      class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
                                     <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm flex-shrink-0">
@@ -213,17 +327,21 @@
                                             {{ u.email }}
                                             <span v-if="adminEmails.includes(u.email)" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">Admin</span>
                                         </div>
-                                        <div class="text-[10px] text-slate-400 font-medium mt-0.5">
-                                            <i class="fas fa-sign-in-alt mr-1"></i> Dernière connexion : {{ u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-' }}
+                                        <div class="text-[10px] text-slate-400 font-medium mt-0.5 flex gap-3">
+                                            <span><i class="fas fa-sign-in-alt mr-1"></i>{{ u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-' }}</span>
+                                            <span><i class="fas fa-calendar-plus mr-1"></i>Inscrit le {{ u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) : '-' }}</span>
                                         </div>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <div class="text-[10px] font-bold text-slate-400">{{ u.loginCount || 1 }} connexion(s)</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Bloc 2 : Gestion des admins -->
+                        <!-- ═══ SECTION 5 : GESTION ADMINS ═══ -->
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                            <h3 class="font-bold text-slate-800 text-lg mb-5"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
+                            <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
                             <div class="flex gap-2 mb-4">
                                 <input v-model="newAdminEmail" @keyup.enter="addAdminEmail" class="input-field text-sm flex-1" placeholder="email@exemple.com">
                                 <button @click="addAdminEmail" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition">
@@ -245,98 +363,82 @@
                             </div>
                         </div>
 
-                        <!-- Bloc 3 : Notes de version / Changelog -->
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 xl:col-span-2">
-                            <h3 class="font-bold text-slate-800 text-lg mb-2"><i class="fas fa-bell text-indigo-500 mr-2"></i> Notes & Améliorations <span class="text-sm text-slate-400 font-normal">(visibles par tous les utilisateurs au démarrage)</span></h3>
-                            <div class="flex gap-2 mb-5 mt-4">
-                                <input v-model="newChangelogEntry" @keyup.enter="addChangelogEntry" class="input-field flex-1" placeholder="Ex: Nouvelle fonctionnalité — Commentaires horodatés ajoutés dans les fiches CRM">
-                                <button @click="addChangelogEntry" :disabled="!newChangelogEntry.trim()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-5 py-2 rounded-lg font-bold shadow transition">
-                                    <i class="fas fa-paper-plane mr-1"></i> Publier
+                    </div>
+
+                    <!-- ═══ SECTION 6 : NOTES & CHANGELOG ═══ -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+                        <h3 class="font-bold text-slate-800 text-lg mb-2"><i class="fas fa-bell text-indigo-500 mr-2"></i> Notes & Améliorations <span class="text-sm text-slate-400 font-normal">(visibles par tous les utilisateurs au démarrage)</span></h3>
+                        <div class="flex gap-2 mb-5 mt-4">
+                            <input v-model="newChangelogEntry" @keyup.enter="addChangelogEntry" class="input-field flex-1" placeholder="Ex: Nouvelle fonctionnalité — Commentaires horodatés ajoutés dans les fiches CRM">
+                            <button @click="addChangelogEntry" :disabled="!newChangelogEntry.trim()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-5 py-2 rounded-lg font-bold shadow transition">
+                                <i class="fas fa-paper-plane mr-1"></i> Publier
+                            </button>
+                        </div>
+                        <div v-if="!adminChangelog.length" class="text-center text-slate-400 py-6 border-2 border-dashed rounded-xl">
+                            <i class="fas fa-clipboard-list text-3xl opacity-30 block mb-2"></i>
+                            <p class="text-sm">Aucune note publiée.</p>
+                        </div>
+                        <div class="space-y-3">
+                            <div v-for="entry in adminChangelog" :key="entry.id"
+                                 class="flex items-start justify-between gap-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
+                                <div class="flex-1">
+                                    <div class="font-bold text-slate-800 text-sm">{{ entry.text }}</div>
+                                    <div class="text-[10px] text-slate-400 mt-1 font-medium">
+                                        <i class="fas fa-calendar mr-1"></i>{{ entry.date }}
+                                        &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i>{{ entry.author }}
+                                    </div>
+                                </div>
+                                <button @click="deleteChangelogEntry(entry.id)" class="text-slate-300 hover:text-red-500 transition flex-shrink-0 mt-0.5">
+                                    <i class="fas fa-trash text-sm"></i>
                                 </button>
                             </div>
-                            <div v-if="!adminChangelog.length" class="text-center text-slate-400 py-6 border-2 border-dashed rounded-xl">
-                                <i class="fas fa-clipboard-list text-3xl opacity-30 block mb-2"></i>
-                                <p class="text-sm">Aucune note publiée. Les utilisateurs verront une bannière à chaque nouvelle entrée.</p>
-                            </div>
-                            <div class="space-y-3">
-                                <div v-for="entry in adminChangelog" :key="entry.id"
-                                     class="flex items-start justify-between gap-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
-                                    <div class="flex-1">
-                                        <div class="font-bold text-slate-800 text-sm">{{ entry.text }}</div>
-                                        <div class="text-[10px] text-slate-400 mt-1 font-medium">
-                                            <i class="fas fa-calendar mr-1"></i>{{ entry.date }}
-                                            &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i>{{ entry.author }}
-                                        </div>
-                                    </div>
-                                    <button @click="deleteChangelogEntry(entry.id)" class="text-slate-300 hover:text-red-500 transition flex-shrink-0 mt-0.5">
-                                        <i class="fas fa-trash text-sm"></i>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
-
-                        <!-- Bloc 4 : Gestion de la Base de Données -->
-                        <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6 xl:col-span-2">
-                            <h3 class="font-bold text-slate-800 text-lg mb-1"><i class="fas fa-database text-red-500 mr-2"></i> Gestion de la Base de Données</h3>
-                            <p class="text-xs text-slate-400 mb-6">Sauvegardez, restaurez ou réinitialisez les données de l'application.</p>
-
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                                <!-- Sauvegarde -->
-                                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                                            <i class="fas fa-download text-emerald-600"></i>
-                                        </div>
-                                        <h4 class="font-bold text-slate-800">Exporter</h4>
-                                    </div>
-                                    <p class="text-xs text-slate-500 mb-4">Télécharge un fichier <code class="bg-white px-1 rounded">.json</code> complet de toute la base (structures, contacts, événements, projets, tags, config...).</p>
-                                    <button @click="exportFullDB"
-                                            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
-                                        <i class="fas fa-file-download"></i> Télécharger la sauvegarde
-                                    </button>
-                                </div>
-
-                                <!-- Restauration -->
-                                <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                            <i class="fas fa-upload text-blue-600"></i>
-                                        </div>
-                                        <h4 class="font-bold text-slate-800">Restaurer</h4>
-                                    </div>
-                                    <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> de sauvegarde et remplace la base actuelle. <span class="text-orange-500 font-bold">Écrase les données existantes.</span></p>
-                                    <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer">
-                                        <i class="fas fa-file-upload"></i> Charger un fichier
-                                        <input type="file" @change="importFullDB" class="hidden" accept=".json">
-                                    </label>
-                                </div>
-
-                                <!-- Vidage -->
-                                <div class="bg-red-50 border border-red-100 rounded-xl p-5">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                                            <i class="fas fa-trash-alt text-red-600"></i>
-                                        </div>
-                                        <h4 class="font-bold text-slate-800">Vider</h4>
-                                    </div>
-                                    <p class="text-xs text-slate-500 mb-3">Supprime définitivement les données sélectionnées. <span class="text-red-600 font-bold">Action irréversible.</span></p>
-                                    <div class="space-y-2">
-                                        <button @click="clearAnnuaire"
-                                                class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
-                                            <i class="fas fa-address-book"></i> Vider l'annuaire partagé
-                                        </button>
-                                        <button @click="clearAllData"
-                                                class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
-                                            <i class="fas fa-bomb"></i> Tout réinitialiser
-                                        </button>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-
                     </div>
+
+                    <!-- ═══ SECTION 7 : GESTION BDD ═══ -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6">
+                        <h3 class="font-bold text-slate-800 text-lg mb-1"><i class="fas fa-database text-red-500 mr-2"></i> Gestion de la Base de Données</h3>
+                        <p class="text-xs text-slate-400 mb-6">Sauvegardez, restaurez ou réinitialisez les données de l'application.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><i class="fas fa-download text-emerald-600"></i></div>
+                                    <h4 class="font-bold text-slate-800">Exporter</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4">Télécharge un fichier <code class="bg-white px-1 rounded">.json</code> complet de toute la base.</p>
+                                <button @click="exportFullDB" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-file-download"></i> Télécharger la sauvegarde
+                                </button>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-upload text-blue-600"></i></div>
+                                    <h4 class="font-bold text-slate-800">Restaurer</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> et remplace la base actuelle.</p>
+                                <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fas fa-file-upload"></i> Charger un fichier
+                                    <input type="file" @change="importFullDB" class="hidden" accept=".json">
+                                </label>
+                            </div>
+                            <div class="bg-red-50 border border-red-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center"><i class="fas fa-trash-alt text-red-600"></i></div>
+                                    <h4 class="font-bold text-slate-800">Vider</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-3">Supprime définitivement. <span class="text-red-600 font-bold">Irréversible.</span></p>
+                                <div class="space-y-2">
+                                    <button @click="clearAnnuaire" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-address-book"></i> Vider l'annuaire partagé
+                                    </button>
+                                    <button @click="clearAllData" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-bomb"></i> Tout réinitialiser
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
             
