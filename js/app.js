@@ -1391,30 +1391,28 @@ async removeGlobalTag(familyName, tag) {
 
                 if (this.gouvImport.searchName.trim()) {
                     const name = this.gouvImport.searchName.trim().replace(/"/g, '');
-                    where.push(`nom_du_lieu like "%${name}%"`);
+                    where.push(`suggest(nom,"${name}")`);
                 }
                 if (this.gouvImport.filterType) {
                     const type = this.gouvImport.filterType.replace(/"/g, '');
                     where.push(`label_et_appellation like "%${type}%"`);
                 }
                 if (this.gouvImport.filterDept) {
-                    const dept = this.gouvImport.filterDept.trim().replace(/"/g, '');
-                    where.push(`code_departement like "${dept}"`);
+                    const dept = this.gouvImport.filterDept.trim().replace(/\D/g, '');
+                    if (dept) where.push(`departement like "%${dept}%"`);
                 }
                 if (this.gouvImport.filterRegion) {
-                    const reg = this.gouvImport.filterRegion.replace(/"/g, '');
-                    where.push(`region_administrative like "%${reg}%"`);
+                    const reg = this.gouvImport.filterRegion.replace(/"/g, '').replace(/'/g, '');
+                    where.push(`region like "%${reg}%"`);
                 }
-
-                // Filtre spectacle vivant par défaut si aucun filtre type
+                // Filtre spectacle vivant par défaut
                 if (!this.gouvImport.filterType && !this.gouvImport.searchName.trim()) {
-                    where.push(`(domaine_culturel like "%spectacle%" OR label_et_appellation like "%scène%" OR label_et_appellation like "%théâtre%" OR label_et_appellation like "%festival%" OR label_et_appellation like "%cirque%" OR label_et_appellation like "%musique%")`);
+                    where.push(`(domaine_culturel like "%spectacle%" OR label_et_appellation like "%scene%" OR label_et_appellation like "%theatre%" OR label_et_appellation like "%festival%" OR label_et_appellation like "%musique%" OR label_et_appellation like "%cirque%")`);
                 }
 
                 const params = new URLSearchParams({
                     limit:  limit,
                     offset: offset,
-                    select: 'nom_du_lieu,adresse,code_postal,commune,coordonnees_geographiques,domaine_culturel,label_et_appellation,site_internet,telephone,code_departement,region_administrative',
                 });
                 if (where.length) params.append('where', where.join(' AND '));
 
@@ -1427,26 +1425,48 @@ async removeGlobalTag(familyName, tag) {
                 const data = await resp.json();
 
                 this.gouvImport.totalFound = data.total_count || 0;
-                this.gouvImport.results = (data.results || []).map((r, i) => ({
-                    id:        `gouv_${offset}_${i}_${(r.nom_du_lieu||'').replace(/\s/g,'')}`,
-                    nom:       r.nom_du_lieu || '',
-                    adresse:   r.adresse || '',
-                    cp:        r.code_postal || '',
-                    ville:     r.commune || '',
-                    type:      r.label_et_appellation || '',
-                    domaine:   r.domaine_culturel || '',
-                    site:      r.site_internet || '',
-                    telephone: r.telephone || '',
-                    dept:      r.code_departement || '',
-                    region:    r.region_administrative || '',
-                    lat:       r.coordonnees_geographiques?.lat || null,
-                    lng:       r.coordonnees_geographiques?.lon || null,
-                    hasGps:    !!(r.coordonnees_geographiques?.lat),
-                }));
 
-                if (this.gouvImport.results.length === 0) {
-                    this.gouvImport.error = 'Aucun résultat pour ces critères. Essayez d\'élargir votre recherche.';
+                // Log du premier résultat pour voir les vrais noms de champs
+                if (data.results && data.results.length > 0) {
+                    console.log('[BASILIC] Champs disponibles:', Object.keys(data.results[0]));
                 }
+
+                this.gouvImport.results = (data.results || []).map((r, i) => {
+                    // Gestion flexible des noms de champs (la base peut utiliser différentes conventions)
+                    const nom     = r.nom_du_lieu || r.nom || r.libelle || r.denomination || r.nom_officiel || '';
+                    const adresse = r.adresse || r.adresse_postale || r.adresse_1 || '';
+                    const cp      = r.code_postal || r.cp || r.code_postale || '';
+                    const ville   = r.commune || r.ville || r.nom_commune || r.libelle_commune || '';
+                    const type    = r.label_et_appellation || r.label || r.type || r.categorie || r.appellation || '';
+                    const domaine = r.domaine_culturel || r.domaine || r.secteur || '';
+                    const site    = r.site_internet || r.url || r.site_web || r.website || '';
+                    const tel     = r.telephone || r.tel || r.phone || '';
+                    const dept    = r.code_departement || r.departement || r.dept || '';
+                    const region  = r.region_administrative || r.region || '';
+                    // GPS : plusieurs formats possibles
+                    let lat = null, lng = null;
+                    if (r.coordonnees_geographiques) {
+                        lat = r.coordonnees_geographiques.lat;
+                        lng = r.coordonnees_geographiques.lon;
+                    } else if (r.geolocalisation) {
+                        lat = r.geolocalisation.lat;
+                        lng = r.geolocalisation.lon;
+                    } else if (r.geo_point_2d) {
+                        lat = r.geo_point_2d.lat;
+                        lng = r.geo_point_2d.lon;
+                    } else if (r.latitude && r.longitude) {
+                        lat = parseFloat(r.latitude);
+                        lng = parseFloat(r.longitude);
+                    }
+
+                    return {
+                        id:        `gouv_${offset}_${i}_${nom.replace(/\s/g,'').substring(0,20)}`,
+                        nom, adresse, cp, ville, type, domaine, site,
+                        telephone: tel, dept, region,
+                        lat, lng,
+                        hasGps: !!(lat),
+                    };
+                }).filter(r => r.nom); // Ignorer les lignes sans nom
 
             } catch (e) {
                 console.error('Import Gouv:', e);
