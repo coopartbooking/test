@@ -1390,21 +1390,25 @@ async removeGlobalTag(familyName, tag) {
                 const where  = [];
 
                 if (this.gouvImport.searchName.trim()) {
-                    where.push(`search(nom_du_lieu,"${this.gouvImport.searchName.trim()}")`);
+                    const name = this.gouvImport.searchName.trim().replace(/"/g, '');
+                    where.push(`nom_du_lieu like "%${name}%"`);
                 }
                 if (this.gouvImport.filterType) {
-                    where.push(`label_et_appellation like "${this.gouvImport.filterType}"`);
+                    const type = this.gouvImport.filterType.replace(/"/g, '');
+                    where.push(`label_et_appellation like "%${type}%"`);
                 }
                 if (this.gouvImport.filterDept) {
-                    where.push(`code_departement="${this.gouvImport.filterDept.trim()}"`);
+                    const dept = this.gouvImport.filterDept.trim().replace(/"/g, '');
+                    where.push(`code_departement like "${dept}"`);
                 }
                 if (this.gouvImport.filterRegion) {
-                    where.push(`region_administrative="${this.gouvImport.filterRegion}"`);
+                    const reg = this.gouvImport.filterRegion.replace(/"/g, '');
+                    where.push(`region_administrative like "%${reg}%"`);
                 }
 
                 // Filtre spectacle vivant par défaut si aucun filtre type
-                if (!this.gouvImport.filterType) {
-                    where.push(`domaine_culturel like "spectacle" OR label_et_appellation like "scène" OR label_et_appellation like "théâtre" OR label_et_appellation like "festival" OR label_et_appellation like "cirque" OR label_et_appellation like "musique"`);
+                if (!this.gouvImport.filterType && !this.gouvImport.searchName.trim()) {
+                    where.push(`(domaine_culturel like "%spectacle%" OR label_et_appellation like "%scène%" OR label_et_appellation like "%théâtre%" OR label_et_appellation like "%festival%" OR label_et_appellation like "%cirque%" OR label_et_appellation like "%musique%")`);
                 }
 
                 const params = new URLSearchParams({
@@ -1416,26 +1420,34 @@ async removeGlobalTag(familyName, tag) {
 
                 const url = `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/base-des-lieux-et-des-equipements-culturels/records?${params.toString()}`;
                 const resp = await fetch(url);
-                if (!resp.ok) throw new Error(`Erreur HTTP ${resp.status}`);
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    throw new Error(`Erreur HTTP ${resp.status} — ${errText.substring(0, 200)}`);
+                }
                 const data = await resp.json();
 
                 this.gouvImport.totalFound = data.total_count || 0;
                 this.gouvImport.results = (data.results || []).map((r, i) => ({
-                    id:       `gouv_${offset}_${i}_${(r.nom_du_lieu||'').replace(/\s/g,'')}`,
-                    nom:      r.nom_du_lieu || '',
-                    adresse:  r.adresse || '',
-                    cp:       r.code_postal || '',
-                    ville:    r.commune || '',
-                    type:     r.label_et_appellation || '',
-                    domaine:  r.domaine_culturel || '',
-                    site:     r.site_internet || '',
+                    id:        `gouv_${offset}_${i}_${(r.nom_du_lieu||'').replace(/\s/g,'')}`,
+                    nom:       r.nom_du_lieu || '',
+                    adresse:   r.adresse || '',
+                    cp:        r.code_postal || '',
+                    ville:     r.commune || '',
+                    type:      r.label_et_appellation || '',
+                    domaine:   r.domaine_culturel || '',
+                    site:      r.site_internet || '',
                     telephone: r.telephone || '',
-                    dept:     r.code_departement || '',
-                    region:   r.region_administrative || '',
-                    lat:      r.coordonnees_geographiques?.lat || null,
-                    lng:      r.coordonnees_geographiques?.lon || null,
-                    hasGps:   !!(r.coordonnees_geographiques?.lat),
+                    dept:      r.code_departement || '',
+                    region:    r.region_administrative || '',
+                    lat:       r.coordonnees_geographiques?.lat || null,
+                    lng:       r.coordonnees_geographiques?.lon || null,
+                    hasGps:    !!(r.coordonnees_geographiques?.lat),
                 }));
+
+                if (this.gouvImport.results.length === 0) {
+                    this.gouvImport.error = 'Aucun résultat pour ces critères. Essayez d\'élargir votre recherche.';
+                }
+
             } catch (e) {
                 console.error('Import Gouv:', e);
                 this.gouvImport.error = e.message || 'Erreur de connexion à l\'API.';
