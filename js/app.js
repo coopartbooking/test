@@ -129,6 +129,21 @@ createApp({
             saveStatus: 'idle',
             saveStatusMessage: '',
 
+            // Import Culture.gouv.fr
+            showGouvImport: false,
+            gouvImport: {
+                loading: false,
+                error: '',
+                results: [],
+                selected: [],
+                totalFound: 0,
+                page: 0,
+                searchName: '',
+                filterType: '',
+                filterDept: '',
+                filterRegion: '',
+            },
+
             // Admin
             isAdmin: false,
             adminEmails: [],
@@ -1339,6 +1354,205 @@ async removeGlobalTag(familyName, tag) {
                 this.isEditingProject = true;
             }
             this.showProjectModal = true;
+        },
+
+        // --- IMPORT CULTURE.GOUV.FR ---
+        openGouvImport() {
+            this.showGouvImport = true;
+            this.gouvImport.results = [];
+            this.gouvImport.selected = [];
+            this.gouvImport.error = '';
+            this.gouvImport.totalFound = 0;
+            this.gouvImport.page = 0;
+        },
+
+        resetGouvSearch() {
+            this.gouvImport.searchName  = '';
+            this.gouvImport.filterType  = '';
+            this.gouvImport.filterDept  = '';
+            this.gouvImport.filterRegion = '';
+            this.gouvImport.results     = [];
+            this.gouvImport.selected    = [];
+            this.gouvImport.totalFound  = 0;
+            this.gouvImport.page        = 0;
+            this.gouvImport.error       = '';
+        },
+
+        async searchGouv(resetPage = true) {
+            if (resetPage === true) this.gouvImport.page = 0;
+            this.gouvImport.loading = true;
+            this.gouvImport.error   = '';
+            this.gouvImport.results = [];
+
+            try {
+                const limit  = 50;
+                const offset = this.gouvImport.page * limit;
+                const where  = [];
+
+                if (this.gouvImport.searchName.trim()) {
+                    where.push(`search(nom_du_lieu,"${this.gouvImport.searchName.trim()}")`);
+                }
+                if (this.gouvImport.filterType) {
+                    where.push(`label_et_appellation like "${this.gouvImport.filterType}"`);
+                }
+                if (this.gouvImport.filterDept) {
+                    where.push(`code_departement="${this.gouvImport.filterDept.trim()}"`);
+                }
+                if (this.gouvImport.filterRegion) {
+                    where.push(`region_administrative="${this.gouvImport.filterRegion}"`);
+                }
+
+                // Filtre spectacle vivant par défaut si aucun filtre type
+                if (!this.gouvImport.filterType) {
+                    where.push(`domaine_culturel like "spectacle" OR label_et_appellation like "scène" OR label_et_appellation like "théâtre" OR label_et_appellation like "festival" OR label_et_appellation like "cirque" OR label_et_appellation like "musique"`);
+                }
+
+                const params = new URLSearchParams({
+                    limit:  limit,
+                    offset: offset,
+                    select: 'nom_du_lieu,adresse,code_postal,commune,coordonnees_geographiques,domaine_culturel,label_et_appellation,site_internet,telephone,code_departement,region_administrative',
+                });
+                if (where.length) params.append('where', where.join(' AND '));
+
+                const url = `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/base-des-lieux-et-des-equipements-culturels/records?${params.toString()}`;
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(`Erreur HTTP ${resp.status}`);
+                const data = await resp.json();
+
+                this.gouvImport.totalFound = data.total_count || 0;
+                this.gouvImport.results = (data.results || []).map((r, i) => ({
+                    id:       `gouv_${offset}_${i}_${(r.nom_du_lieu||'').replace(/\s/g,'')}`,
+                    nom:      r.nom_du_lieu || '',
+                    adresse:  r.adresse || '',
+                    cp:       r.code_postal || '',
+                    ville:    r.commune || '',
+                    type:     r.label_et_appellation || '',
+                    domaine:  r.domaine_culturel || '',
+                    site:     r.site_internet || '',
+                    telephone: r.telephone || '',
+                    dept:     r.code_departement || '',
+                    region:   r.region_administrative || '',
+                    lat:      r.coordonnees_geographiques?.lat || null,
+                    lng:      r.coordonnees_geographiques?.lon || null,
+                    hasGps:   !!(r.coordonnees_geographiques?.lat),
+                }));
+            } catch (e) {
+                console.error('Import Gouv:', e);
+                this.gouvImport.error = e.message || 'Erreur de connexion à l\'API.';
+            } finally {
+                this.gouvImport.loading = false;
+            }
+        },
+
+        async gouvNextPage() {
+            this.gouvImport.page++;
+            await this.searchGouv(false);
+        },
+
+        async gouvPrevPage() {
+            if (this.gouvImport.page > 0) {
+                this.gouvImport.page--;
+                await this.searchGouv(false);
+            }
+        },
+
+        gouvToggleSelect(lieu) {
+            const idx = this.gouvImport.selected.findIndex(s => s.id === lieu.id);
+            if (idx > -1) this.gouvImport.selected.splice(idx, 1);
+            else          this.gouvImport.selected.push(lieu);
+        },
+
+        gouvIsSelected(lieu) {
+            return this.gouvImport.selected.some(s => s.id === lieu.id);
+        },
+
+        gouvSelectAll() {
+            this.gouvImport.results.forEach(lieu => {
+                if (!this.gouvIsSelected(lieu)) this.gouvImport.selected.push(lieu);
+            });
+        },
+
+        gouvAlreadyExists(lieu) {
+            return this.db.structures.some(s =>
+                s.name.toLowerCase() === (lieu.nom || '').toLowerCase() &&
+                (s.city || '').toLowerCase() === (lieu.ville || '').toLowerCase()
+            );
+        },
+
+        // Mapping type gouv → tag catégorie
+        gouvTypeToTag(type) {
+            const t = (type || '').toLowerCase();
+            if (t.includes('scène nationale'))         return 'Scène Nationale';
+            if (t.includes('smac'))                    return 'SMAC';
+            if (t.includes('centre dramatique'))       return 'CDN';
+            if (t.includes('opéra'))                   return 'Opéra';
+            if (t.includes('théâtre'))                 return 'Théâtre';
+            if (t.includes('festival'))                return 'Festival';
+            if (t.includes('cirque'))                  return 'Cirque';
+            if (t.includes('chorégraphique'))          return 'Centre chorégraphique';
+            if (t.includes('scène conventionnée'))     return 'Scène Conventionnée';
+            if (t.includes('zénith'))                  return 'Salle de concerts';
+            if (t.includes('musique'))                 return 'Salle de concerts';
+            return '';
+        },
+
+        async importGouvSelected() {
+            if (!this.gouvImport.selected.length) return;
+            let imported = 0, skipped = 0;
+
+            this.gouvImport.selected.forEach(lieu => {
+                if (this.gouvAlreadyExists(lieu)) { skipped++; return; }
+                const catTag = this.gouvTypeToTag(lieu.type);
+                const newStruct = {
+                    id:           Date.now().toString() + Math.random().toString(36).slice(2),
+                    name:         lieu.nom,
+                    isClient:     false,
+                    isActive:     true,
+                    clientCode:   '',
+                    source:       'data.culture.gouv.fr',
+                    createdDate:  new Date().toISOString(),
+                    address:      lieu.adresse,
+                    suite:        '',
+                    zip:          lieu.cp,
+                    city:         lieu.ville,
+                    country:      'France',
+                    phone1:       lieu.telephone,
+                    phone2:       '',
+                    mobile:       '',
+                    fax:          '',
+                    email:        '',
+                    website:      lieu.site,
+                    capacity:     '',
+                    season:       '',
+                    hours:        '',
+                    progMonthStart: '',
+                    progMonthEnd:   '',
+                    lat:          lieu.lat,
+                    lng:          lieu.lng,
+                    tags: {
+                        categories: catTag ? [catTag] : [],
+                        genres:     [],
+                        reseaux:    [],
+                        keywords:   []
+                    },
+                    contacts:  [],
+                    comments:  [],
+                    venues:    []
+                };
+                this.db.structures.push(newStruct);
+                imported++;
+            });
+
+            await this.saveDB();
+            this.gouvImport.selected = [];
+            this.showGouvImport = false;
+
+            Swal.fire({
+                title: `Import terminé ✓`,
+                html: `<b>${imported}</b> structure(s) importée(s)${skipped > 0 ? `<br><span class="text-orange-500">${skipped} déjà existante(s) — ignorée(s)</span>` : ''}`,
+                icon: 'success',
+                confirmButtonColor: '#059669'
+            });
         },
 
         // --- OMNIBOX ---
