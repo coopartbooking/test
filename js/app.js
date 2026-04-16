@@ -1914,6 +1914,107 @@ async removeGlobalTag(familyName, tag) {
             Swal.fire({ title: 'Export téléchargé ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
         },
 
+        // --- ACTIONS GROUPÉES RECHERCHES & SÉLECTIONS ---
+        openCrmFromContact(c) {
+            const s = this.db.structures.find(x => x.id === c.structId);
+            if (!s) return Swal.fire({ title: 'Structure introuvable', icon: 'warning', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+            // Fermer les sous-onglets contacts et basculer vers structures
+            this.showCrmModal = false;
+            this.tab = 'structures';
+            this.$nextTick(() => {
+                this.openCrmView(s);
+                // Pointer directement sur le contact si trouvé dans la fiche
+                setTimeout(() => {
+                    const contact = this.currentCrmStruct?.contacts?.find(x => x.id === c.id);
+                    if (contact) this.openCrmContact(contact);
+                }, 200);
+            });
+        },
+
+        openEventFromContact(c) {
+            const s = this.db.structures.find(x => x.id === c.structId);
+            // Pré-remplir l'affaire avec les infos de la structure
+            const prefilled = {
+                id:           '',
+                projectId:    this.db.projects.length === 1 ? this.db.projects[0].id : '',
+                stage:        'lead',
+                venueId:      s ? s.id   : '',
+                venueName:    s ? s.name : (c.structName || ''),
+                city:         s ? s.city : (c.structCity || ''),
+                date:         '',
+                time:         '',
+                fee:          s && this.db.projects.length === 1 ? (this.db.projects[0].defaultFee || '') : '',
+                feeType:      'HT',
+                contractType: 'cession',
+                status:       'prospect',
+                notes:        `Contact : ${c.name}${c.role ? ' (' + c.role + ')' : ''}`,
+            };
+            this.tab = 'planning';
+            this.$nextTick(() => {
+                this.openEventModal(null, prefilled);
+            });
+        },
+
+        sendToMailing(contacts) {
+            // Enrichir les contacts avec les infos structure si nécessaire
+            const enriched = contacts.map(c => {
+                const s = this.db.structures.find(x => x.id === c.structId) || {};
+                return {
+                    ...c,
+                    structName:    c.structName    || s.name    || '',
+                    structCity:    c.structCity    || s.city    || '',
+                    structZip:     c.structZip     || s.zip     || '',
+                    structAddress: c.structAddress || s.address || '',
+                    structPhone:   c.structPhone   || s.phone1  || '',
+                };
+            });
+            this.selectedMailingContacts = enriched;
+            this.tab = 'mailing';
+            this.mailingActiveTab = 'compose';
+            Swal.fire({ title: `${enriched.length} contact(s) chargé(s) ✓`, text: 'Composez votre campagne email dans l\'onglet Mailing.', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+        },
+
+        sendToMap(contacts) {
+            const enriched = contacts.map(c => {
+                const s = this.db.structures.find(x => x.id === c.structId) || {};
+                return {
+                    ...c,
+                    structName:    c.structName    || s.name    || '',
+                    structCity:    c.structCity    || s.city    || '',
+                    structZip:     c.structZip     || s.zip     || '',
+                    structAddress: c.structAddress || s.address || '',
+                    structPhone:   c.structPhone   || s.phone1  || '',
+                };
+            });
+            this.selectedMailingContacts = enriched;
+            this.tab = 'geo';
+            this.$nextTick(() => { setTimeout(() => { this.initMap(); }, 300); });
+            Swal.fire({ title: `${enriched.length} contact(s) chargé(s) sur la carte ✓`, icon: 'success', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+        },
+
+        openExportFromList(contacts) {
+            const enriched = contacts.map(c => {
+                const s = this.db.structures.find(x => x.id === c.structId) || {};
+                return {
+                    ...c,
+                    structName:    c.structName    || s.name    || '',
+                    structCity:    c.structCity    || s.city    || '',
+                    structZip:     c.structZip     || s.zip     || '',
+                    structAddress: c.structAddress || s.address || '',
+                    structPhone:   c.structPhone   || s.phone1  || '',
+                };
+            });
+            this.exportMapping.source       = 'contacts';
+            this.exportMapping.contacts     = enriched;
+            this.exportMapping.cols         = ['firstName','lastName','role','structName','structCity','emailPro','phoneDirect','mobilePro'];
+            this.exportMapping.format       = 'xlsx';
+            this.exportMapping.filterStatus = '';
+            this.exportMapping.filterStruct = '';
+            this.exportMapping.filterCat    = '';
+            this.exportMapping.filterGenre  = '';
+            this.showExportMapping = true;
+        },
+
         // --- RECHERCHES SAUVEGARDÉES ---
         openNewSearch() {
             this.currentSearch   = { name: '', criteria: [], filterCity: '', filterStatus: '' };

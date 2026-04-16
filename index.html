@@ -875,17 +875,49 @@
                             </div>
 
                             <!-- Résultats -->
-                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 pb-24">
                                 <div v-if="!searchResults.length" class="flex flex-col items-center justify-center h-full text-slate-400">
                                     <i class="fas fa-search text-4xl opacity-20 mb-3"></i>
                                     <p class="font-bold">Définissez des critères et cliquez sur Calculer</p>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                    <div v-for="c in searchResults" :key="c.id" class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                                        <div class="font-bold text-slate-800 text-sm">{{ c.name }}</div>
-                                        <div class="text-xs text-slate-500 mt-0.5">{{ c.structName }} · {{ c.structCity }}</div>
-                                        <div class="text-xs text-slate-400 mt-1" v-if="c.emailPro || c.emailPerso"><i class="fas fa-envelope mr-1"></i>{{ c.emailPro || c.emailPerso }}</div>
+                                    <div v-for="c in searchResults" :key="c.id" class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm group hover:border-indigo-200 hover:shadow-md transition relative">
+                                        <div class="font-bold text-slate-800 text-sm pr-2">{{ c.name }}</div>
+                                        <div class="text-xs text-slate-500 mt-0.5"><i class="fas fa-building mr-1 opacity-50"></i>{{ c.structName }} · {{ c.structCity }}</div>
+                                        <div class="text-xs text-slate-400 mt-1" v-if="c.emailPro || c.emailPerso"><i class="fas fa-envelope mr-1 opacity-50"></i>{{ c.emailPro || c.emailPerso }}</div>
+                                        <div v-if="c.role" class="mt-1.5"><span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">{{ c.role }}</span></div>
+                                        <!-- Actions au survol -->
+                                        <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 rounded-b-xl px-3 py-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                                            <button @click="openCrmFromContact(c)" class="flex-1 flex items-center justify-center gap-1 text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1.5 rounded transition" title="Ouvrir fiche CRM">
+                                                <i class="fas fa-folder-open"></i> Fiche CRM
+                                            </button>
+                                            <button @click="openTaskModal(null, {relType:'structure', relId:c.structId, relLabel:c.structName})" class="flex-1 flex items-center justify-center gap-1 text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 py-1.5 rounded transition" title="Créer une tâche">
+                                                <i class="fas fa-tasks"></i> Tâche
+                                            </button>
+                                            <button @click="openEventFromContact(c)" class="flex-1 flex items-center justify-center gap-1 text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-1.5 rounded transition" title="Créer une affaire">
+                                                <i class="fas fa-calendar-plus"></i> Affaire
+                                            </button>
+                                        </div>
+                                        <!-- Espace pour les boutons -->
+                                        <div class="h-4 group-hover:h-9 transition-all duration-200"></div>
                                     </div>
+                                </div>
+
+                                <!-- Bandeau actions groupées -->
+                                <div v-if="searchResults.length" class="fixed bottom-0 left-64 right-0 bg-white border-t border-slate-200 shadow-lg px-6 py-3 flex items-center gap-3 z-10">
+                                    <div class="text-sm font-bold text-slate-700 mr-2"><i class="fas fa-users text-indigo-500 mr-2"></i>{{ searchResults.length }} contact(s)</div>
+                                    <button @click="sendToMailing(searchResults)" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-paper-plane"></i> Campagne email
+                                    </button>
+                                    <button @click="sendToMap(searchResults)" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-map-marked-alt"></i> Voir sur la carte
+                                    </button>
+                                    <button @click="openExportFromList(searchResults)" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-file-export"></i> Exporter
+                                    </button>
+                                    <button @click="addSearchToSelection({id:currentSearchId, name:currentSearch.name, criteria:currentSearch.criteria, filterCity:currentSearch.filterCity, filterStatus:currentSearch.filterStatus})" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-layer-group"></i> → Sélection
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -938,21 +970,49 @@
                                     <i class="fas fa-user-plus"></i> Ajouter des contacts
                                 </button>
                             </div>
-                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+                            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 pb-24">
                                 <div v-if="!(currentSelectionObj.contactIds||[]).length" class="flex flex-col items-center justify-center h-full text-slate-400">
                                     <i class="fas fa-users-slash text-4xl opacity-20 mb-3"></i>
                                     <p class="font-bold">Sélection vide</p>
                                     <p class="text-sm mt-1 opacity-70">Ajoutez des contacts manuellement</p>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                    <div v-for="c in selectionContacts" :key="c.id" class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex justify-between items-start group">
-                                        <div>
-                                            <div class="font-bold text-slate-800 text-sm">{{ c.name }}</div>
-                                            <div class="text-xs text-slate-500 mt-0.5">{{ c.structName }} · {{ c.structCity }}</div>
-                                            <div class="text-xs text-slate-400 mt-1" v-if="c.emailPro || c.emailPerso"><i class="fas fa-envelope mr-1"></i>{{ c.emailPro || c.emailPerso }}</div>
+                                    <div v-for="c in selectionContacts" :key="c.id" class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm group hover:border-purple-200 hover:shadow-md transition relative">
+                                        <div class="font-bold text-slate-800 text-sm pr-2">{{ c.name }}</div>
+                                        <div class="text-xs text-slate-500 mt-0.5"><i class="fas fa-building mr-1 opacity-50"></i>{{ c.structName }} · {{ c.structCity }}</div>
+                                        <div class="text-xs text-slate-400 mt-1" v-if="c.emailPro || c.emailPerso"><i class="fas fa-envelope mr-1 opacity-50"></i>{{ c.emailPro || c.emailPerso }}</div>
+                                        <div v-if="c.role" class="mt-1.5"><span class="text-[10px] font-bold bg-purple-50 text-purple-600 px-2 py-0.5 rounded">{{ c.role }}</span></div>
+                                        <!-- Actions au survol -->
+                                        <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 rounded-b-xl px-3 py-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                                            <button @click="openCrmFromContact(c)" class="flex-1 flex items-center justify-center gap-1 text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1.5 rounded transition">
+                                                <i class="fas fa-folder-open"></i> Fiche CRM
+                                            </button>
+                                            <button @click="openTaskModal(null, {relType:'structure', relId:c.structId, relLabel:c.structName})" class="flex-1 flex items-center justify-center gap-1 text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 py-1.5 rounded transition">
+                                                <i class="fas fa-tasks"></i> Tâche
+                                            </button>
+                                            <button @click="openEventFromContact(c)" class="flex-1 flex items-center justify-center gap-1 text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-1.5 rounded transition">
+                                                <i class="fas fa-calendar-plus"></i> Affaire
+                                            </button>
+                                            <button @click="removeFromSelection(currentSelectionId, c.id)" class="w-8 flex items-center justify-center text-[10px] font-bold bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 py-1.5 rounded transition" title="Retirer">
+                                                <i class="fas fa-times"></i>
+                                            </button>
                                         </div>
-                                        <button @click="removeFromSelection(currentSelectionId, c.id)" class="text-slate-200 hover:text-red-500 transition opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5 ml-2"><i class="fas fa-times"></i></button>
+                                        <div class="h-4 group-hover:h-9 transition-all duration-200"></div>
                                     </div>
+                                </div>
+
+                                <!-- Bandeau actions groupées sélection -->
+                                <div v-if="selectionContacts.length" class="fixed bottom-0 left-64 right-0 bg-white border-t border-slate-200 shadow-lg px-6 py-3 flex items-center gap-3 z-10">
+                                    <div class="text-sm font-bold text-slate-700 mr-2"><i class="fas fa-layer-group text-purple-500 mr-2"></i>{{ selectionContacts.length }} contact(s)</div>
+                                    <button @click="sendToMailing(selectionContacts)" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-paper-plane"></i> Campagne email
+                                    </button>
+                                    <button @click="sendToMap(selectionContacts)" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-map-marked-alt"></i> Voir sur la carte
+                                    </button>
+                                    <button @click="openExportFromList(selectionContacts)" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold shadow transition">
+                                        <i class="fas fa-file-export"></i> Exporter
+                                    </button>
                                 </div>
                             </div>
                         </div>
