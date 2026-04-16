@@ -160,6 +160,7 @@
                 </div>
                 <button v-if="tab==='projects'" @click="openProjectModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Projet</button>
                 <button v-if="tab==='structures'" @click="openCrmView(null)" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-building mr-2"></i>Structure</button>
+                <button v-if="tab==='structures'" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
             </div>
         </header>
 
@@ -1826,6 +1827,173 @@
     </div>
 </div>
 
-<script type="module" src="./js/app.js?v=5"></script>
+<!-- ═══ MODAL IMPORT CULTURE.GOUV.FR ═══ -->
+<div v-if="showGouvImport" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-5xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+
+        <!-- En-tête -->
+        <div class="bg-indigo-700 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div>
+                <h3 class="font-black text-white text-lg"><i class="fas fa-cloud-download-alt mr-2"></i> Import — Base des Lieux Culturels (Ministère de la Culture)</h3>
+                <p class="text-indigo-200 text-xs mt-0.5">{{ gouvImport.totalFound > 0 ? gouvImport.totalFound + ' lieux trouvés' : 'Recherchez et filtrez les lieux à importer dans votre annuaire' }}</p>
+            </div>
+            <button @click="showGouvImport = false" class="text-indigo-200 hover:text-white text-xl w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Filtres -->
+        <div class="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex-shrink-0">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Recherche par nom</label>
+                    <input v-model="gouvImport.searchName" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: Théâtre, Zénith...">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Type de lieu</label>
+                    <select v-model="gouvImport.filterType" class="input-field text-sm">
+                        <option value="">Tous les types</option>
+                        <option value="Scène nationale">Scène nationale</option>
+                        <option value="SMAC">SMAC</option>
+                        <option value="Centre dramatique national">CDN</option>
+                        <option value="Opéra">Opéra</option>
+                        <option value="Théâtre">Théâtre</option>
+                        <option value="Festival">Festival</option>
+                        <option value="Cirque">Cirque</option>
+                        <option value="Centre chorégraphique">Centre chorégraphique</option>
+                        <option value="Scène conventionnée">Scène conventionnée</option>
+                        <option value="Zénith">Zénith</option>
+                        <option value="Salle de musique">Salle de musique</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Département (ex: 75)</label>
+                    <input v-model="gouvImport.filterDept" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: 63, 75, 13...">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Région</label>
+                    <select v-model="gouvImport.filterRegion" class="input-field text-sm">
+                        <option value="">Toutes les régions</option>
+                        <option>Auvergne-Rhône-Alpes</option>
+                        <option>Bourgogne-Franche-Comté</option>
+                        <option>Bretagne</option>
+                        <option>Centre-Val de Loire</option>
+                        <option>Corse</option>
+                        <option>Grand Est</option>
+                        <option>Hauts-de-France</option>
+                        <option>Île-de-France</option>
+                        <option>Normandie</option>
+                        <option>Nouvelle-Aquitaine</option>
+                        <option>Occitanie</option>
+                        <option>Pays de la Loire</option>
+                        <option>Provence-Alpes-Côte d'Azur</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 mt-3">
+                <button @click="searchGouv" :disabled="gouvImport.loading"
+                        class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                    <i class="fas" :class="gouvImport.loading ? 'fa-circle-notch fa-spin' : 'fa-search'"></i>
+                    {{ gouvImport.loading ? 'Chargement...' : 'Rechercher' }}
+                </button>
+                <button @click="resetGouvSearch" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-3 py-2 rounded hover:bg-indigo-50 transition">
+                    <i class="fas fa-times mr-1"></i> Réinitialiser
+                </button>
+                <span v-if="gouvImport.results.length" class="text-xs text-slate-500 ml-auto">
+                    <span class="font-bold text-indigo-600">{{ gouvImport.selected.length }}</span> sélectionné(s) sur {{ gouvImport.results.length }} affichés
+                </span>
+            </div>
+        </div>
+
+        <!-- Résultats -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
+
+            <!-- État vide -->
+            <div v-if="!gouvImport.loading && !gouvImport.results.length && !gouvImport.error" class="flex flex-col items-center justify-center h-full text-slate-400 py-16">
+                <i class="fas fa-search text-5xl opacity-20 mb-4"></i>
+                <p class="font-bold text-lg mb-1">Lancez une recherche</p>
+                <p class="text-sm">Filtrez par type, département ou région puis cliquez sur Rechercher.</p>
+            </div>
+
+            <!-- Erreur -->
+            <div v-if="gouvImport.error" class="flex flex-col items-center justify-center h-full text-red-400 py-16">
+                <i class="fas fa-exclamation-triangle text-4xl opacity-40 mb-3"></i>
+                <p class="font-bold">Erreur de connexion</p>
+                <p class="text-sm mt-1">{{ gouvImport.error }}</p>
+            </div>
+
+            <!-- Table de résultats -->
+            <div v-if="gouvImport.results.length" class="p-4">
+                <!-- Sélection rapide -->
+                <div class="flex items-center gap-3 mb-3">
+                    <button @click="gouvSelectAll" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded transition">
+                        <i class="fas fa-check-square mr-1"></i> Tout sélectionner
+                    </button>
+                    <button @click="gouvImport.selected = []" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded transition">
+                        <i class="fas fa-square mr-1"></i> Tout désélectionner
+                    </button>
+                    <span class="text-xs text-slate-400 ml-2">{{ gouvImport.results.length }} résultats — page {{ gouvImport.page + 1 }}</span>
+                </div>
+
+                <div class="space-y-2">
+                    <div v-for="lieu in gouvImport.results" :key="lieu.id"
+                         @click="gouvToggleSelect(lieu)"
+                         class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition"
+                         :class="gouvIsSelected(lieu) ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50'">
+
+                        <!-- Checkbox -->
+                        <div class="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition"
+                             :class="gouvIsSelected(lieu) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'">
+                            <i v-if="gouvIsSelected(lieu)" class="fas fa-check text-white text-[9px]"></i>
+                        </div>
+
+                        <!-- Infos -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="font-bold text-slate-800 text-sm">{{ lieu.nom }}</div>
+                                <div class="flex gap-1 flex-shrink-0">
+                                    <span v-if="lieu.type" class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ lieu.type }}</span>
+                                    <span v-if="lieu.hasGps" class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full"><i class="fas fa-map-marker-alt mr-0.5"></i>GPS</span>
+                                    <span v-if="gouvAlreadyExists(lieu)" class="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Déjà importé</span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5">
+                                <span v-if="lieu.adresse"><i class="fas fa-map-marker-alt w-3 text-slate-400"></i> {{ lieu.adresse }}, {{ lieu.cp }} {{ lieu.ville }}</span>
+                                <span v-if="lieu.telephone"><i class="fas fa-phone w-3 text-slate-400"></i> {{ lieu.telephone }}</span>
+                                <span v-if="lieu.site"><i class="fas fa-globe w-3 text-slate-400"></i> {{ lieu.site }}</span>
+                                <span v-if="lieu.domaine" class="text-slate-400">{{ lieu.domaine }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex items-center justify-center gap-3 mt-4 pb-2">
+                    <button @click="gouvPrevPage" :disabled="gouvImport.page === 0 || gouvImport.loading"
+                            class="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-bold transition">
+                        <i class="fas fa-chevron-left mr-1"></i> Précédent
+                    </button>
+                    <span class="text-sm text-slate-500 font-bold">Page {{ gouvImport.page + 1 }}</span>
+                    <button @click="gouvNextPage" :disabled="gouvImport.results.length < 50 || gouvImport.loading"
+                            class="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-bold transition">
+                        Suivant <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pied : bouton import -->
+        <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div class="text-xs text-slate-400"><i class="fas fa-info-circle mr-1"></i> Source : Ministère de la Culture — Base BASILIC — Données ouvertes</div>
+            <div class="flex items-center gap-3">
+                <button @click="showGouvImport = false" class="text-slate-500 font-bold px-4 py-2 text-sm hover:text-slate-700">Fermer</button>
+                <button @click="importGouvSelected" :disabled="!gouvImport.selected.length"
+                        class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-2.5 rounded-lg font-bold shadow transition flex items-center gap-2">
+                    <i class="fas fa-file-import"></i> Importer {{ gouvImport.selected.length }} structure(s)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="./js/app.js?v=6"></script>
 </body>
 </html>
