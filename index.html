@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bob Booking — CRM &amp; Gestion de Tournée</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app" class="flex h-screen w-full overflow-hidden">
+<div v-if="!currentUser" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <i class="fas fa-bolt text-indigo-600 text-4xl mb-2"></i>
+                <h1 class="text-2xl font-bold text-slate-800">Bob Booking</h1>
+                <p class="text-slate-500 text-sm">Connexion à l'espace collaboratif</p>
+            </div>
+            
+            <form @submit.prevent="handleAuth" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Email</label>
+                    <input type="email" v-model="authEmail" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Mot de passe (6 caractères min.)</label>
+                    <input type="password" v-model="authPassword" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required minlength="6">
+                </div>
+                
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition">
+                    {{ isLoginMode ? 'Se connecter' : 'Créer mon compte' }}
+                </button>
+            </form>
+            
+            <div class="mt-4 text-center">
+                <button @click="isLoginMode = !isLoginMode" type="button" class="text-sm text-indigo-600 hover:underline font-bold">
+                    {{ isLoginMode ? "Je n'ai pas de compte ? S'inscrire" : "J'ai déjà un compte ? Se connecter" }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <aside class="w-64 sidebar flex flex-col z-30 flex-shrink-0">
+        <div class="h-16 flex items-center px-6 bg-slate-900 shadow-sm border-b border-slate-800">
+            <div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white mr-3 font-bold">B</div>
+            <h1 class="font-bold text-white tracking-wide">BOOKING<span class="text-indigo-400 font-light">PRO</span></h1>
+        </div>
+        <div v-if="currentUser" class="p-4 border-b border-slate-800 flex items-center gap-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{{ (currentUserName || '').substring(0,2).toUpperCase() }}</div>
+            <div class="text-white font-bold text-xs truncate">{{ currentUserName }}</div>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-2">
+            <div class="nav-header">Pilotage</div>
+            <div @click="tab='dashboard'" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
+            <div @click="tab='tasks'" :class="['nav-item', tab==='tasks'?'active':'']">
+                <i class="fas fa-tasks"></i> Tâches & Suivi 
+                <span v-if="pendingTaskCount>0" class="ml-auto bg-indigo-600 text-white px-2 rounded-full text-[10px]">{{pendingTaskCount}}</span>
+            </div>
+            <div class="nav-header">Données</div>
+            <div @click="tab='structures'" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
+            <div @click="tab='contacts'" :class="['nav-item', tab==='contacts'?'active':'']"><i class="fas fa-address-book"></i> Annuaire Pro</div>
+            <div @click="tab='projects'" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Spectacles</div>
+            <div class="nav-header">Production</div>
+            <div @click="tab='pipeline'" :class="['nav-item', tab==='pipeline'?'active':'']"><i class="fas fa-columns text-yellow-400"></i> Pipeline Commercial</div>
+            <div @click="tab='planning'" :class="['nav-item', tab==='planning'?'active':'']"><i class="fas fa-calendar-alt"></i> Agendas partagés</div>
+            <div @click="tab='geo'" :class="['nav-item', tab==='geo'?'active':'']"><i class="fas fa-map-marked-alt text-emerald-400"></i> Carte & Invitations</div>
+            <div @click="tab='mailing'" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
+            <div @click="tab='settings'" :class="['nav-item', tab==='settings'?'active':'']"><i class="fas fa-cog text-slate-400"></i> Paramètres</div>
+            <div v-if="isAdmin" @click="tab='admin'; loadAdminUsers()" :class="['nav-item', tab==='admin'?'active':'']"><i class="fas fa-shield-alt text-red-400"></i> Administration</div>
+        </nav>
+        <div class="p-4 bg-slate-900 border-t border-slate-800 space-y-2">
+
+            <!-- Indicateur de statut Firebase -->
+            <div class="flex items-center gap-2 px-1 py-1 rounded text-xs font-bold transition-all"
+                 :class="{
+                     'text-slate-600':                             saveStatus === 'idle',
+                     'text-yellow-400':                            saveStatus === 'saving',
+                     'text-emerald-400':                           saveStatus === 'saved',
+                     'text-red-400 bg-red-900/40 rounded px-2':   saveStatus === 'error'
+                 }">
+                <i class="fas fa-fw"
+                   :class="{
+                       'fa-cloud':                  saveStatus === 'idle',
+                       'fa-circle-notch fa-spin':   saveStatus === 'saving',
+                       'fa-check-circle':            saveStatus === 'saved',
+                       'fa-exclamation-triangle':   saveStatus === 'error'
+                   }"></i>
+                <span v-if="saveStatus === 'idle'" class="text-slate-600 text-[10px]">Firebase</span>
+                <span v-if="saveStatus === 'saving'" class="text-[10px]">Sauvegarde…</span>
+                <span v-if="saveStatus === 'saved'" class="text-[10px] truncate">{{ saveStatusMessage }}</span>
+                <span v-if="saveStatus === 'error'" class="text-[10px] flex items-center gap-1">
+                    Erreur !
+                    <button @click="saveDB()" class="underline hover:no-underline font-bold">Réessayer</button>
+                </span>
+            </div>
+
+             <button @click="saveData" class="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded text-xs font-bold uppercase tracking-wide transition"><i class="fas fa-save mr-2"></i> Sauvegarder</button>
+             <label class="block text-center w-full bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded text-xs font-bold uppercase cursor-pointer transition">
+                <i class="fas fa-file-import mr-1"></i> Import Gouv.fr
+                <input type="file" @change="importGouvData" class="hidden" accept=".json">
+             </label>
+        </div>
+    </aside>
+
+    <main v-if="currentUser" class="flex-1 flex flex-col min-w-0 bg-white">
+        <header class="h-16 border-b border-slate-200 bg-white flex justify-between items-center px-6 z-10">
+            <div class="flex items-center gap-6">
+                <h2 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h2>
+                
+                <div class="relative w-96 ml-8">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                    <input v-model="omniSearch" @focus="showOmniDropdown = true" @blur="hideOmni()" class="w-full bg-slate-100 border-none rounded-full pl-10 pr-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 transition shadow-inner" placeholder="Rechercher partout (Contact, Lieu, Artiste...)">
+                    
+                    <div v-if="showOmniDropdown && omniSearch.length >= 2" class="absolute top-12 left-0 w-full bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50 max-h-96 overflow-y-auto">
+                        <div v-if="Object.keys(omniResults).length === 0" class="p-4 text-center text-slate-500 text-sm">Aucun résultat trouvé.</div>
+                        <div v-for="(items, category) in omniResults" :key="category" class="border-b border-slate-100 last:border-0">
+                            <div class="bg-slate-50 px-3 py-1 text-[10px] font-bold text-slate-500 uppercase">{{ category }}</div>
+                            <div v-for="item in items" :key="item.id" @click="goOmni(item)" class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition">
+                                <span class="font-bold text-sm text-slate-800">
+                                    <i v-if="item.original.isPrivate" class="fas fa-lock text-orange-500 mr-1 text-xs" title="Contact Privé"></i>
+                                    {{ item.name }}
+                                </span>
+                                <span class="text-xs text-slate-400 bg-white px-2 py-0.5 rounded shadow-sm">{{ item.sub }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded border border-indigo-100 text-xs font-bold">CA Confirmé: {{ formatMoney(totalCA) }}</div>
+                
+                <button v-if="tab==='pipeline' || tab==='planning'" @click="handleCalendarClick(new Date())" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Nouveau</button>
+                <button v-if="tab==='tasks'" @click="openTaskModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Tâche</button>
+                
+                <button v-if="tab==='contacts'" @click="addGlobalContact" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold">
+                    <i class="fas fa-user-plus mr-2"></i>Contact
+                </button>
+                
+                <div v-if="tab==='contacts'" class="flex ml-2">
+                    <label class="bg-blue-600 text-white px-4 py-2 rounded-l shadow hover:bg-blue-700 text-sm font-bold cursor-pointer border-r border-blue-700">
+                        <i class="fas fa-file-import mr-2"></i>Importer Excel
+                        <input type="file" @change="importContactsExcel" class="hidden" accept=".xlsx, .xls">
+                    </label>
+                    <button @click="exportContactsExcel" class="bg-emerald-600 text-white px-4 py-2 rounded-r shadow hover:bg-emerald-700 text-sm font-bold">
+                        <i class="fas fa-file-export mr-2"></i>Exporter Excel
+                    </button>
+                </div>
+                <button v-if="tab==='projects'" @click="openProjectModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Projet</button>
+                <button v-if="tab==='structures'" @click="openCrmView(null)" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-building mr-2"></i>Structure</button>
+                <button v-if="tab==='structures'" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-hidden relative bg-slate-50">
+
+            <!-- ── BANNIÈRE CHANGELOG (visible par tous) ── -->
+            <div v-if="showChangelogBanner && latestChangelog && !changelogDismissed"
+                 class="absolute top-0 left-0 right-0 z-20 bg-indigo-600 text-white px-6 py-3 flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-bell text-indigo-200 text-lg"></i>
+                    <div>
+                        <span class="font-black text-sm uppercase tracking-wide mr-2">Nouveauté ·</span>
+                        <span class="text-sm">{{ latestChangelog.text }}</span>
+                        <span class="text-indigo-300 text-xs ml-3">— {{ latestChangelog.date }}</span>
+                    </div>
+                </div>
+                <button @click="changelogDismissed = true; showChangelogBanner = false"
+                        class="text-indigo-200 hover:text-white ml-6 flex-shrink-0">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- ── ONGLET ADMIN ── -->
+            <div v-if="tab==='admin' && isAdmin" class="p-8 h-full overflow-y-auto bg-slate-50 w-full custom-scrollbar">
+                <div class="max-w-6xl mx-auto">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-3xl font-black text-slate-800"><i class="fas fa-shield-alt text-red-500 mr-3"></i>Administration</h2>
+                        <button @click="refreshAdminStats()" class="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition">
+                            <i class="fas fa-sync-alt"></i> Actualiser tout
+                        </button>
+                    </div>
+                    <p class="text-slate-500 text-sm mb-8">Panneau réservé aux administrateurs. Visible uniquement par vous.</p>
+
+                    <!-- ═══ SECTION 1 : STATISTIQUES GLOBALES ═══ -->
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3"><i class="fas fa-chart-bar mr-2"></i>Statistiques globales</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mb-8">
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-indigo-600">{{ db.structures.length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Structures</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-blue-600">{{ adminStats.totalContacts }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Contacts</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-emerald-600">{{ db.events.filter(e=>e.status==='conf').length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Dates conf.</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-purple-600">{{ db.projects.length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Projets</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-orange-500">{{ db.tasks.filter(t=>!t.done).length }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Tâches actives</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-emerald-700">{{ formatMoney(totalCA) }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">CA confirmé</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-orange-400">{{ adminStats.privateContacts }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Contacts privés</div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
+                            <div class="text-2xl font-black text-slate-600">{{ adminStats.structsWithGps }}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase mt-1">Avec GPS</div>
+                        </div>
+                    </div>
+
+                    <!-- Barres de qualité -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600"><i class="fas fa-map-marker-alt text-indigo-400 mr-1"></i> Structures géolocalisées</span>
+                                <span class="text-xs font-black text-indigo-600">{{ adminStats.gpsRate }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-indigo-500 h-2 rounded-full transition-all" :style="{width: adminStats.gpsRate + '%'}"></div></div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600"><i class="fas fa-envelope text-emerald-400 mr-1"></i> Contacts avec email</span>
+                                <span class="text-xs font-black text-emerald-600">{{ adminStats.emailRate }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-emerald-500 h-2 rounded-full transition-all" :style="{width: adminStats.emailRate + '%'}"></div></div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-600"><i class="fas fa-tags text-pink-400 mr-1"></i> Structures avec tags</span>
+                                <span class="text-xs font-black text-pink-600">{{ adminStats.tagRate }}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2"><div class="bg-pink-500 h-2 rounded-full transition-all" :style="{width: adminStats.tagRate + '%'}"></div></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+
+                        <!-- ═══ SECTION 2 : ACTIVITÉ RÉCENTE ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-history text-indigo-500 mr-2"></i> Activité récente</h3>
+                            <div v-if="!adminStats.recentActivity.length" class="text-center text-slate-400 py-6 text-sm">Aucune activité récente détectée.</div>
+                            <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                <div v-for="act in adminStats.recentActivity" :key="act.id"
+                                     class="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                         :class="act.type==='comment' ? 'bg-amber-100 text-amber-600' : act.type==='structure' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'">
+                                        <i class="text-xs" :class="act.type==='comment' ? 'fas fa-comment' : act.type==='structure' ? 'fas fa-building' : 'fas fa-user'"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-bold text-slate-700 truncate">{{ act.label }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">
+                                            <i class="fas fa-clock mr-1"></i>{{ act.date }}
+                                            <span v-if="act.user"> · <i class="fas fa-user mr-1"></i>{{ act.user }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 3 : ALERTES QUALITÉ ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-exclamation-triangle text-orange-500 mr-2"></i> Alertes & Qualité des données</h3>
+                            <div v-if="!adminStats.alerts.length" class="text-center py-6">
+                                <i class="fas fa-check-circle text-emerald-400 text-3xl block mb-2"></i>
+                                <p class="text-sm text-emerald-600 font-bold">Aucune alerte — base en bonne santé !</p>
+                            </div>
+                            <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                                <div v-for="alert in adminStats.alerts" :key="alert.id"
+                                     class="flex items-center gap-3 p-3 rounded-xl border"
+                                     :class="alert.level==='warn' ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100'">
+                                    <i class="fas flex-shrink-0"
+                                       :class="alert.level==='warn' ? 'fa-exclamation-circle text-orange-500' : 'fa-times-circle text-red-500'"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="text-xs font-bold text-slate-700">{{ alert.message }}</div>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">{{ alert.detail }}</div>
+                                    </div>
+                                    <span class="flex-shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full"
+                                          :class="alert.level==='warn' ? 'bg-orange-200 text-orange-700' : 'bg-red-200 text-red-700'">
+                                        {{ alert.count }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 4 : ACTIVITÉ PAR UTILISATEUR ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-users text-indigo-500 mr-2"></i> Utilisateurs inscrits</h3>
+                                <button @click="loadAdminUsers()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition">
+                                    <i class="fas fa-sync-alt mr-1"></i> Actualiser
+                                </button>
+                            </div>
+                            <div v-if="!adminUsers.length" class="text-center text-slate-400 py-6">
+                                <i class="fas fa-user-slash text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Cliquez sur Actualiser.</p>
+                            </div>
+                            <div class="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+                                <div v-for="u in adminUsers" :key="u.uid"
+                                     class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50">
+                                    <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm flex-shrink-0">
+                                        {{ (u.email || '?').substring(0,2).toUpperCase() }}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-bold text-slate-800 text-sm truncate flex items-center gap-2">
+                                            {{ u.email }}
+                                            <span v-if="adminEmails.includes(u.email)" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black uppercase">Admin</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 font-medium mt-0.5 flex gap-3">
+                                            <span><i class="fas fa-sign-in-alt mr-1"></i>{{ u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '-' }}</span>
+                                            <span><i class="fas fa-calendar-plus mr-1"></i>Inscrit le {{ u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) : '-' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <div class="text-[10px] font-bold text-slate-400">{{ u.loginCount || 1 }} connexion(s)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 5 : GESTION ADMINS ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
+                            <div class="flex gap-2 mb-4">
+                                <input v-model="newAdminEmail" @keyup.enter="addAdminEmail" class="input-field text-sm flex-1" placeholder="email@exemple.com">
+                                <button @click="addAdminEmail" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="email in adminEmails" :key="email"
+                                     class="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-100">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-shield-alt text-amber-500 text-sm"></i>
+                                        <span class="font-bold text-slate-700 text-sm">{{ email }}</span>
+                                        <span v-if="email === auth?.currentUser?.email" class="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-black">Vous</span>
+                                    </div>
+                                    <button @click="removeAdminEmail(email)" class="text-slate-300 hover:text-red-500 transition text-sm">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- ═══ SECTION 6 : NOTES & CHANGELOG ═══ -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+                        <h3 class="font-bold text-slate-800 text-lg mb-2"><i class="fas fa-bell text-indigo-500 mr-2"></i> Notes & Améliorations <span class="text-sm text-slate-400 font-normal">(visibles par tous les utilisateurs au démarrage)</span></h3>
+                        <div class="flex gap-2 mb-5 mt-4">
+                            <input v-model="newChangelogEntry" @keyup.enter="addChangelogEntry" class="input-field flex-1" placeholder="Ex: Nouvelle fonctionnalité — Commentaires horodatés ajoutés dans les fiches CRM">
+                            <button @click="addChangelogEntry" :disabled="!newChangelogEntry.trim()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-5 py-2 rounded-lg font-bold shadow transition">
+                                <i class="fas fa-paper-plane mr-1"></i> Publier
+                            </button>
+                        </div>
+                        <div v-if="!adminChangelog.length" class="text-center text-slate-400 py-6 border-2 border-dashed rounded-xl">
+                            <i class="fas fa-clipboard-list text-3xl opacity-30 block mb-2"></i>
+                            <p class="text-sm">Aucune note publiée.</p>
+                        </div>
+                        <div class="space-y-3">
+                            <div v-for="entry in adminChangelog" :key="entry.id"
+                                 class="flex items-start justify-between gap-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100">
+                                <div class="flex-1">
+                                    <div class="font-bold text-slate-800 text-sm">{{ entry.text }}</div>
+                                    <div class="text-[10px] text-slate-400 mt-1 font-medium">
+                                        <i class="fas fa-calendar mr-1"></i>{{ entry.date }}
+                                        &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i>{{ entry.author }}
+                                    </div>
+                                </div>
+                                <button @click="deleteChangelogEntry(entry.id)" class="text-slate-300 hover:text-red-500 transition flex-shrink-0 mt-0.5">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ SECTION 7 : GESTION BDD ═══ -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6">
+                        <h3 class="font-bold text-slate-800 text-lg mb-1"><i class="fas fa-database text-red-500 mr-2"></i> Gestion de la Base de Données</h3>
+                        <p class="text-xs text-slate-400 mb-6">Sauvegardez, restaurez ou réinitialisez les données de l'application.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><i class="fas fa-download text-emerald-600"></i></div>
+                                    <h4 class="font-bold text-slate-800">Exporter</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4">Télécharge un fichier <code class="bg-white px-1 rounded">.json</code> complet de toute la base.</p>
+                                <button @click="exportFullDB" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-file-download"></i> Télécharger la sauvegarde
+                                </button>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-upload text-blue-600"></i></div>
+                                    <h4 class="font-bold text-slate-800">Restaurer</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> et remplace la base actuelle.</p>
+                                <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fas fa-file-upload"></i> Charger un fichier
+                                    <input type="file" @change="importFullDB" class="hidden" accept=".json">
+                                </label>
+                            </div>
+                            <div class="bg-red-50 border border-red-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center"><i class="fas fa-trash-alt text-red-600"></i></div>
+                                    <h4 class="font-bold text-slate-800">Vider</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-3">Supprime définitivement. <span class="text-red-600 font-bold">Irréversible.</span></p>
+                                <div class="space-y-2">
+                                    <button @click="clearAnnuaire" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-address-book"></i> Vider l'annuaire partagé
+                                    </button>
+                                    <button @click="clearAllData" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-bomb"></i> Tout réinitialiser
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <div v-if="tab==='pipeline'" class="p-6 h-full flex flex-col bg-white">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-slate-800"><i class="fas fa-columns text-indigo-500 mr-2"></i> Suivi des Négociations</h3>
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Filtrer par artiste :</label>
+                        <select v-model="pipelineFilterProj" class="input-field w-64 shadow-sm border-slate-200">
+                            <option value="">Tous les artistes / projets</option>
+                            <option v-for="p in db.projects" :value="p.id">{{ p.name }}</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 flex-1 overflow-x-auto pb-4 items-start snap-x">
+                    <div v-for="col in pipelineCols" :key="col.id" 
+                         class="w-72 flex-shrink-0 rounded-xl flex flex-col max-h-full border border-slate-200 kanban-col snap-start"
+                         @dragover.prevent @drop="dropEvent($event, col.id)">
+                        
+                        <div class="p-3 font-bold text-slate-700 flex justify-between items-center uppercase text-xs tracking-wider border-b border-slate-200 bg-white/50 rounded-t-xl">
+                            <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full" :class="col.dotColor"></div>{{ col.name }}</div>
+                            <span class="bg-white border border-slate-200 px-2 py-0.5 rounded-full text-slate-500 shadow-sm">{{ getPipelineEvents(col.id).length }}</span>
+                        </div>
+                        
+                        <div class="p-3 flex-1 overflow-y-auto space-y-3 min-h-[200px]">
+                            <div v-for="e in getPipelineEvents(col.id)" :key="e.id" 
+                                 draggable="true" @dragstart="dragStart($event, e.id)" @click="openEventModal(null, e)" 
+                                 class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-grab hover:border-indigo-400 hover:shadow-md transition kanban-card">
+                                
+                                <div class="flex justify-between items-start mb-3">
+                                    <span class="text-[10px] font-bold text-white px-2 py-0.5 rounded shadow-sm flex items-center" :style="{backgroundColor: getProjectColor(e.projectId)}">
+                                        <i :class="getProjectIcon(e.projectId)" class="mr-1"></i> {{ getProjectName(e.projectId) }}
+                                    </span>
+                                    <span v-if="e.fee" class="text-xs font-bold" :class="e.contractType==='coreal' ? 'text-indigo-600 bg-indigo-50 px-2 rounded' : 'text-slate-700 bg-slate-100 px-2 rounded'" :title="e.contractType==='coreal' ? 'Co-réalisation (Estimé)' : 'Cession'">{{ formatMoney(e.fee) }}</span>
+                                </div>
+                                <div class="font-bold text-slate-800 text-sm mb-1 truncate" :title="e.venueName">{{ e.venueName || 'Lieu inconnu' }}</div>
+                                <div class="text-xs text-slate-500 mb-3"><i class="fas fa-map-marker-alt mr-1"></i> {{ e.city || 'Ville non précisée' }}</div>
+                                
+                                <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                                    <span class="text-xs font-bold" :class="e.date ? 'text-indigo-600' : 'text-orange-500'"><i class="far fa-calendar-alt mr-1"></i> {{ e.date ? formatDate(e.date) : 'Date à définir' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="tab==='dashboard'" class="p-8 h-full overflow-y-auto">
+                <h3 class="text-2xl font-bold mb-4">Bienvenue, {{ currentUserName }}</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-indigo-500 flex justify-between items-center">
+                        <div><div class="text-slate-500 font-bold uppercase text-xs">Chiffre d'Affaires</div><div class="text-2xl font-bold text-indigo-600">{{ formatMoney(totalCA) }}</div></div>
+                        <i class="fas fa-euro-sign text-3xl text-indigo-100"></i>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 flex justify-between items-center cursor-pointer hover:bg-emerald-50" @click="tab='pipeline'">
+                        <div><div class="text-slate-500 font-bold uppercase text-xs">Dates Confirmées</div><div class="text-2xl font-bold text-emerald-600">{{ db.events.filter(e=>e.status==='conf').length }}</div></div>
+                        <i class="fas fa-calendar-check text-3xl text-emerald-100"></i>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 flex justify-between items-center cursor-pointer hover:bg-red-50" @click="tab='tasks'">
+                        <div><div class="text-slate-500 font-bold uppercase text-xs">Tâches en retard</div><div class="text-2xl font-bold text-red-600">{{ tasksOverdue.length }}</div></div>
+                        <i class="fas fa-exclamation-circle text-3xl text-red-100"></i>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h4 class="font-bold text-slate-700"><i class="fas fa-tasks mr-2 text-indigo-500"></i> Tâches Urgentes</h4>
+                            <button @click="tab='tasks'" class="text-indigo-600 text-xs font-bold hover:underline">Voir tout</button>
+                        </div>
+                        <div class="space-y-3">
+                            <div v-if="tasksOverdue.length === 0 && tasksToday.length === 0" class="text-slate-400 text-center py-4 text-sm">Aucune tâche urgente.</div>
+                            <div v-for="t in tasksOverdue.slice(0,3)" :key="t.id" class="flex gap-3 items-start bg-red-50 p-3 rounded border border-red-100">
+                                <button @click.prevent="toggleTaskDone(t)" class="text-red-400 hover:text-red-600 mt-0.5"><i class="far fa-circle text-lg"></i></button>
+                                <div class="flex-1"><div class="font-bold text-sm text-red-800">{{ t.text }}</div><div class="text-xs text-red-600 mt-1 flex justify-between"><span><i :class="getTypeIcon(t.type)"></i> Échéance dépassée ({{ formatDate(t.dueDate) }})</span><span v-if="t.relType" @click="openRelated(t)" class="cursor-pointer font-bold hover:underline"><i class="fas fa-link"></i> Lié</span></div></div>
+                            </div>
+                            <div v-for="t in tasksToday.slice(0,4)" :key="t.id" class="flex gap-3 items-start bg-orange-50 p-3 rounded border border-orange-100">
+                                <button @click.prevent="toggleTaskDone(t)" class="text-orange-400 hover:text-orange-600 mt-0.5"><i class="far fa-circle text-lg"></i></button>
+                                <div class="flex-1"><div class="font-bold text-sm text-slate-800">{{ t.text }}</div><div class="text-xs text-slate-500 mt-1 flex justify-between"><span><i :class="[getTypeIcon(t.type), 'text-slate-400']"></i> À faire aujourd'hui</span></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="tab==='tasks'" class="p-8 h-full flex flex-col">
+                <div class="flex gap-6 h-full">
+                    <div class="flex-1 flex gap-4 overflow-x-auto pb-4">
+                        <div class="flex-1 min-w-[300px] bg-red-50/50 rounded-xl p-4 flex flex-col border border-red-100">
+                            <h3 class="font-bold text-red-800 mb-4 flex items-center justify-between"><span><i class="fas fa-exclamation-triangle mr-2"></i> En retard</span><span class="bg-red-200 text-red-800 px-2 rounded-full text-xs">{{tasksOverdue.length}}</span></h3>
+                            <div class="flex-1 overflow-y-auto space-y-3">
+                                <div v-for="t in tasksOverdue" :key="t.id" class="bg-white p-4 rounded-lg shadow-sm border border-red-200 relative group">
+                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1 bg-white p-1 rounded">
+                                        <button @click="openTaskModal(t)" class="text-slate-400 hover:text-indigo-600 px-1"><i class="fas fa-pen"></i></button><button @click="deleteTask(t)" class="text-slate-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                    <div class="flex gap-3">
+                                        <button @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500 mt-0.5"><i class="far fa-circle text-lg"></i></button>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-slate-800 text-sm mb-1">{{ t.text }}</div><div class="text-xs text-red-600 font-bold mb-2">{{ formatDate(t.dueDate) }}</div>
+                                            <div class="flex items-center justify-between text-xs"><span class="text-slate-500"><i :class="getTypeIcon(t.type)"></i> {{ getTypeName(t.type) }}</span><button v-if="t.relType" @click="openRelated(t)" class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-bold hover:bg-indigo-100 transition truncate max-w-[120px]">{{ getRelatedName(t) }}</button></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-[300px] bg-orange-50/50 rounded-xl p-4 flex flex-col border border-orange-100">
+                            <h3 class="font-bold text-orange-800 mb-4 flex items-center justify-between"><span><i class="fas fa-calendar-day mr-2"></i> Aujourd'hui</span><span class="bg-orange-200 text-orange-800 px-2 rounded-full text-xs">{{tasksToday.length}}</span></h3>
+                            <div class="flex-1 overflow-y-auto space-y-3">
+                                <div v-for="t in tasksToday" :key="t.id" class="bg-white p-4 rounded-lg shadow-sm border border-orange-200 relative group">
+                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1 bg-white p-1 rounded">
+                                        <button @click="openTaskModal(t)" class="text-slate-400 hover:text-indigo-600 px-1"><i class="fas fa-pen"></i></button><button @click="deleteTask(t)" class="text-slate-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                    <div class="flex gap-3">
+                                        <button @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500 mt-0.5"><i class="far fa-circle text-lg"></i></button>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-slate-800 text-sm mb-2">{{ t.text }}</div>
+                                            <div class="flex items-center justify-between text-xs"><span class="text-slate-500"><i :class="getTypeIcon(t.type)"></i> {{ getTypeName(t.type) }}</span><button v-if="t.relType" @click="openRelated(t)" class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-bold hover:bg-indigo-100 transition truncate max-w-[120px]">{{ getRelatedName(t) }}</button></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-[300px] bg-slate-100/50 rounded-xl p-4 flex flex-col border border-slate-200">
+                            <h3 class="font-bold text-slate-700 mb-4 flex items-center justify-between"><span><i class="fas fa-calendar-alt mr-2"></i> À venir</span><span class="bg-slate-200 text-slate-700 px-2 rounded-full text-xs">{{tasksUpcoming.length}}</span></h3>
+                            <div class="flex-1 overflow-y-auto space-y-3">
+                                <div v-for="t in tasksUpcoming" :key="t.id" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 relative group">
+                                     <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1 bg-white p-1 rounded">
+                                        <button @click="openTaskModal(t)" class="text-slate-400 hover:text-indigo-600 px-1"><i class="fas fa-pen"></i></button><button @click="deleteTask(t)" class="text-slate-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                    <div class="flex gap-3">
+                                        <button @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500 mt-0.5"><i class="far fa-circle text-lg"></i></button>
+                                        <div class="flex-1">
+                                            <div class="font-bold text-slate-800 text-sm mb-1">{{ t.text }}</div><div v-if="t.dueDate" class="text-xs text-slate-500 mb-2">{{ formatDate(t.dueDate) }}</div>
+                                            <div class="flex items-center justify-between text-xs mt-2"><span class="text-slate-400"><i :class="getTypeIcon(t.type)"></i> {{ getTypeName(t.type) }}</span><button v-if="t.relType" @click="openRelated(t)" class="text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-bold hover:bg-slate-200 transition truncate max-w-[120px]">{{ getRelatedName(t) }}</button></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-1 min-w-[300px] bg-emerald-50/50 rounded-xl p-4 flex flex-col border border-emerald-100 opacity-80 hover:opacity-100 transition">
+                            <h3 class="font-bold text-emerald-800 mb-4 flex items-center justify-between"><span><i class="fas fa-check-double mr-2"></i> Historique</span><span class="bg-emerald-200 text-emerald-800 px-2 rounded-full text-xs">{{tasksDone.length}}</span></h3>
+                            <div class="flex-1 overflow-y-auto space-y-3">
+                                <div v-for="t in tasksDone" :key="t.id" class="bg-white p-3 rounded-lg shadow-sm border border-emerald-200">
+                                    <div class="flex gap-2 items-start mb-2"><i class="fas fa-check-circle text-emerald-500 mt-0.5"></i><div class="flex-1"><div class="font-bold text-slate-500 text-sm line-through">{{ t.text }}</div></div><button @click="deleteTask(t)" class="text-slate-300 hover:text-red-500"><i class="fas fa-trash"></i></button></div>
+                                    <div v-if="t.notes" class="bg-slate-50 p-2 rounded text-xs text-slate-600 border border-slate-100 italic">"{{ t.notes }}"</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="tab==='planning'" class="p-6 h-full flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex bg-slate-200 rounded p-1">
+                        <button @click="viewMode='calendar'" :class="['px-4 py-1.5 rounded text-xs font-bold transition', viewMode==='calendar'?'bg-white shadow text-slate-800':'text-slate-500']">Mois</button>
+                        <button @click="viewMode='list'" :class="['px-4 py-1.5 rounded text-xs font-bold transition', viewMode==='list'?'bg-white shadow text-slate-800':'text-slate-500']">Liste</button>
+                    </div>
+                    <div v-if="viewMode==='calendar'" class="flex items-center gap-4">
+                        <button @click="changeMonth(-1)" class="w-8 h-8 rounded-full bg-white border shadow-sm hover:bg-slate-50"><i class="fas fa-chevron-left"></i></button>
+                        <h3 class="font-bold text-lg w-48 text-center uppercase tracking-wide">{{ currentMonthName }} {{ currentYear }}</h3>
+                        <button @click="changeMonth(1)" class="w-8 h-8 rounded-full bg-white border shadow-sm hover:bg-slate-50"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="flex gap-6 flex-1 overflow-hidden">
+                    <div class="w-56 bg-white rounded-lg shadow border border-slate-200 p-4 flex flex-col">
+                        <h4 class="font-bold text-slate-700 uppercase text-xs mb-4 border-b pb-2">Filtres Artistes</h4>
+                        <div class="flex-1 overflow-y-auto space-y-3">
+                            <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" :checked="isAllProjectsSelected" @change="toggleAllProjects" class="custom-cb" style="background-color: #64748b; border-color: #64748b;"><span class="text-sm font-bold text-slate-700">Tous les artistes</span></label>
+                            <label v-for="p in db.projects" :key="p.id" class="flex items-center gap-3 cursor-pointer"><input type="checkbox" :value="p.id" v-model="selectedProjectIds" class="custom-cb" :style="{ backgroundColor: selectedProjectIds.includes(p.id) ? p.color : 'white', borderColor: p.color }">
+                                <span class="text-sm text-slate-600 truncate"><i :class="getProjectIcon(p.id)" class="mr-1 text-slate-400"></i> {{ p.name }}</span>
+                            </label>
+                        </div>
+                        
+                        <label class="flex items-center gap-3 cursor-pointer mt-4 border-t border-slate-100 pt-4">
+                            <input type="checkbox" v-model="showTasksInCalendar" class="custom-cb" style="background-color: #f43f5e; border-color: #f43f5e;">
+                            <span class="text-sm font-bold text-slate-700"><i class="fas fa-tasks mr-1 text-slate-400"></i> Afficher les tâches</span>
+                        </label>
+                    </div>
+                    
+                    <div v-if="viewMode==='calendar'" class="flex-1 overflow-y-auto bg-white rounded-lg shadow border border-slate-200 p-1">
+                        <div class="calendar-grid">
+                            <div v-for="d in ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']" class="cal-head">{{d}}</div>
+                            <div v-for="(day, index) in calendarDays" :key="index" :class="['cal-cell', day.isToday?'cal-today':'']" @click="day.dayNum ? handleCalendarClick(day.date) : null">
+                                <div v-if="day.dayNum" class="cal-date">{{ day.dayNum }}</div>
+                                <div v-if="day.dayNum" class="space-y-1">
+                                    <div v-for="item in day.items" :key="item.itemType + item.data.id">
+                                        <div v-if="item.itemType === 'event'" @click.stop="openEventModal(null, item.data)" :class="['event-chip', item.data.status==='ann'?'evt-ann':(item.data.status==='opt'?'evt-opt':'')]" :style="{ backgroundColor: getProjectColor(item.data.projectId) }">
+                                            <i v-if="item.data.status==='conf'" class="fas fa-check-circle opacity-80"></i>
+                                            <i v-else-if="item.data.status==='opt'" class="fas fa-hourglass-half opacity-80"></i>
+                                            <i v-else-if="item.data.status==='ann'" class="fas fa-times-circle opacity-80"></i>
+                                            <i v-else :class="getProjectIcon(item.data.projectId)" class="opacity-80"></i>
+                                            <span class="truncate"><b v-if="item.data.time" class="mr-1 opacity-90">{{ item.data.time }}</b> {{ item.data.city ? item.data.city : (item.data.venueName || 'À définir') }}</span>
+                                        </div>
+                                        
+                                        <div v-if="item.itemType === 'task'" @click.stop="openTaskModal(item.data)" class="event-chip bg-white !text-slate-700 border border-slate-200 shadow-sm hover:border-red-400 relative overflow-hidden pl-5">
+                                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-red-400"></div>
+                                            <i :class="getTypeIcon(item.data.type)" class="!text-xs mr-1 opacity-70"></i>
+                                            <span class="truncate">{{ item.data.text }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="viewMode==='list'" class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
+                        <div class="overflow-y-auto flex-1">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 border-b text-xs uppercase text-slate-500 sticky top-0"><tr><th class="p-4">Date</th><th class="p-4">Heure</th><th class="p-4">Projet</th><th class="p-4">Lieu</th><th class="p-4">Statut</th><th class="p-4"></th></tr></thead>
+                                <tbody>
+                                    <tr v-for="e in listEvents" :key="e.id" class="border-b hover:bg-slate-50">
+                                        <td class="p-4 font-bold">{{ e.date ? formatDate(e.date) : '-' }}</td>
+                                        <td class="p-4 text-slate-500">{{ e.time || '--:--' }}</td>
+                                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold text-white flex items-center w-max" :style="{ backgroundColor: getProjectColor(e.projectId) }"><i :class="getProjectIcon(e.projectId)" class="mr-2"></i> {{ getProjectName(e.projectId) }}</span></td>
+                                        <td class="p-4"><div class="font-bold">{{ e.venueName || 'Lieu inconnu' }}</div><div class="text-xs text-slate-500">{{ e.city }}</div></td>
+                                        <td class="p-4"><span :class="['badge', e.status==='conf'?'bg-emerald-100 text-emerald-700':(e.status==='ann'?'bg-red-100 text-red-700':'bg-orange-100 text-orange-700')]">{{e.status}}</span></td>
+                                        <td class="p-4 text-right"><button @click="openEventModal(null, e)" class="text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded text-xs hover:bg-indigo-100">Éditer</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="tab==='structures'" class="p-8 h-full flex flex-col">
+                <div class="mb-4 flex gap-4"><input v-model="searchStruct" class="input-field max-w-sm" placeholder="Rechercher une structure..."></div>
+                <div class="bg-white rounded-lg shadow overflow-hidden flex-1 overflow-y-auto">
+                     <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b text-xs uppercase text-slate-500"><tr><th class="p-4">Nom</th><th class="p-4">Ville</th><th class="p-4">Saison / Horaires</th><th class="p-4">Contacts</th><th class="p-4 text-right">Actions</th></tr></thead>
+                        <tbody>
+                            <tr v-for="s in filteredStructures" :key="s.id" class="border-b hover:bg-slate-50">
+                                <td class="p-4 font-bold">
+                                    {{ s.name }}
+                                    <div v-if="s.capacity" class="text-xs font-normal text-slate-400 mt-1"><i class="fas fa-users"></i> {{ s.capacity }} places</div>
+                                </td>
+                                <td class="p-4 text-slate-500">{{ s.city }}</td>
+                                <td class="p-4">
+                                    <div class="text-xs text-slate-700 font-bold">{{ s.season || '-' }}</div>
+                                    <div class="text-[10px] text-slate-500">{{ s.hours || '' }}</div>
+                                </td>
+                                <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{{ (s.contacts||[]).length }}</span></td>
+                               <td class="p-4 text-right whitespace-nowrap">
+    <button @click="openCrmView(s)" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-1.5 rounded-lg text-xs font-bold transition mr-2 shadow-sm"><i class="fas fa-folder-open mr-1"></i> Fiche CRM</button>
+    <button @click="deleteStructure(s)" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fas fa-trash"></i></button>
+</td> 
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div v-if="tab==='contacts'" class="p-8 h-full flex flex-col">
+                 <div class="mb-4 flex justify-between items-center gap-4">
+                     <input v-model="searchContact" class="input-field max-w-sm" placeholder="Rechercher un contact...">
+                     <div class="flex bg-slate-200 rounded p-1">
+                        <button @click="contactViewMode='grid'" :class="['px-4 py-1.5 rounded text-xs font-bold transition flex items-center', contactViewMode==='grid'?'bg-white shadow text-slate-800':'text-slate-500 hover:text-slate-700']"><i class="fas fa-th-large mr-2"></i> Grille</button>
+                        <button @click="contactViewMode='list'" :class="['px-4 py-1.5 rounded text-xs font-bold transition flex items-center', contactViewMode==='list'?'bg-white shadow text-slate-800':'text-slate-500 hover:text-slate-700']"><i class="fas fa-list mr-2"></i> Liste Compacte</button>
+                    </div>
+                 </div>
+                <div v-if="contactViewMode==='grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-10">
+                    <div v-for="c in filteredContacts" :key="c.id" class="contact-card group">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1 bg-white/90 p-1 rounded-bl shadow-sm">
+                            <button @click="openTaskModal(null, {relType:'contact', relId:c.id})" class="text-indigo-500 hover:text-indigo-700 p-1 text-xs font-bold" title="Ajouter une tâche"><i class="fas fa-tasks"></i></button>
+                            <button @click="editContact(c)" class="text-slate-400 hover:text-indigo-600 p-1" title="Éditer"><i class="fas fa-pen"></i></button>
+                            <button @click="deleteContact(c)" class="text-slate-400 hover:text-red-600 p-1" title="Supprimer"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div v-if="c.notes && c.notes.trim() !== ''" class="absolute top-2 right-2 text-yellow-500 text-xs opacity-70 group-hover:opacity-0" title="Contient des notes"><i class="fas fa-sticky-note"></i></div>
+                        
+                        <div class="font-bold text-slate-800 mb-2">
+                            <i v-if="c.isPrivate" class="fas fa-lock text-orange-500 mr-1" title="Contact Privé"></i>
+                            {{ c.name }} 
+                            <span v-if="c.role" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 ml-1 rounded">{{ c.role }}</span>
+                        </div>
+                        
+                        <div class="text-xs text-slate-500 font-bold uppercase mb-3"><i class="fas fa-building mr-1"></i> {{ c.structName }} <span class="text-slate-300">|</span> {{ c.structCity }}</div>
+                        <div class="space-y-1 mb-3">
+                            <div v-for="em in c.emails" :key="em" v-show="em" class="text-xs truncate"><i class="fas fa-envelope w-4 text-slate-400"></i> <a :href="'mailto:'+em" class="text-slate-600 hover:text-indigo-600 hover:underline">{{em}}</a></div>
+                            <div v-for="ph in c.phones" :key="ph" v-show="ph" class="text-xs"><i class="fas fa-phone w-4 text-slate-400"></i> {{ph}}</div>
+                        </div>
+                        <div class="flex flex-wrap gap-1 mb-1 h-6 overflow-hidden">
+                            <span v-for="tag in (c.tags||[])" :class="['tag', getTagClass(tag)]">{{ tag }}</span>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-100">
+                            <button @click.stop="goToContactStructure(c)"
+                                    class="w-full text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-1.5 rounded-lg transition flex items-center justify-center gap-1.5">
+                                <i class="fas fa-building"></i> Voir la fiche structure
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="contactViewMode==='list'" class="bg-white rounded-lg shadow overflow-hidden flex-1 overflow-y-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b text-xs uppercase text-slate-500 sticky top-0"><tr><th class="p-4">Contact</th><th class="p-4">Rôle</th><th class="p-4">Structure</th><th class="p-4">Notes</th><th class="p-4 text-right">Actions</th></tr></thead>
+                        <tbody>
+                            <tr v-for="c in filteredContacts" :key="c.id" class="border-b hover:bg-slate-50 cursor-pointer" @dblclick="editContact(c)">
+                                <td class="p-4 font-bold text-slate-800"><i v-if="c.isPrivate" class="fas fa-lock text-orange-500 mr-2" title="Contact Privé"></i>{{ c.name }}</td>
+                                <td class="p-4"><span v-if="c.role" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 rounded">{{ c.role }}</span><span v-else class="text-slate-400 text-xs italic">Non précisé</span></td>
+                                <td class="p-4 text-slate-600 font-bold text-sm">{{ c.structName }} <span class="text-xs font-normal text-slate-400">({{ c.structCity }})</span></td>
+                                <td class="p-4 text-center"><i v-if="c.notes && c.notes.trim() !== ''" class="fas fa-sticky-note text-yellow-500" title="Notes ajoutées"></i></td>
+                                <td class="p-4 text-right whitespace-nowrap">
+                                    <button @click="goToContactStructure(c)" class="text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded text-xs font-bold mr-2 transition" title="Voir la fiche structure"><i class="fas fa-building mr-1"></i> Structure</button>
+                                    <button @click="editContact(c)" class="text-slate-500 hover:text-indigo-600 mr-3"><i class="fas fa-pen"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div v-if="tab==='projects'" class="p-8 h-full overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div v-for="p in db.projects" :key="p.id" class="card-project flex flex-col h-full relative cursor-pointer group" @click="openProjectModal(p)">
+                        <div class="h-32 relative" :style="{ backgroundColor: p.color }">
+                            <div class="absolute inset-0 flex items-center justify-center text-white/50 text-5xl"><i :class="p.icon || 'fas fa-music'"></i></div>
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col">
+                            <div class="flex justify-between items-start mb-1">
+                                <h3 class="font-bold text-lg text-slate-800">{{ p.name }}</h3>
+                                <div v-if="p.teamSize" class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full" title="Taille de l'équipe"><i class="fas fa-users mr-1"></i> {{ p.teamSize }}</div>
+                            </div>
+                            <div class="text-xs text-slate-500 uppercase font-bold tracking-wide mb-4">{{ p.genre }}</div>
+                            <div class="mt-auto pt-4 border-t border-slate-100 flex justify-between items-center">
+                                <div class="text-xs font-bold text-slate-400"><i class="far fa-clock mr-1"></i> {{ p.duration }}</div>
+                                <div class="font-bold text-slate-700" title="Cachet de base"><i class="fas fa-euro-sign mr-1"></i> {{ formatMoney(p.defaultFee) }} <span class="text-[10px] text-slate-400">{{ p.feeType || 'HT' }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===================== ONGLET MAILING ===================== -->
+            <div v-if="tab==='mailing'" class="h-full flex flex-col overflow-hidden bg-slate-50">
+
+                <!-- Barre onglets internes -->
+                <div class="flex items-center gap-1 px-6 pt-4 pb-0 bg-white border-b border-slate-200">
+                    <button @click="mailingActiveTab='compose'" :class="['px-4 py-2 text-sm font-bold rounded-t border-b-2 transition', mailingActiveTab==='compose' ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                        <i class="fas fa-paper-plane mr-2"></i> Composer
+                    </button>
+                    <button @click="mailingActiveTab='templates'" :class="['px-4 py-2 text-sm font-bold rounded-t border-b-2 transition', mailingActiveTab==='templates' ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                        <i class="fas fa-file-alt mr-2"></i> Templates <span class="bg-slate-200 text-slate-600 text-xs px-1.5 rounded-full ml-1">{{ (db.templates||[]).length }}</span>
+                    </button>
+                    <button @click="mailingActiveTab='history'" :class="['px-4 py-2 text-sm font-bold rounded-t border-b-2 transition', mailingActiveTab==='history' ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                        <i class="fas fa-history mr-2"></i> Historique <span v-if="(db.campaignHistory||[]).length" class="bg-indigo-100 text-indigo-700 text-xs px-1.5 rounded-full ml-1">{{ (db.campaignHistory||[]).length }}</span>
+                    </button>
+                </div>
+
+                <!-- === TAB COMPOSER === -->
+                <div v-if="mailingActiveTab==='compose'" class="flex-1 flex overflow-hidden">
+
+                    <!-- Colonne gauche : Filtres -->
+                    <div class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+                        <div class="p-4 border-b border-slate-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="font-bold text-slate-700 text-sm">Destinataires</span>
+                                <span class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ selectedMailingContacts.length }} sélectionné(s)</span>
+                            </div>
+                            <input v-model="mailingSearch" class="input-field text-sm mb-2" placeholder="Rechercher un contact ou lieu...">
+                            <button @click="toggleSelectAll" class="w-full text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded font-bold transition text-left">
+                                <i class="fas fa-check-square mr-1 text-indigo-500"></i> Tout sélectionner / désélectionner
+                            </button>
+                        </div>
+
+                        <!-- Filtres par tags — scrollable -->
+                        <div class="flex-1 overflow-y-auto custom-scrollbar p-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Filtrer par tags</span>
+                                <button v-if="hasActiveMailingFilters" @click="clearMailingFilters" class="text-xs text-rose-500 hover:text-rose-700 font-bold">
+                                    <i class="fas fa-times mr-1"></i>Effacer
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="text-[10px] font-black text-slate-400 uppercase mb-1">Catégories</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button v-for="tag in allTagCategories" :key="tag"
+                                            @click="toggleMailingTagFilter('categories', tag)"
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('categories', tag) ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-indigo-50']">
+                                            {{ tag }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-black text-slate-400 uppercase mb-1">Genres</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button v-for="tag in allTagGenres" :key="tag"
+                                            @click="toggleMailingTagFilter('genres', tag)"
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('genres', tag) ? 'bg-pink-600 text-white border-pink-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-pink-50']">
+                                            {{ tag }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-black text-slate-400 uppercase mb-1">Réseaux</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button v-for="tag in allTagReseaux" :key="tag"
+                                            @click="toggleMailingTagFilter('reseaux', tag)"
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('reseaux', tag) ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-emerald-50']">
+                                            {{ tag }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-black text-slate-400 uppercase mb-1">Mots-clés</div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button v-for="tag in allTagKeywords" :key="tag"
+                                            @click="toggleMailingTagFilter('keywords', tag)"
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('keywords', tag) ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-purple-50']">
+                                            {{ tag }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonne centre : Rédaction -->
+                    <div class="flex-1 flex flex-col overflow-hidden">
+                        <div class="flex-1 p-6 overflow-y-auto custom-scrollbar">
+
+                            <!-- Sélecteur de template -->
+                            <div class="flex items-center gap-3 mb-5">
+                                <select v-model="selectedTemplateId" @change="applyTemplate" class="input-field flex-1">
+                                    <option value="">-- Choisir un template --</option>
+                                    <option v-for="tpl in (db.templates||[])" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
+                                </select>
+                                <button @click="openTemplateModal(null)" class="bg-slate-800 text-white px-3 py-2 rounded text-sm font-bold hover:bg-slate-700 transition whitespace-nowrap">
+                                    <i class="fas fa-plus mr-1"></i> Nouveau
+                                </button>
+                            </div>
+
+                            <!-- Sujet -->
+                            <div class="mb-4">
+                                <label class="input-label">Objet de l'email</label>
+                                <input v-model="mailSubject" class="input-field" placeholder="Ex: Proposition artistique - {{structName}}">
+                            </div>
+
+                            <!-- Corps -->
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="input-label">Corps du message</label>
+                                    <span class="text-xs text-slate-400">Variables : <code class="bg-slate-100 px-1 rounded">&#123;&#123;contactFirstName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;structName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;structCity&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;userName&#125;&#125;</code></span>
+                                </div>
+                                <textarea v-model="mailBody" rows="12" class="input-field resize-none font-mono text-sm" placeholder="Rédigez votre message..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Barre d'actions -->
+                        <div class="border-t border-slate-200 bg-white px-6 py-4 flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-2">
+                                <button @click="exportToBrevo" :disabled="!selectedMailingContacts.length" class="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <i class="fas fa-file-csv"></i> Export Brevo
+                                </button>
+                                <button @click="exportToMailchimp" :disabled="!selectedMailingContacts.length" class="flex items-center gap-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 px-3 py-2 rounded text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <i class="fas fa-file-csv"></i> Export Mailchimp
+                                </button>
+                            </div>
+                            <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody"
+                                class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold shadow transition disabled:opacity-40 disabled:cursor-not-allowed">
+                                <i class="fas fa-paper-plane"></i>
+                                Lancer la campagne ({{ selectedMailingContacts.length }})
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Colonne droite : Contacts (haut) + Prévisualisation (bas) -->
+                    <div class="w-80 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col">
+
+                        <!-- Partie haute : liste contacts -->
+                        <div class="flex flex-col border-b border-slate-200" style="height: 55%;">
+                            <div class="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <span class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-users text-indigo-400 mr-1"></i> Contacts</span>
+                                <span class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ filteredMailingContacts.length }} / {{ selectedMailingContacts.length }} sél.</span>
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar">
+                                <div v-if="filteredMailingContacts.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 p-6 text-center">
+                                    <i class="fas fa-filter text-3xl mb-2 opacity-30"></i>
+                                    <p class="text-sm">Aucun contact ne correspond aux filtres.</p>
+                                </div>
+                                <div v-for="c in filteredMailingContacts" :key="c.id"
+                                    class="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50 cursor-pointer transition"
+                                    :class="isContactSelected(c) ? 'bg-indigo-50' : 'hover:bg-slate-50'"
+                                    @click="toggleContactSelection(c)">
+                                    <div class="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition"
+                                        :class="isContactSelected(c) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'">
+                                        <i v-if="isContactSelected(c)" class="fas fa-check text-white text-[8px]"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-bold text-sm text-slate-800 truncate">{{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}</div>
+                                        <div class="text-xs text-slate-400 truncate">{{ c.structName }} · {{ c.primaryEmail }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Partie basse : prévisualisation -->
+                        <div class="flex flex-col" style="height: 45%;">
+                            <div class="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <span class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-eye text-indigo-400 mr-1"></i> Aperçu</span>
+                                <div v-if="selectedMailingContacts.length > 1" class="flex items-center gap-1">
+                                    <button @click="previewContactIndex = Math.max(0, previewContactIndex-1)" class="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold flex items-center justify-center"><i class="fas fa-chevron-left"></i></button>
+                                    <span class="text-xs text-slate-500 font-bold">{{ Math.min(previewContactIndex+1, selectedMailingContacts.length) }}/{{ selectedMailingContacts.length }}</span>
+                                    <button @click="previewContactIndex = Math.min(selectedMailingContacts.length-1, previewContactIndex+1)" class="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold flex items-center justify-center"><i class="fas fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+                            <div v-if="!selectedMailingContacts.length" class="flex-1 flex items-center justify-center text-slate-400 text-center p-4">
+                                <div>
+                                    <i class="far fa-envelope text-3xl mb-2 opacity-30 block"></i>
+                                    <p class="text-xs">Sélectionnez des contacts pour prévisualiser.</p>
+                                </div>
+                            </div>
+                            <div v-else class="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                                <div class="bg-slate-50 rounded-lg p-2.5 mb-2 border border-slate-100 text-xs text-slate-500 space-y-0.5">
+                                    <template v-if="previewContact">
+                                        <div><span class="font-bold text-slate-700">À :</span> {{ previewContact.name || ((previewContact.firstName||'') + ' ' + (previewContact.lastName||'')).trim() }}</div>
+                                        <div><span class="font-bold text-slate-700">Email :</span> {{ previewContact.primaryEmail || previewContact.emailPro }}</div>
+                                        <div><span class="font-bold text-slate-700">Structure :</span> {{ previewContact.structName }}</div>
+                                    </template>
+                                </div>
+                                <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                                    <div class="font-bold text-slate-700 mb-2 pb-1.5 border-b border-slate-100 text-xs">{{ previewContact ? parseMailVars(mailSubject, previewContact) : '(Objet vide)' }}</div>
+                                    <div class="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{{ previewContact ? parseMailVars(mailBody, previewContact) : '(Corps vide)' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === TAB TEMPLATES === -->
+                <div v-if="mailingActiveTab==='templates'" class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-bold text-slate-800">Mes templates d'emails</h3>
+                            <button @click="openTemplateModal(null)" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition shadow">
+                                <i class="fas fa-plus mr-2"></i> Nouveau template
+                            </button>
+                        </div>
+                        <div v-if="!(db.templates||[]).length" class="text-center py-16 text-slate-400">
+                            <i class="far fa-file-alt text-5xl mb-4 opacity-30 block"></i>
+                            <p class="font-bold mb-2">Aucun template</p>
+                            <p class="text-sm">Créez votre premier template pour l'utiliser dans vos campagnes.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div v-for="tpl in (db.templates||[])" :key="tpl.id" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md transition">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-bold text-slate-800">{{ tpl.name }}</h4>
+                                    <div class="flex gap-2">
+                                        <button @click="openTemplateModal(tpl)" class="text-slate-400 hover:text-indigo-600 transition"><i class="fas fa-pen"></i></button>
+                                        <button @click="deleteTemplate(tpl)" class="text-slate-400 hover:text-rose-500 transition"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-indigo-600 font-bold mb-2 truncate"><i class="fas fa-envelope mr-1"></i> {{ tpl.subject }}</div>
+                                <div class="text-xs text-slate-500 line-clamp-3 leading-relaxed whitespace-pre-wrap">{{ tpl.body }}</div>
+                                <button @click="selectedTemplateId=tpl.id; applyTemplate(); mailingActiveTab='compose'" class="mt-3 w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-1.5 rounded transition">
+                                    <i class="fas fa-paper-plane mr-1"></i> Utiliser ce template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === TAB HISTORIQUE === -->
+                <div v-if="mailingActiveTab==='history'" class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    <div class="max-w-4xl mx-auto">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6">Historique des campagnes</h3>
+                        <div v-if="!(db.campaignHistory||[]).length" class="text-center py-16 text-slate-400">
+                            <i class="fas fa-history text-5xl mb-4 opacity-30 block"></i>
+                            <p class="font-bold mb-2">Aucune campagne envoyée</p>
+                            <p class="text-sm">Vos campagnes envoyées apparaîtront ici.</p>
+                        </div>
+                        <div class="space-y-4">
+                            <div v-for="campaign in (db.campaignHistory||[])" :key="campaign.id" class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <div class="font-bold text-slate-800 mb-1">{{ campaign.subject }}</div>
+                                        <div class="text-xs text-slate-400">
+                                            <i class="far fa-clock mr-1"></i> {{ new Date(campaign.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'}) }}
+                                            &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i> {{ campaign.sentBy }}
+                                        </div>
+                                    </div>
+                                    <span class="bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1 rounded-full">
+                                        <i class="fas fa-users mr-1"></i> {{ campaign.recipientCount }} destinataires
+                                    </span>
+                                </div>
+                                <div class="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 mb-3 whitespace-pre-wrap line-clamp-3 leading-relaxed font-mono">{{ campaign.body }}</div>
+                                <details class="text-xs text-slate-500">
+                                    <summary class="cursor-pointer font-bold text-slate-600 hover:text-indigo-600 transition">Voir les destinataires</summary>
+                                    <div class="mt-2 flex flex-wrap gap-1">
+                                        <span v-for="r in campaign.recipients" :key="r.email" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                            {{ r.name }} ({{ r.struct }})
+                                        </span>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Template -->
+            <div v-if="showTemplateModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800">{{ editTemplateData.id ? 'Modifier le template' : 'Nouveau template' }}</h3>
+                        <button @click="showTemplateModal=false" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="input-label">Nom du template</label>
+                            <input v-model="editTemplateData.name" class="input-field" placeholder="Ex: Prise de contact initiale">
+                        </div>
+                        <div>
+                            <label class="input-label">Objet de l'email</label>
+                            <input v-model="editTemplateData.subject" class="input-field" placeholder="Ex: Proposition artistique - {{structName}}">
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="input-label">Corps du message</label>
+                                <span class="text-xs text-slate-400">Variables : <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;contactFirstName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;structName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;structCity&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;userName&#125;&#125;</code></span>
+                            </div>
+                            <textarea v-model="editTemplateData.body" rows="10" class="input-field resize-none font-mono text-sm" placeholder="Rédigez le corps de votre template..."></textarea>
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+                        <button @click="showTemplateModal=false" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition">Annuler</button>
+                        <button @click="saveTemplate" class="px-6 py-2 rounded-lg bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition shadow">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-if="tab==='settings'" class="p-8 h-full overflow-y-auto bg-slate-50 w-full custom-scrollbar">
+                <div class="max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-black text-slate-800 mb-8"><i class="fas fa-cog text-indigo-500 mr-3"></i>Paramètres du CRM</h2>
+
+                    <!-- Bloc activation admin -->
+                    <div v-if="!isAdmin" class="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mb-8 flex items-center justify-between gap-6">
+                        <div>
+                            <h3 class="font-bold text-slate-800 mb-1"><i class="fas fa-shield-alt text-amber-500 mr-2"></i> Accès Administrateur</h3>
+                            <p class="text-sm text-slate-500">Vous n'êtes pas encore enregistré comme administrateur. Cliquez pour activer l'accès admin avec votre compte actuel.</p>
+                        </div>
+                        <button @click="activateSelfAsAdmin"
+                                class="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-3 rounded-xl shadow transition flex items-center gap-2">
+                            <i class="fas fa-shield-alt"></i> M'activer comme Admin
+                        </button>
+                    </div>
+                    <div v-else class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-8 flex items-center gap-3">
+                        <i class="fas fa-check-circle text-emerald-500 text-xl"></i>
+                        <div>
+                            <span class="font-bold text-emerald-800 text-sm">Vous êtes administrateur.</span>
+                            <span class="text-emerald-600 text-sm ml-2">L'onglet "Administration" est disponible dans le menu.</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 mb-6 gap-4">
+        <div>
+            <h3 class="text-lg font-bold text-slate-800">
+                <i class="fas fa-tags text-indigo-400 mr-2"></i>Gestion des Tags & Étiquettes
+            </h3>
+            <p class="text-sm text-slate-500 mt-1">
+                Personnalisez les listes déroulantes de vos fiches CRM.
+            </p>
+        </div>
+        
+        <button @click="refreshTags" 
+                class="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-4 py-2 rounded-xl text-xs font-black transition border border-indigo-100 shadow-sm active:scale-95">
+            <i class="fas fa-sync-alt" :class="{'fa-spin': saveStatus === 'saving'}"></i>
+            RAFRAÎCHIR LES DONNÉES CLOUD
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+        <div class="flex justify-between items-center mb-4">
+            <h4 class="font-bold text-slate-700">Catégories de Lieux</h4>
+            <button @click="addGlobalTag('tagCategories')" class="text-indigo-600 bg-indigo-100 hover:bg-indigo-200 px-3 py-1 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-plus mr-1"></i>Ajouter</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <span v-for="tag in db.tagCategories" :key="tag" class="bg-white border border-indigo-200 text-indigo-700 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm">
+                {{ tag }}
+                <button @click="removeGlobalTag('tagCategories', tag)" class="ml-2 text-indigo-300 hover:text-red-500 transition"><i class="fas fa-times"></i></button>
+            </span>
+        </div>
+    </div>
+    
+    <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+        <div class="flex justify-between items-center mb-4">
+            <h4 class="font-bold text-slate-700">Genres (Programmation)</h4>
+            <button @click="addGlobalTag('tagGenres')" class="text-emerald-600 bg-emerald-100 hover:bg-emerald-200 px-3 py-1 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-plus mr-1"></i>Ajouter</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <span v-for="tag in db.tagGenres" :key="tag" class="bg-white border border-emerald-200 text-emerald-700 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm">
+                {{ tag }}
+                <button @click="removeGlobalTag('tagGenres', tag)" class="ml-2 text-emerald-300 hover:text-red-500 transition"><i class="fas fa-times"></i></button>
+            </span>
+        </div>
+    </div>
+    
+    <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+        <div class="flex justify-between items-center mb-4">
+            <h4 class="font-bold text-slate-700">Réseaux & Adhérences</h4>
+            <button @click="addGlobalTag('tagReseaux')" class="text-amber-600 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-plus mr-1"></i>Ajouter</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <span v-for="tag in db.tagReseaux" :key="tag" class="bg-white border border-amber-200 text-amber-700 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm">
+                {{ tag }}
+                <button @click="removeGlobalTag('tagReseaux', tag)" class="ml-2 text-amber-300 hover:text-red-500 transition"><i class="fas fa-times"></i></button>
+            </span>
+        </div>
+    </div>
+    
+    <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+        <div class="flex justify-between items-center mb-4">
+            <h4 class="font-bold text-slate-700">Mots-clés Internes</h4>
+            <button @click="addGlobalTag('tagKeywords')" class="text-rose-600 bg-rose-100 hover:bg-rose-200 px-3 py-1 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-plus mr-1"></i>Ajouter</button>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <span v-for="tag in db.tagKeywords" :key="tag" class="bg-white border border-rose-200 text-rose-700 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center shadow-sm">
+                {{ tag }}
+                <button @click="removeGlobalTag('tagKeywords', tag)" class="ml-2 text-rose-300 hover:text-red-500 transition"><i class="fas fa-times"></i></button>
+            </span>
+        </div>
+    </div>
+</div>
+                        
+                    </div>
+
+                    <!-- BLOC RESSOURCES & ANNUAIRES PROFESSIONNELS -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mt-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-1"><i class="fas fa-link text-indigo-500 mr-2"></i> Ressources & Annuaires Professionnels</h3>
+                        <p class="text-xs text-slate-400 mb-6">Sources gratuites pour enrichir votre base de structures et contacts.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+                            <a href="https://data.culture.gouv.fr/explore/dataset/base-des-lieux-et-des-equipements-culturels/" target="_blank"
+                               class="flex items-start gap-3 p-4 rounded-xl border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 transition group">
+                                <div class="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-200 transition">
+                                    <i class="fas fa-landmark text-indigo-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm">Base BASILIC</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Ministère de la Culture — milliers de lieux culturels géolocalisés</div>
+                                    <div class="text-[10px] text-indigo-500 font-bold mt-1">→ Importable directement depuis l'app</div>
+                                </div>
+                            </a>
+
+                            <a href="https://www.reseauic.com/annuaire" target="_blank"
+                               class="flex items-start gap-3 p-4 rounded-xl border border-purple-100 bg-purple-50 hover:bg-purple-100 transition group">
+                                <div class="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition">
+                                    <i class="fas fa-network-wired text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm">RéseauIC</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Annuaire des indépendants culturels</div>
+                                    <div class="text-[10px] text-purple-500 font-bold mt-1">→ Export CSV importable</div>
+                                </div>
+                            </a>
+
+                            <a href="https://www.syndeac.org/annuaire/" target="_blank"
+                               class="flex items-start gap-3 p-4 rounded-xl border border-emerald-100 bg-emerald-50 hover:bg-emerald-100 transition group">
+                                <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 transition">
+                                    <i class="fas fa-theater-masks text-emerald-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm">Syndeac</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Entreprises artistiques et culturelles</div>
+                                    <div class="text-[10px] text-emerald-500 font-bold mt-1">→ Export CSV importable</div>
+                                </div>
+                            </a>
+
+                            <a href="https://www.fedelima.org/carte-des-adherents" target="_blank"
+                               class="flex items-start gap-3 p-4 rounded-xl border border-pink-100 bg-pink-50 hover:bg-pink-100 transition group">
+                                <div class="w-9 h-9 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-pink-200 transition">
+                                    <i class="fas fa-music text-pink-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm">FEDELIMA</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Lieux de musiques actuelles</div>
+                                    <div class="text-[10px] text-pink-500 font-bold mt-1">→ Export CSV importable</div>
+                                </div>
+                            </a>
+
+                            <a href="https://www.fedurok.org/membres/" target="_blank"
+                               class="flex items-start gap-3 p-4 rounded-xl border border-orange-100 bg-orange-50 hover:bg-orange-100 transition group">
+                                <div class="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-orange-200 transition">
+                                    <i class="fas fa-guitar text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm">Fédurok</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Scènes rock et musiques actuelles</div>
+                                    <div class="text-[10px] text-orange-500 font-bold mt-1">→ Export CSV importable</div>
+                                </div>
+                            </a>
+
+                            <a href="https://www.horslesmu rs.fr/ressources/annuaires" target="_blank"
+                               class="flex items-start gap-3 p-4 rounded-xl border border-amber-100 bg-amber-50 hover:bg-amber-100 transition group">
+                                <div class="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition">
+                                    <i class="fas fa-street-view text-amber-600"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-sm">HorsLesMurs / Artcena</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">Arts de la rue et arts du cirque</div>
+                                    <div class="text-[10px] text-amber-500 font-bold mt-1">→ Export CSV importable</div>
+                                </div>
+                            </a>
+
+                        </div>
+
+                        <div class="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
+                            <i class="fas fa-info-circle text-slate-400"></i>
+                            <p class="text-xs text-slate-500">Pour les sources marquées "Export CSV importable" : téléchargez leur fichier CSV ou Excel, puis utilisez le bouton <strong>"Import CSV libre"</strong> dans Structures & Lieux pour les importer dans votre annuaire.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div v-if="tab==='geo'" class="flex h-full relative">
+                <div id="map" class="flex-1 z-0 relative"></div>
+                
+                <div class="w-96 bg-white border-l border-slate-200 flex flex-col z-10 shadow-2xl">
+                    
+                    <div class="p-6 border-b border-slate-100 bg-slate-50">
+    <h3 class="font-bold text-slate-800 mb-2"><i class="fas fa-search-location text-indigo-500 mr-2"></i> Recherche & Invitations</h3>
+    <p class="text-xs text-slate-500 mb-4">Cliquez sur la carte pour définir un point de recherche central.</p>
+    
+    <div class="mb-2 flex justify-between">
+        <label class="text-xs font-bold text-slate-600">Rayon : <span class="text-indigo-600">{{ searchRadius }} km</span></label>
+    </div>
+    <input type="range" v-model="searchRadius" min="5" max="500" class="w-full accent-indigo-600">
+
+    <!-- FILTRES PAR TAGS -->
+    <div class="mt-4 pt-4 border-t border-slate-200">
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-tags text-indigo-400 mr-1"></i> Filtrer par Tags</span>
+            <button v-if="hasActiveGeoTagFilters" @click="clearGeoTagFilters" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold"><i class="fas fa-times mr-1"></i>Effacer</button>
+        </div>
+        <div class="space-y-2">
+            <div v-if="db.tagCategories.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Catégories</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagCategories" :key="tag"
+                        @click="toggleGeoTagFilter('categories', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('categories', tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-blue-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="db.tagGenres.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Genres</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagGenres" :key="tag"
+                        @click="toggleGeoTagFilter('genres', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('genres', tag) ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-pink-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="db.tagReseaux.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Réseaux</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagReseaux" :key="tag"
+                        @click="toggleGeoTagFilter('reseaux', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('reseaux', tag) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-emerald-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="db.tagKeywords.length">
+                <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Mots-clés</div>
+                <div class="flex flex-wrap gap-1">
+                    <button v-for="tag in db.tagKeywords" :key="tag"
+                        @click="toggleGeoTagFilter('keywords', tag)"
+                        :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isGeoTagActive('keywords', tag) ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-purple-50']">
+                        {{ tag }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="!db.tagCategories.length && !db.tagGenres.length && !db.tagReseaux.length && !db.tagKeywords.length" class="text-[10px] text-slate-400 italic text-center py-1">
+                Aucun tag défini. Ajoutez-en dans Paramètres.
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="p-6 flex-1 flex flex-col min-h-0 bg-slate-50">
+
+     <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-slate-800"><i class="fas fa-users text-indigo-500 mr-2"></i> Contacts ({{ selectedMailingContacts.length }})</h3>
+        
+        <button v-if="selectedMailingContacts.length > 0" @click="exportMailingListExcel" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded shadow-sm text-xs font-bold transition flex items-center">
+            <i class="fas fa-file-excel mr-1"></i> Exporter Excel
+        </button>
+    </div>
+                        
+                        <div v-if="selectedMailingContacts.length === 0" class="flex-1 flex flex-col items-center justify-center text-slate-400 text-center p-4">
+                            <i class="fas fa-map-marker-alt text-4xl mb-3 opacity-20"></i>
+                            <p class="text-sm font-medium">Aucun contact trouvé dans votre annuaire.</p>
+                            <p class="text-xs mt-1 opacity-70">Ajoutez des structures et contacts via la fiche CRM.</p>
+                        </div>
+                        
+                        <div v-else class="space-y-3 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+                            <div v-for="(c, idx) in selectedMailingContacts" :key="idx" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-sm">
+                                <div class="font-bold text-slate-800 mb-0.5">{{ c.firstName }} {{ c.lastName }}</div>
+                                <div class="text-[10px] text-slate-500 font-medium mb-2">{{ c.structName }} ({{ c.structCity }})</div>
+                                <div class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded inline-block">
+                                    <i class="fas fa-envelope mr-1 opacity-50"></i>{{ c.emailPro || c.emailPerso }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div><!-- /tab geo -->
+
+
+    </main>
+
+    <div v-if="showTaskModal" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[500px] flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-800">{{ editTaskData.id ? 'Modifier Tâche' : 'Nouvelle Tâche' }}</h3>
+                <button @click="showTaskModal=false"><i class="fas fa-times text-slate-400 hover:text-slate-800"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div><label class="input-label">Action à réaliser <span class="text-red-500">*</span></label><input v-model="editTaskData.text" class="input-field" placeholder="Ex: Relancer pour le devis..." autofocus></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="input-label">Type d'action</label>
+                        <select v-model="editTaskData.type" class="input-field">
+                            <option value="call">📞 Appel téléphonique</option><option value="email">✉️ Email / Relance</option>
+                            <option value="admin">📝 Administratif / Contrat</option><option value="meeting">🤝 Rendez-vous</option><option value="other">📌 Autre</option>
+                        </select>
+                    </div>
+                    <div><label class="input-label">Date limite (Échéance)</label><input type="date" v-model="editTaskData.dueDate" class="input-field"></div>
+                </div>
+                <div class="border-t pt-4 mt-2">
+                    <label class="input-label text-indigo-600"><i class="fas fa-link mr-1"></i> Lier cette tâche à...</label>
+                    <div class="flex gap-2 mb-2">
+                        <select v-model="editTaskData.relType" @change="editTaskData.relId=''" class="input-field w-1/3 bg-indigo-50 border-indigo-200">
+                            <option value="">-- Aucun --</option><option value="contact">Contact pro</option>
+                            <option value="structure">Structure / Lieu</option><option value="event">Affaire / Date</option><option value="project">Spectacle / Artiste</option>
+                        </select>
+                        <select v-if="editTaskData.relType" v-model="editTaskData.relId" class="input-field w-2/3">
+                            <option value="" disabled>Sélectionnez...</option>
+                            <template v-if="editTaskData.relType==='contact'"><option v-for="c in filteredContacts" :value="c.id">{{ c.name }} ({{ c.structName }})</option></template>
+                            <template v-if="editTaskData.relType==='structure'"><option v-for="s in db.structures" :value="s.id">{{ s.name }} ({{ s.city }})</option></template>
+                            <template v-if="editTaskData.relType==='event'"><option v-for="e in db.events" :value="e.id">{{ e.date ? formatDate(e.date) : 'À définir' }} - {{ e.venueName || 'Lieu inconnu' }}</option></template>
+                            <template v-if="editTaskData.relType==='project'"><option v-for="p in db.projects" :value="p.id">{{ p.name }}</option></template>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t bg-slate-50 flex justify-end gap-2">
+                <button @click="showTaskModal=false" class="text-slate-500 px-4 font-bold text-sm">Annuler</button>
+                <button @click="saveTask" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showEventModal" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[600px] flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-800">{{ editEventData.id ? 'Détails de l\'Affaire / Date' : 'Nouvelle Affaire' }}</h3>
+                <button @click="showEventModal=false"><i class="fas fa-times text-slate-400 hover:text-slate-800"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="input-label">Artiste / Projet <span class="text-red-500">*</span></label><select v-model="editEventData.projectId" class="input-field"><option value="" disabled>Sélectionner...</option><option v-for="p in db.projects" :value="p.id">{{ p.name }}</option></select></div>
+                    
+                    <div>
+                        <label class="input-label">Stade de négociation <span class="text-indigo-500">*</span></label>
+                        <select v-model="editEventData.stage" class="input-field bg-indigo-50 border-indigo-200 font-bold text-indigo-800">
+                            <option value="lead">À contacter</option><option value="contacted">Contact établi</option><option value="nego">En négociation</option>
+                            <option value="option">Option posée</option><option value="contract">Contrat envoyé</option><option value="won">Confirmé</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-2 pt-2 border-t mt-2">
+                        <label class="input-label">Lieu / Structure organisatrice</label>
+                        <select v-model="editEventData.venueId" @change="updateVenueInfoFromSelect" class="input-field mb-2">
+                            <option value="">-- Saisie manuelle --</option>
+                            <option v-for="s in db.structures" :value="s.id">{{ s.name }} ({{ s.city }})</option>
+                        </select>
+                        <div class="flex gap-2">
+                            <input v-model="editEventData.venueName" class="input-field w-1/2" placeholder="Nom de la salle">
+                            <input v-model="editEventData.city" class="input-field w-1/2" placeholder="Ville">
+                        </div>
+                    </div>
+                     
+                    <div class="col-span-2 pt-2 border-t mt-2 flex gap-4">
+                        <div class="flex-1"><label class="input-label">Date (Optionnelle en prospection)</label><input type="date" v-model="editEventData.date" class="input-field"></div>
+                        <div class="flex-1"><label class="input-label">Heure (ex: 20:30)</label><input type="time" v-model="editEventData.time" class="input-field"></div>
+                    </div>
+                    
+                    <div class="col-span-2 pt-4 border-t mt-2">
+                        <h4 class="font-bold text-slate-700 mb-3"><i class="fas fa-euro-sign mr-2 text-indigo-500"></i> Conditions Financières</h4>
+                        <div class="mb-3">
+                            <label class="input-label">Type de contrat</label>
+                            <select v-model="editEventData.contractType" class="input-field">
+                                <option value="cession">Cession (Cachet Fixe)</option>
+                                <option value="coreal">Co-réalisation / Pourcentage (Billetterie)</option>
+                            </select>
+                        </div>
+
+                        <div v-if="editEventData.contractType === 'cession' || !editEventData.contractType">
+                            <label class="input-label">Cachet de cession convenu (€)</label>
+                            <input type="number" v-model="editEventData.fee" class="input-field w-1/3">
+                        </div>
+
+                        <div v-if="editEventData.contractType === 'coreal'" class="bg-slate-100 p-4 rounded border border-slate-200">
+                            <div class="grid grid-cols-3 gap-4 mb-3">
+                                <div><label class="input-label">Jauge</label><input type="number" v-model="editEventData.capacity" class="input-field"></div>
+                                <div><label class="input-label">Prix Billet (€)</label><input type="number" v-model="editEventData.ticketPrice" class="input-field"></div>
+                                <div><label class="input-label">Part Prod (%)</label><input type="number" v-model="editEventData.corealPercentage" class="input-field" placeholder="Ex: 70"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div><label class="input-label">Frais de plateau (€)</label><input type="number" v-model="editEventData.tourExpenses" class="input-field"></div>
+                                <div><label class="input-label">Estim. Remplissage (%)</label><input type="number" v-model="editEventData.estFillRate" class="input-field" placeholder="Ex: 80"></div>
+                            </div>
+                            
+                            <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
+                                <div class="flex justify-between text-xs mb-1 text-slate-500"><span>Recette max potentielle :</span> <span>{{ formatMoney((editEventData.capacity || 0) * (editEventData.ticketPrice || 0)) }}</span></div>
+                                <div class="flex justify-between text-xs mb-2 text-slate-500"><span><strong>Point mort</strong> (Bénéfice = 0) :</span> <span class="font-bold text-orange-500">{{ calculateBreakEven(editEventData) }} places</span></div>
+                                <div class="flex justify-between text-sm pt-2 border-t font-bold text-slate-700"><span>Recette estimée :</span> <span class="text-emerald-600">{{ formatMoney(calculateEstRevenue(editEventData)) }}</span></div>
+                            </div>
+                            
+                            <div class="mt-3 text-right">
+                                <button @click.prevent="applyCorealRevenue" class="text-[10px] font-bold bg-indigo-200 hover:bg-indigo-300 text-indigo-800 px-3 py-1.5 rounded transition shadow-sm"><i class="fas fa-arrow-down mr-1"></i> Utiliser comme Cachet</button>
+                            </div>
+                            
+                            <div class="mt-2 border-t border-slate-200 pt-2">
+                                <label class="input-label">Cachet final enregistré (€)</label>
+                                <input type="number" v-model="editEventData.fee" class="input-field w-1/3">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="editEventData.id" class="col-span-2 pt-4 border-t mt-2">
+                        <h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-file-pdf text-red-500 mr-2"></i> Éditions (PDF)</h4>
+                        <div class="flex gap-4">
+                            <button @click.prevent="generateContract(editEventData)" class="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-sm font-bold shadow-sm transition"><i class="fas fa-file-contract mr-2 text-indigo-500"></i> Contrat</button>
+                            <button @click.prevent="generateRoadbook(editEventData)" class="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-sm font-bold shadow-sm transition"><i class="fas fa-map-marked-alt mr-2 text-emerald-500"></i> Feuille de Route</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="p-4 border-t bg-slate-50 flex justify-between">
+                <button v-if="editEventData.id" @click="deleteEvent" class="text-red-500 hover:text-red-700 text-sm font-bold px-4">Supprimer</button><div v-else></div>
+                <div class="flex gap-2"><button @click="showEventModal=false" class="text-slate-500 hover:text-slate-700 px-4 py-2 font-bold text-sm">Annuler</button><button @click="saveEvent" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow">Enregistrer</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showProjectModal" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-[800px] flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="h-24 relative flex-shrink-0" :style="{ backgroundColor: editProjectData.color || '#3b82f6' }">
+                <button @click="showProjectModal=false" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/20 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+                <div class="absolute bottom-0 left-0 w-full p-6 pb-4 bg-gradient-to-t from-black/60 to-transparent flex justify-between items-end">
+                    <div class="text-white">
+                        <div class="text-xs font-bold uppercase tracking-wider text-white/80 mb-1"><i :class="editProjectData.icon || 'fas fa-music'" class="mr-1"></i> {{ isEditingProject ? 'Édition du projet' : editProjectData.genre }}</div>
+                        <h3 class="font-bold text-2xl">{{ editProjectData.name || 'Nouveau Projet' }}</h3>
+                    </div>
+                    <button type="button" @click.prevent="showProjectModal=false" class="absolute top-4 right-4 text-white/80 hover:text-white bg-black/20 w-8 h-8 rounded-full flex items-center justify-center z-10 transition">
+                     <i class="fas fa-times"></i>
+                        </button>
+                </div>
+            </div>
+
+            <div v-if="!isEditingProject" class="p-6 overflow-y-auto bg-slate-50 flex-1">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white border rounded-lg p-4 text-center shadow-sm">
+                        <div class="text-slate-500 text-[10px] font-bold uppercase mb-1">Chiffre d'Affaires</div>
+                        <div class="text-xl font-bold text-indigo-600">{{ formatMoney(getProjectStats(editProjectData.id).ca) }}</div>
+                    </div>
+                    <div class="bg-white border rounded-lg p-4 text-center shadow-sm">
+                        <div class="text-slate-500 text-[10px] font-bold uppercase mb-1">Dates confirmées</div>
+                        <div class="text-xl font-bold text-emerald-600">{{ getProjectStats(editProjectData.id).conf }}</div>
+                    </div>
+                    <div class="bg-white border rounded-lg p-4 text-center shadow-sm">
+                        <div class="text-slate-500 text-[10px] font-bold uppercase mb-1">Affaires en cours</div>
+                        <div class="text-xl font-bold text-orange-500">{{ getProjectStats(editProjectData.id).opt }}</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-white border rounded-lg p-5 shadow-sm">
+                        <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i class="fas fa-truck mr-2 text-slate-400"></i>Logistique & Vente</h4>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between"><span class="text-slate-500">Cachet de base:</span> <span class="font-bold text-slate-800">{{ formatMoney(editProjectData.defaultFee) }} {{ editProjectData.feeType || 'HT' }}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Durée du set:</span> <span class="font-bold text-slate-800">{{ editProjectData.duration || '-' }}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Équipe en tournée:</span> <span class="font-bold text-slate-800">{{ editProjectData.teamSize || 1 }} pers.</span></div>
+                            <div>
+                                <span class="text-slate-500 block mb-1">Conditions d'accueil :</span>
+                                <div class="bg-slate-50 p-2 rounded text-xs text-slate-600 border border-slate-100 italic">{{ editProjectData.expenses || 'Aucune condition spécifiée.' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border rounded-lg p-5 shadow-sm">
+                        <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i class="fas fa-link mr-2 text-slate-400"></i>Matériel Promo & Technique</h4>
+                        <div class="space-y-3">
+                            <a v-if="editProjectData.linkVideo" :href="editProjectData.linkVideo" target="_blank" class="block bg-red-50 text-red-700 p-2 rounded border border-red-100 hover:bg-red-100 transition text-sm font-bold"><i class="fab fa-youtube mr-2 w-4"></i> Vidéo Teaser</a>
+                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucune vidéo</div>
+                            
+                            <a v-if="editProjectData.linkPress" :href="editProjectData.linkPress" target="_blank" class="block bg-blue-50 text-blue-700 p-2 rounded border border-blue-100 hover:bg-blue-100 transition text-sm font-bold"><i class="fas fa-file-pdf mr-2 w-4"></i> Dossier de Presse</a>
+                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucun dossier de presse</div>
+                            
+                            <a v-if="editProjectData.linkTech" :href="editProjectData.linkTech" target="_blank" class="block bg-slate-800 text-white p-2 rounded border border-slate-700 hover:bg-slate-700 transition text-sm font-bold"><i class="fas fa-sliders-h mr-2 w-4"></i> Fiche Technique</a>
+                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucune fiche technique</div>
+
+                            <a v-if="editProjectData.linkTree" :href="editProjectData.linkTree" target="_blank" class="block bg-emerald-50 text-emerald-700 p-2 rounded border border-emerald-100 hover:bg-emerald-100 transition text-sm font-bold"><i class="fas fa-globe mr-2 w-4"></i> Linktree / Site Web</a>
+                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucun site / réseau renseigné</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="isEditingProject" class="p-6 overflow-y-auto flex-1">
+                <div class="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="col-span-2"><label class="input-label">Nom de l'artiste / spectacle <span class="text-red-500">*</span></label><input v-model="editProjectData.name" class="input-field" placeholder="Nom du projet"></div>
+                    <div><label class="input-label">Genre musical / Type</label><input v-model="editProjectData.genre" class="input-field" placeholder="Ex: Rock, Théâtre..."></div>
+                    <div><label class="input-label">Durée du spectacle</label><input v-model="editProjectData.duration" class="input-field" placeholder="Ex: 1h30"></div>
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2">Finance & Logistique</h4></div>
+                    <div class="flex gap-2">
+                        <div class="w-2/3"><label class="input-label">Cachet de base (€)</label><input type="number" v-model="editProjectData.defaultFee" class="input-field"></div>
+                        <div class="w-1/3"><label class="input-label">Type</label><select v-model="editProjectData.feeType" class="input-field"><option value="HT">HT</option><option value="TTC">TTC</option><option value="Net">Net</option></select></div>
+                    </div>
+                    <div><label class="input-label">Taille de l'équipe (Sur la route)</label><div class="flex items-center gap-2"><input type="number" v-model="editProjectData.teamSize" class="input-field"><span class="text-slate-500 text-sm">personnes</span></div></div>
+                    <div class="col-span-2"><label class="input-label">Défraiements / Conditions d'accueil</label><input v-model="editProjectData.expenses" class="input-field" placeholder="Ex: VHR à la charge de l'organisateur (4 single + Catering)"></div>
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2">Matériel (Liens URL)</h4></div>
+                    <div class="col-span-2"><label class="input-label"><i class="fab fa-youtube text-red-500 mr-1"></i> Lien Vidéo (YouTube, Vimeo...)</label><input v-model="editProjectData.linkVideo" type="url" class="input-field" placeholder="https://..."></div>
+                    <div class="col-span-2"><label class="input-label"><i class="fas fa-file-pdf text-blue-500 mr-1"></i> Lien Dossier de Presse (Drive, Dropbox...)</label><input v-model="editProjectData.linkPress" type="url" class="input-field" placeholder="https://..."></div>
+                    <div class="col-span-2"><label class="input-label"><i class="fas fa-sliders-h text-slate-700 mr-1"></i> Lien Fiche Technique</label><input v-model="editProjectData.linkTech" type="url" class="input-field" placeholder="https://..."></div>
+                    <div class="col-span-2"><label class="input-label"><i class="fas fa-globe text-emerald-500 mr-1"></i> Lien Linktree / Réseaux / Site Web</label><input v-model="editProjectData.linkTree" type="url" class="input-field" placeholder="https://linktr.ee/..."></div>
+                    
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100 flex gap-6">
+                        <div class="flex-1">
+                            <label class="input-label mb-2">Icône du projet</label>
+                            <div class="flex flex-wrap gap-2">
+                                <button v-for="ic in projectIcons" :key="ic" @click.prevent="editProjectData.icon = ic" :class="['w-10 h-10 rounded border flex items-center justify-center text-lg transition', editProjectData.icon === ic ? 'bg-indigo-100 border-indigo-500 text-indigo-700 shadow-inner' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50']">
+                                    <i :class="ic"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="input-label mb-2">Couleur (Planning)</label>
+                            <div class="flex gap-3 items-center"><input type="color" v-model="editProjectData.color" class="w-12 h-12 rounded border cursor-pointer p-1 bg-white"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-slate-100 flex justify-between items-center flex-shrink-0">
+                <button v-if="editProjectData.id && isEditingProject" @click="deleteProject(editProjectData)" class="text-red-500 hover:text-red-700 text-sm font-bold px-4"><i class="fas fa-trash mr-1"></i> Supprimer le projet</button>
+                <div v-else></div>
+                <div class="flex gap-2">
+                    <button v-if="isEditingProject && editProjectData.id" @click="isEditingProject = false" class="text-slate-500 px-4 font-bold text-sm hover:text-slate-700">Annuler</button>
+                    <button v-if="isEditingProject" @click="saveProject" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow">Enregistrer</button>
+                    <button v-if="!isEditingProject" @click="showProjectModal=false" class="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-bold shadow">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div v-if="showCrmModal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-slate-50 w-full h-full max-w-[98vw] max-h-[98vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-300">
+            
+            <div class="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-4 flex-1">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center text-2xl shadow-inner border border-indigo-200"><i class="fas fa-building"></i></div>
+                    <div class="flex-1 max-w-2xl">
+                        <input v-model="currentCrmStruct.name" class="text-2xl font-black text-slate-800 bg-transparent border-none focus:ring-0 p-0 w-full placeholder-slate-300" placeholder="Nom de la structure / Organisateur...">
+                        <div class="flex items-center gap-6 mt-1">
+                            <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-indigo-600 transition"><input type="checkbox" v-model="currentCrmStruct.isClient" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"> Est Client (A déjà acheté)</label>
+                            <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-emerald-600 transition"><input type="checkbox" v-model="currentCrmStruct.isActive" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"> Fiche Active</label>
+                            <span class="text-xs text-slate-400 font-medium ml-4">Créé le {{ formatDate(currentCrmStruct.createdDate) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="goToAnnuaireFromCrm" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center shadow-sm"><i class="fas fa-address-book text-slate-400 mr-2"></i> Annuaire Pro</button>
+                    <button @click="goToTasksFromCrm" class="bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center shadow-sm"><i class="fas fa-tasks mr-2"></i> Voir / Lier Tâche</button>
+                    <div class="w-px h-8 bg-slate-200 mx-1"></div>
+                    <button @click="showCrmModal = false" class="text-slate-500 hover:text-red-500 px-3 py-2 text-sm font-bold transition">Fermer</button>
+                    <button @click="saveCrmStruct" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center"><i class="fas fa-save mr-2"></i> Enregistrer</button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-hidden flex bg-slate-100/50">
+                
+                <div class="flex-1 flex flex-col min-w-0 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar p-6">
+                    
+                    <div v-if="!currentCrmContact">
+                        <div class="grid grid-cols-2 gap-6 mb-8">
+                            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest"><i class="fas fa-map-marker-alt text-indigo-400 mr-2"></i> Coordonnées & Adresse</h4>
+                                    <button @click="geocodeAddress" class="text-[10px] bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-2 py-1 rounded font-bold transition shadow-sm"><i class="fas fa-satellite-dish mr-1"></i> Localiser GPS</button>
+                                </div>
+                                <div class="space-y-3">
+                                    <input v-model="currentCrmStruct.address" class="input-field text-sm font-medium" placeholder="N°, Rue, Boulevard...">
+                                    <input v-model="currentCrmStruct.suite" class="input-field text-sm" placeholder="Bâtiment, Étage, BP (Optionnel)">
+                                    <div class="flex gap-3">
+                                        <input v-model="currentCrmStruct.zip" class="input-field text-sm w-1/3" placeholder="Code Postal">
+                                        <input v-model="currentCrmStruct.city" class="input-field text-sm w-2/3 font-bold" placeholder="Ville">
+                                    </div>
+                                    <input v-model="currentCrmStruct.country" class="input-field text-sm text-slate-500" placeholder="Pays">
+                                </div>
+                                
+                                <div id="mini-map" class="w-full h-32 bg-slate-200 mt-4 rounded-lg border border-slate-300 z-10"></div>
+                                <div class="text-[9px] text-slate-400 mt-1 text-center font-mono" v-if="currentCrmStruct.lat">Lat: {{currentCrmStruct.lat}} / Lng: {{currentCrmStruct.lng}}</div>
+                            </div>
+
+                            <div class="space-y-6">
+                                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4"><i class="fas fa-info-circle text-indigo-400 mr-2"></i> Général & Technique</h4>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Code Client</label><input v-model="currentCrmStruct.clientCode" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Source / Origine</label><input v-model="currentCrmStruct.source" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Capacité / Jauge</label><input v-model="currentCrmStruct.capacity" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Saison (ex: Oct-Mai)</label><input v-model="currentCrmStruct.season" class="input-field text-sm"></div>
+                                        <div class="col-span-2">
+                                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1"><i class="fas fa-calendar-check text-indigo-400 mr-1"></i> Période de Programmation</label>
+                                            <div class="flex items-center gap-2">
+                                                <select v-model="currentCrmStruct.progMonthStart" class="input-field text-sm flex-1">
+                                                    <option value="">De (mois)...</option>
+                                                    <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+                                                    <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+                                                    <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+                                                    <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+                                                </select>
+                                                <span class="text-slate-400 font-bold text-sm">→</span>
+                                                <select v-model="currentCrmStruct.progMonthEnd" class="input-field text-sm flex-1">
+                                                    <option value="">À (mois)...</option>
+                                                    <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+                                                    <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+                                                    <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+                                                    <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+                                                </select>
+                                            </div>
+                                            <div v-if="currentCrmStruct.progMonthStart && currentCrmStruct.progMonthEnd" class="mt-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded inline-flex items-center gap-1">
+                                                <i class="fas fa-info-circle"></i>
+                                                Programmation active de {{ ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][currentCrmStruct.progMonthStart] }} à {{ ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][currentCrmStruct.progMonthEnd] }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4"><i class="fas fa-phone text-indigo-400 mr-2"></i> Contact Standard (Lieu)</h4>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <input v-model="currentCrmStruct.phone1" class="input-field text-sm" placeholder="Tél Standard">
+                                        <input v-model="currentCrmStruct.email" class="input-field text-sm" placeholder="Email Générique">
+                                        <div class="col-span-2"><input v-model="currentCrmStruct.website" class="input-field text-sm" placeholder="Site Web (https://...)"></div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest"><i class="fas fa-theater-masks text-indigo-400 mr-2"></i> Salles &amp; Jauges</h4>
+                                        <button @click="addCrmVenue" class="text-[10px] bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-2 py-1 rounded font-bold transition shadow-sm"><i class="fas fa-plus mr-1"></i> Ajouter</button>
+                                    </div>
+                                    <div v-if="!(currentCrmStruct.venues||[]).length" class="text-xs text-slate-400 italic text-center py-2">Aucune salle — cliquez sur Ajouter</div>
+                                    <div class="space-y-2">
+                                        <div v-for="v in (currentCrmStruct.venues||[])" :key="v.id" class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                                            <div>
+                                                <div class="font-bold text-sm text-slate-700">{{ v.name }}</div>
+                                                <div v-if="v.capacity" class="text-xs text-slate-400"><i class="fas fa-users mr-1"></i>{{ v.capacity }} places</div>
+                                            </div>
+                                            <button @click="removeCrmVenue(v.id)" class="text-slate-300 hover:text-red-500 transition text-xs ml-3"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BLOC COMMENTAIRES HORODATÉS — STRUCTURE -->
+                        <div class="mb-8 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm p-5">
+                            <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4"><i class="fas fa-comments text-amber-400 mr-2"></i> Journal & Commentaires</h4>
+                            <div class="flex gap-2 mb-4">
+                                <input v-model="newCrmComment" @keyup.enter="addCrmComment" class="input-field text-sm flex-1" placeholder="Ajouter une note, un suivi, une relance...">
+                                <button @click="addCrmComment" :disabled="!newCrmComment.trim()" class="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                                    <i class="fas fa-plus"></i> Ajouter
+                                </button>
+                            </div>
+                            <div v-if="!(currentCrmStruct.comments||[]).length" class="text-center text-slate-400 text-xs py-4 italic">
+                                <i class="fas fa-sticky-note opacity-30 text-2xl block mb-1"></i>Aucun commentaire enregistré.
+                            </div>
+                            <div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                <div v-for="(cm, idx) in [...(currentCrmStruct.comments||[])].reverse()" :key="cm.id"
+                                     class="bg-white border border-amber-100 rounded-xl px-4 py-3 shadow-sm flex justify-between items-start gap-3 group">
+                                    <div class="flex-1">
+                                        <div class="text-sm text-slate-700 leading-relaxed">{{ cm.text }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-1 font-medium">
+                                            <i class="fas fa-clock mr-1"></i>{{ cm.date }} &nbsp;·&nbsp; <i class="fas fa-user mr-1"></i>{{ cm.user }}
+                                        </div>
+                                    </div>
+                                    <button @click="currentCrmStruct.comments.splice(currentCrmStruct.comments.findIndex(x=>x.id===cm.id),1)"
+                                            class="text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition mt-0.5 flex-shrink-0">
+                                        <i class="fas fa-trash text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-sm font-black text-slate-700 uppercase tracking-widest"><i class="fas fa-users text-indigo-500 mr-2"></i> L'Équipe ({{ currentCrmStruct.contacts.length }})</h4>
+                            <button @click="openCrmContact()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"><i class="fas fa-plus mr-1"></i> Nouveau Contact</button>
+                        </div>
+                        
+                        <div v-if="currentCrmStruct.contacts.length === 0" class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400">
+                            <i class="fas fa-user-slash text-3xl mb-3 opacity-50"></i><p class="text-sm font-medium">Aucun contact enregistré pour ce lieu.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div v-for="c in currentCrmStruct.contacts" :key="c.id" @click="openCrmContact(c)" class="bg-white border border-slate-200 hover:border-indigo-400 p-4 rounded-xl shadow-sm cursor-pointer transition group relative">
+                                <div class="flex justify-between items-start mb-1">
+                                    <div class="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition"><i v-if="c.isVip" class="fas fa-star text-orange-400 mr-1 text-[10px]" title="VIP"></i>{{ c.firstName }} {{ c.lastName }}</div>
+                                    <span v-if="c.role" class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded uppercase">{{ c.role }}</span>
+                                </div>
+                                <div class="text-xs text-slate-500 mt-2 space-y-1">
+                                    <div v-if="c.emailPro || c.emailPerso"><i class="fas fa-envelope w-4 text-slate-400"></i> {{ c.emailPro || c.emailPerso }}</div>
+                                    <div v-if="c.phoneDirect || c.mobilePro"><i class="fas fa-phone w-4 text-slate-400"></i> {{ c.phoneDirect || c.mobilePro }}</div>
+                                </div>
+                                <button @click.stop="deleteCrmContact(c.id)" class="absolute bottom-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-else class="bg-slate-50 rounded-2xl border border-slate-200 shadow-inner h-full flex flex-col">
+                        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white rounded-t-2xl">
+                            <h4 class="font-bold text-slate-800"><i class="fas fa-user-edit text-indigo-500 mr-2"></i> {{ currentCrmContact.id.length > 10 ? 'Nouveau Contact' : 'Édition du Contact' }}</h4>
+                            <div class="flex items-center gap-2">
+                                <button @click="closeCrmContact()"
+                                        class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-indigo-100">
+                                    <i class="fas fa-building"></i> Fiche Structure
+                                </button>
+                                <button @click="closeCrmContact()" class="text-slate-400 hover:text-slate-700 text-sm"><i class="fas fa-arrow-left mr-1"></i> Retour</button>
+                            </div>
+                        </div>
+                        <div class="p-6 flex-1 overflow-y-auto space-y-6">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="input-label">Prénom</label><input v-model="currentCrmContact.firstName" class="input-field font-bold"></div>
+                                <div><label class="input-label">Nom</label><input v-model="currentCrmContact.lastName" class="input-field font-bold uppercase"></div>
+                                <div class="col-span-2"><label class="input-label">Fonction / Rôle exact</label><input v-model="currentCrmContact.role" class="input-field"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-6 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                                <div>
+                                    <h5 class="text-[10px] font-black text-slate-400 uppercase mb-3"><i class="fas fa-briefcase mr-1"></i> Pro</h5>
+                                    <div class="space-y-2">
+                                        <input v-model="currentCrmContact.emailPro" class="input-field text-sm" placeholder="Email direct pro">
+                                        <input v-model="currentCrmContact.phoneDirect" class="input-field text-sm" placeholder="Ligne directe">
+                                        <input v-model="currentCrmContact.mobilePro" class="input-field text-sm" placeholder="Mobile Pro">
+                                    </div>
+                                </div>
+                                <div>
+                                    <h5 class="text-[10px] font-black text-slate-400 uppercase mb-3"><i class="fas fa-home mr-1"></i> Perso / Autre</h5>
+                                    <div class="space-y-2">
+                                        <input v-model="currentCrmContact.emailPerso" class="input-field text-sm" placeholder="Email perso">
+                                        <input v-model="currentCrmContact.phonePerso" class="input-field text-sm" placeholder="Tél perso">
+                                        <input v-model="currentCrmContact.mobilePerso" class="input-field text-sm" placeholder="Mobile perso">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label class="input-label">Suivi Commercial par</label><input v-model="currentCrmContact.suiviPar" class="input-field text-sm" placeholder="Nom du commercial"></div>
+                                <div class="flex flex-col justify-center gap-2 mt-4">
+                                    <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input type="checkbox" v-model="currentCrmContact.isVip" class="rounded text-orange-500"> Contact Prioritaire (VIP)</label>
+                                    <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input type="checkbox" v-model="currentCrmContact.isActive" class="rounded text-emerald-500"> Toujours en poste (Actif)</label>
+                                    <div class="flex items-center justify-between mt-1 p-2.5 rounded-xl border-2 cursor-pointer transition"
+                                        :class="currentCrmContact.isPrivate ? 'bg-orange-50 border-orange-300' : 'bg-slate-50 border-slate-200 hover:border-slate-300'"
+                                        @click="currentCrmContact.isPrivate = !currentCrmContact.isPrivate">
+                                        <div>
+                                            <div class="text-sm font-bold" :class="currentCrmContact.isPrivate ? 'text-orange-700' : 'text-slate-600'">
+                                                <i class="fas fa-lock mr-1.5" :class="currentCrmContact.isPrivate ? 'text-orange-500' : 'text-slate-400'"></i>
+                                                {{ currentCrmContact.isPrivate ? 'Contact Privé' : 'Contact Public' }}
+                                            </div>
+                                            <div class="text-[10px] mt-0.5 font-medium" :class="currentCrmContact.isPrivate ? 'text-orange-400' : 'text-slate-400'">
+                                                {{ currentCrmContact.isPrivate ? 'Visible uniquement par vous' : 'Visible par tous les utilisateurs' }}
+                                            </div>
+                                        </div>
+                                        <div class="w-9 h-5 rounded-full transition-colors ml-3 relative flex-shrink-0" :class="currentCrmContact.isPrivate ? 'bg-orange-400' : 'bg-slate-300'">
+                                            <div class="w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-all" :class="currentCrmContact.isPrivate ? 'right-0.5' : 'left-0.5'"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- BLOC COMMENTAIRES HORODATÉS — CONTACT -->
+                            <div class="bg-amber-50 rounded-xl border border-amber-100 p-4 shadow-sm">
+                                <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3"><i class="fas fa-comments text-amber-400 mr-1"></i> Journal & Notes horodatées</h5>
+                                <div class="flex gap-2 mb-3">
+                                    <input v-model="newContactComment" @keyup.enter="addContactComment" class="input-field text-sm flex-1" placeholder="Appel, relance, compte-rendu...">
+                                    <button @click="addContactComment" :disabled="!newContactComment.trim()" class="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg font-bold text-sm shadow transition">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div v-if="!(currentCrmContact.comments||[]).length" class="text-center text-slate-400 text-xs py-2 italic">Aucune note enregistrée.</div>
+                                <div class="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                                    <div v-for="cm in [...(currentCrmContact.comments||[])].reverse()" :key="cm.id"
+                                         class="bg-white border border-amber-100 rounded-lg px-3 py-2 shadow-sm flex justify-between items-start gap-2 group">
+                                        <div class="flex-1">
+                                            <div class="text-xs text-slate-700">{{ cm.text }}</div>
+                                            <div class="text-[10px] text-slate-400 mt-0.5 font-medium"><i class="fas fa-clock mr-1"></i>{{ cm.date }} · {{ cm.user }}</div>
+                                        </div>
+                                        <button @click="currentCrmContact.comments.splice(currentCrmContact.comments.findIndex(x=>x.id===cm.id),1)"
+                                                class="text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition flex-shrink-0">
+                                            <i class="fas fa-trash text-xs"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-white border-t border-slate-200 rounded-b-2xl flex justify-end">
+                            <button @click="saveCrmContact" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow transition"><i class="fas fa-check mr-2"></i> Valider ce contact</button>
+                        </div>
+                    </div><!-- /v-else contact form -->
+                </div><!-- /flex-1 main content area -->
+
+                <div class="w-80 flex flex-col border-r border-slate-200 bg-white">
+    <div class="bg-slate-50 p-4 border-b border-slate-100 shrink-0">
+        <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-tags text-indigo-400 mr-2"></i> Classement & Tags</h3>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+        
+        <div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Catégorie de Lieu</div>
+            <div class="flex flex-wrap gap-1.5">
+                <span v-for="t in db.tagCategories" :key="t" @click="toggleCrmTag('categories', t)" 
+                    :class="['px-2.5 py-1 rounded text-[10px] font-bold border cursor-pointer transition', currentCrmStruct.tags.categories.includes(t) ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">
+                    {{ t }}
+                </span>
+            </div>
+        </div>
+
+        <div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Programmation / Genres</div>
+            <div class="flex flex-wrap gap-1.5">
+                <span v-for="t in db.tagGenres" :key="t" @click="toggleCrmTag('genres', t)" 
+                    :class="['px-2.5 py-1 rounded text-[10px] font-bold border cursor-pointer transition', currentCrmStruct.tags.genres.includes(t) ? 'bg-pink-100 text-pink-800 border-pink-300' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">
+                    {{ t }}
+                </span>
+            </div>
+        </div>
+
+        <div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Réseaux d'appartenance</div>
+            <div class="flex flex-wrap gap-1.5">
+                <span v-for="t in db.tagReseaux" :key="t" @click="toggleCrmTag('reseaux', t)" 
+                    :class="['px-2.5 py-1 rounded text-[10px] font-bold border cursor-pointer transition', currentCrmStruct.tags.reseaux.includes(t) ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">
+                    {{ t }}
+                </span>
+            </div>
+        </div>
+
+        <div>
+            <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">Mots-Clefs (Suivi)</div>
+            <div class="flex flex-wrap gap-1.5">
+                <span v-for="t in db.tagKeywords" :key="t" @click="toggleCrmTag('keywords', t)" 
+                    :class="['px-2.5 py-1 rounded text-[10px] font-bold border cursor-pointer transition', currentCrmStruct.tags.keywords.includes(t) ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50']">
+                    {{ t }}
+                </span>
+            </div>
+        </div>
+
+    </div><!-- /tags scrollable -->
+</div><!-- /tags panel w-80 -->
+</div><!-- /flex-1 overflow-hidden flex -->
+</div><!-- /bg-slate-50 CRM inner -->
+</div><!-- /showCrmModal -->
+
+<!-- ═══ MODAL IMPORT CULTURE.GOUV.FR ═══ -->
+<div v-if="showGouvImport" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-5xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+
+        <!-- En-tête -->
+        <div class="bg-indigo-700 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div>
+                <h3 class="font-black text-white text-lg"><i class="fas fa-cloud-download-alt mr-2"></i> Import de Structures</h3>
+                <p class="text-indigo-200 text-xs mt-0.5">{{ gouvImport.activeTab === 'gouv' ? (gouvImport.totalFound > 0 ? gouvImport.totalFound + ' lieux trouvés' : 'Base BASILIC — Ministère de la Culture') : 'Import CSV / Excel libre (FEDELIMA, Fédurok, Syndeac...)' }}</p>
+            </div>
+            <button @click="showGouvImport = false" class="text-indigo-200 hover:text-white text-xl w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Onglets -->
+        <div class="flex border-b border-slate-200 bg-white flex-shrink-0">
+            <button @click="gouvImport.activeTab = 'gouv'"
+                    :class="['px-6 py-3 text-sm font-bold border-b-2 transition', gouvImport.activeTab === 'gouv' ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                <i class="fas fa-landmark mr-2"></i> Base Culture.gouv.fr
+            </button>
+            <button @click="gouvImport.activeTab = 'csv'"
+                    :class="['px-6 py-3 text-sm font-bold border-b-2 transition', gouvImport.activeTab === 'csv' ? 'border-emerald-600 text-emerald-700 bg-emerald-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                <i class="fas fa-file-csv mr-2"></i> Import CSV / Excel libre
+            </button>
+        </div>
+
+        <!-- Filtres (onglet BASILIC) -->
+        <div v-if="gouvImport.activeTab === 'gouv'" class="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex-shrink-0">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Recherche par nom</label>
+                    <input v-model="gouvImport.searchName" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: Théâtre, Zénith...">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Type de lieu</label>
+                    <select v-model="gouvImport.filterType" class="input-field text-sm">
+                        <option value="">Tous les types</option>
+                        <option value="Scène nationale">Scène nationale</option>
+                        <option value="SMAC">SMAC</option>
+                        <option value="Centre dramatique national">CDN</option>
+                        <option value="Opéra">Opéra</option>
+                        <option value="Théâtre">Théâtre</option>
+                        <option value="Festival">Festival</option>
+                        <option value="Cirque">Cirque</option>
+                        <option value="Centre chorégraphique">Centre chorégraphique</option>
+                        <option value="Scène conventionnée">Scène conventionnée</option>
+                        <option value="Zénith">Zénith</option>
+                        <option value="Salle de musique">Salle de musique</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Département (ex: 75)</label>
+                    <input v-model="gouvImport.filterDept" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: 63, 75, 13...">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Région</label>
+                    <select v-model="gouvImport.filterRegion" class="input-field text-sm">
+                        <option value="">Toutes les régions</option>
+                        <option>Auvergne-Rhône-Alpes</option>
+                        <option>Bourgogne-Franche-Comté</option>
+                        <option>Bretagne</option>
+                        <option>Centre-Val de Loire</option>
+                        <option>Corse</option>
+                        <option>Grand Est</option>
+                        <option>Hauts-de-France</option>
+                        <option>Île-de-France</option>
+                        <option>Normandie</option>
+                        <option>Nouvelle-Aquitaine</option>
+                        <option>Occitanie</option>
+                        <option>Pays de la Loire</option>
+                        <option>Provence-Alpes-Côte d'Azur</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 mt-3">
+                <button @click="searchGouv" :disabled="gouvImport.loading"
+                        class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                    <i class="fas" :class="gouvImport.loading ? 'fa-circle-notch fa-spin' : 'fa-search'"></i>
+                    {{ gouvImport.loading ? 'Chargement...' : 'Rechercher' }}
+                </button>
+                <button @click="resetGouvSearch" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-3 py-2 rounded hover:bg-indigo-50 transition">
+                    <i class="fas fa-times mr-1"></i> Réinitialiser
+                </button>
+                <span v-if="gouvImport.results.length" class="text-xs text-slate-500 ml-auto">
+                    <span class="font-bold text-indigo-600">{{ gouvImport.selected.length }}</span> sélectionné(s) sur {{ gouvImport.results.length }} affichés
+                </span>
+            </div>
+        </div>
+
+        <!-- Résultats (onglet BASILIC) -->
+        <div v-if="gouvImport.activeTab === 'gouv'" class="flex-1 overflow-y-auto custom-scrollbar">
+
+            <!-- État vide -->
+            <div v-if="!gouvImport.loading && !gouvImport.results.length && !gouvImport.error" class="flex flex-col items-center justify-center h-full text-slate-400 py-16">
+                <i class="fas fa-search text-5xl opacity-20 mb-4"></i>
+                <p class="font-bold text-lg mb-1">Lancez une recherche</p>
+                <p class="text-sm">Filtrez par type, département ou région puis cliquez sur Rechercher.</p>
+            </div>
+
+            <!-- Erreur -->
+            <div v-if="gouvImport.error" class="flex flex-col items-center justify-center h-full text-red-400 py-16">
+                <i class="fas fa-exclamation-triangle text-4xl opacity-40 mb-3"></i>
+                <p class="font-bold">Erreur de connexion</p>
+                <p class="text-sm mt-1">{{ gouvImport.error }}</p>
+            </div>
+
+            <!-- Table de résultats -->
+            <div v-if="gouvImport.results.length" class="p-4">
+                <!-- Sélection rapide -->
+                <div class="flex items-center gap-3 mb-3">
+                    <button @click="gouvSelectAll" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-1.5 rounded transition">
+                        <i class="fas fa-check-square mr-1"></i> Tout sélectionner
+                    </button>
+                    <button @click="gouvImport.selected = []" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded transition">
+                        <i class="fas fa-square mr-1"></i> Tout désélectionner
+                    </button>
+                    <span class="text-xs text-slate-400 ml-2">{{ gouvImport.results.length }} résultats — page {{ gouvImport.page + 1 }}</span>
+                </div>
+
+                <div class="space-y-2">
+                    <div v-for="lieu in gouvImport.results" :key="lieu.id"
+                         @click="gouvToggleSelect(lieu)"
+                         class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition"
+                         :class="gouvIsSelected(lieu) ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50'">
+
+                        <!-- Checkbox -->
+                        <div class="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition"
+                             :class="gouvIsSelected(lieu) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'">
+                            <i v-if="gouvIsSelected(lieu)" class="fas fa-check text-white text-[9px]"></i>
+                        </div>
+
+                        <!-- Infos -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="font-bold text-slate-800 text-sm">{{ lieu.nom }}</div>
+                                <div class="flex gap-1 flex-shrink-0">
+                                    <span v-if="lieu.type" class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ lieu.type }}</span>
+                                    <span v-if="lieu.hasGps" class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full"><i class="fas fa-map-marker-alt mr-0.5"></i>GPS</span>
+                                    <span v-if="gouvAlreadyExists(lieu)" class="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Déjà importé</span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5">
+                                <span v-if="lieu.adresse"><i class="fas fa-map-marker-alt w-3 text-slate-400"></i> {{ lieu.adresse }}, {{ lieu.cp }} {{ lieu.ville }}</span>
+                                <span v-if="lieu.telephone"><i class="fas fa-phone w-3 text-slate-400"></i> {{ lieu.telephone }}</span>
+                                <span v-if="lieu.site"><i class="fas fa-globe w-3 text-slate-400"></i> {{ lieu.site }}</span>
+                                <span v-if="lieu.domaine" class="text-slate-400">{{ lieu.domaine }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex items-center justify-center gap-3 mt-4 pb-2">
+                    <button @click="gouvPrevPage" :disabled="gouvImport.page === 0 || gouvImport.loading"
+                            class="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-bold transition">
+                        <i class="fas fa-chevron-left mr-1"></i> Précédent
+                    </button>
+                    <span class="text-sm text-slate-500 font-bold">Page {{ gouvImport.page + 1 }}</span>
+                    <button @click="gouvNextPage" :disabled="gouvImport.results.length < 50 || gouvImport.loading"
+                            class="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 px-4 py-2 rounded-lg text-sm font-bold transition">
+                        Suivant <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ ONGLET CSV LIBRE ═══ -->
+        <div v-if="gouvImport.activeTab === 'csv'" class="flex-1 overflow-y-auto custom-scrollbar p-6">
+
+            <!-- Étape 1 : Chargement du fichier -->
+            <div class="bg-white rounded-xl border border-slate-200 p-5 mb-4 shadow-sm">
+                <h4 class="font-bold text-slate-800 mb-3"><span class="bg-emerald-600 text-white rounded-full w-6 h-6 inline-flex items-center justify-center text-xs font-black mr-2">1</span> Charger un fichier CSV ou Excel</h4>
+                <p class="text-xs text-slate-500 mb-4">Compatible avec les exports de FEDELIMA, Fédurok, Syndeac, RéseauIC, HorsLesMurs et tout fichier tabulaire.</p>
+                <label class="flex items-center justify-center gap-3 border-2 border-dashed border-emerald-300 rounded-xl p-8 cursor-pointer hover:bg-emerald-50 transition bg-emerald-50/50">
+                    <i class="fas fa-file-upload text-emerald-500 text-2xl"></i>
+                    <div>
+                        <div class="font-bold text-slate-700">Cliquez pour choisir un fichier</div>
+                        <div class="text-xs text-slate-400 mt-0.5">.csv, .xlsx, .xls acceptés</div>
+                    </div>
+                    <input type="file" @change="loadCsvFile" class="hidden" accept=".csv,.xlsx,.xls">
+                </label>
+            </div>
+
+            <!-- Étape 2 : Mapping des colonnes -->
+            <div v-if="csvImport.headers.length" class="bg-white rounded-xl border border-slate-200 p-5 mb-4 shadow-sm">
+                <h4 class="font-bold text-slate-800 mb-1"><span class="bg-emerald-600 text-white rounded-full w-6 h-6 inline-flex items-center justify-center text-xs font-black mr-2">2</span> Associer les colonnes</h4>
+                <p class="text-xs text-slate-500 mb-4">Indiquez à quelle information correspond chaque colonne de votre fichier.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div v-for="field in csvImport.mappingFields" :key="field.key" class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-600 w-28 flex-shrink-0">
+                            <i :class="field.icon + ' w-4 text-slate-400 mr-1'"></i>{{ field.label }}
+                            <span v-if="field.required" class="text-red-500 ml-0.5">*</span>
+                        </label>
+                        <select v-model="csvImport.mapping[field.key]" class="input-field text-xs flex-1">
+                            <option value="">-- Ignorer --</option>
+                            <option v-for="h in csvImport.headers" :key="h" :value="h">{{ h }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 3 : Aperçu -->
+            <div v-if="csvImport.headers.length" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                <h4 class="font-bold text-slate-800 mb-3"><span class="bg-emerald-600 text-white rounded-full w-6 h-6 inline-flex items-center justify-center text-xs font-black mr-2">3</span> Aperçu ({{ csvImport.rows.length }} lignes)</h4>
+                <div class="overflow-x-auto rounded-lg border border-slate-100">
+                    <table class="text-xs w-full">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th v-for="h in csvImport.headers.slice(0,8)" :key="h" class="px-3 py-2 text-left font-bold text-slate-500 uppercase tracking-wide">{{ h }}</th>
+                                <th v-if="csvImport.headers.length > 8" class="px-3 py-2 text-slate-400">...</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(row, i) in csvImport.rows.slice(0,5)" :key="i" class="border-b border-slate-50 hover:bg-slate-50">
+                                <td v-for="h in csvImport.headers.slice(0,8)" :key="h" class="px-3 py-2 text-slate-600 truncate max-w-32">{{ row[h] || '-' }}</td>
+                                <td v-if="csvImport.headers.length > 8" class="px-3 py-2 text-slate-300">...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div v-if="!csvImport.headers.length" class="flex flex-col items-center justify-center py-16 text-slate-400">
+                <i class="fas fa-file-csv text-5xl opacity-20 mb-4"></i>
+                <p class="font-bold text-lg mb-1">Aucun fichier chargé</p>
+                <p class="text-sm">Chargez un fichier CSV ou Excel pour commencer le mapping.</p>
+            </div>
+        </div>
+
+        <div class="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div class="text-xs text-slate-400">
+                <span v-if="gouvImport.activeTab === 'gouv'"><i class="fas fa-info-circle mr-1"></i> Source : Ministère de la Culture — Base BASILIC — Données ouvertes</span>
+                <span v-else><i class="fas fa-info-circle mr-1"></i> Les champs marqués <span class="text-red-500 font-bold">*</span> sont obligatoires pour l'import</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button @click="showGouvImport = false" class="text-slate-500 font-bold px-4 py-2 text-sm hover:text-slate-700">Fermer</button>
+                <button v-if="gouvImport.activeTab === 'gouv'" @click="importGouvSelected" :disabled="!gouvImport.selected.length"
+                        class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-2.5 rounded-lg font-bold shadow transition flex items-center gap-2">
+                    <i class="fas fa-file-import"></i> Importer {{ gouvImport.selected.length }} structure(s)
+                </button>
+                <button v-if="gouvImport.activeTab === 'csv'" @click="importCsvStructures" :disabled="!csvImport.rows.length || !csvImport.mapping.name"
+                        class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-2.5 rounded-lg font-bold shadow transition flex items-center gap-2">
+                    <i class="fas fa-file-import"></i> Importer {{ csvImport.rows.length }} ligne(s)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div><!-- /#app -->
+<script type="module" src="./js/app.js?v=8"></script>
+</body>
+</html>
