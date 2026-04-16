@@ -76,7 +76,7 @@
             <div class="nav-header">Données</div>
             <div @click="tab='structures'" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
             <div @click="tab='contacts'" :class="['nav-item', tab==='contacts'?'active':'']"><i class="fas fa-address-book"></i> Annuaire Pro</div>
-            <div @click="tab='projects'" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Spectacles</div>
+            <div @click="tab='projects'" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Projets</div>
             <div class="nav-header">Production</div>
             <div @click="tab='pipeline'" :class="['nav-item', tab==='pipeline'?'active':'']"><i class="fas fa-columns text-yellow-400"></i> Pipeline Commercial</div>
             <div @click="tab='planning'" :class="['nav-item', tab==='planning'?'active':'']"><i class="fas fa-calendar-alt"></i> Agendas partagés</div>
@@ -1892,6 +1892,7 @@
                 <button v-if="editProjectData.id && isEditingProject" @click="deleteProject(editProjectData)" class="text-red-500 hover:text-red-700 text-sm font-bold px-4"><i class="fas fa-trash mr-1"></i> Supprimer le projet</button>
                 <div v-else></div>
                 <div class="flex gap-2">
+                    <button v-if="!isEditingProject" @click="isEditingProject = true" class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-lg font-bold shadow text-sm flex items-center gap-2"><i class="fas fa-pen"></i> Modifier</button>
                     <button v-if="isEditingProject && editProjectData.id" @click="isEditingProject = false" class="text-slate-500 px-4 font-bold text-sm hover:text-slate-700">Annuler</button>
                     <button v-if="isEditingProject" @click="saveProject" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow">Enregistrer</button>
                     <button v-if="!isEditingProject" @click="showProjectModal=false" class="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg font-bold shadow">Fermer</button>
