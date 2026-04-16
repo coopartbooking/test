@@ -149,6 +149,7 @@ createApp({
                 headers: [],
                 rows: [],
                 mapping: {},
+                fileName: '',
                 mappingFields: [
                     { key: 'name',     label: 'Nom',         icon: 'fas fa-building',        required: true  },
                     { key: 'address',  label: 'Adresse',     icon: 'fas fa-map-marker-alt',  required: false },
@@ -1389,6 +1390,7 @@ async removeGlobalTag(familyName, tag) {
             this.csvImport.headers = [];
             this.csvImport.rows = [];
             this.csvImport.mapping = {};
+            this.csvImport.fileName = '';
         },
 
         // --- IMPORT CSV LIBRE ---
@@ -1396,6 +1398,7 @@ async removeGlobalTag(familyName, tag) {
             const file = event.target.files[0];
             if (!file) return;
             event.target.value = '';
+            this.csvImport.fileName = file.name;
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
@@ -1456,7 +1459,7 @@ async removeGlobalTag(familyName, tag) {
                     name,
                     isClient:     false, isActive: true,
                     clientCode:   '',
-                    source:       m.source && row[m.source] ? String(row[m.source]).trim() : (file ? file.name : 'Import CSV'),
+                    source:       m.source && row[m.source] ? String(row[m.source]).trim() : (this.csvImport.fileName || 'Import CSV'),
                     createdDate:  new Date().toISOString(),
                     address:      m.address  ? String(row[m.address]  || '').trim() : '',
                     suite:        '',
