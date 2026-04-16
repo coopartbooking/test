@@ -99,6 +99,8 @@ createApp({
             showTaskModal:    false, editTaskData:    {},
             showEventModal:   false, editEventData:   {},
             showProjectModal: false, editProjectData: {}, isEditingProject: false,
+            projectTab: 'resume',
+            projectNoteText: '',
             showCrmModal:     false, currentCrmStruct: null, currentCrmContact: null,
             showTemplateModal: false, editTemplateData: {},
             showInactiveProjects: false,
@@ -297,6 +299,49 @@ createApp({
 
         exportMappingPreview() {
             return this.exportMappingFilteredContacts.slice(0, 3).map(c => this.buildExportRow(c));
+        },
+
+        // ── Projet : affaires liées ──
+        getProjectEvents() {
+            return (projectId) => this.db.events.filter(e => e.projectId === projectId);
+        },
+
+        // ── Projet : structures liées (via affaires) ──
+        getProjectStructures() {
+            return (projectId) => {
+                const events = this.db.events.filter(e => e.projectId === projectId && e.venueId);
+                const ids = [...new Set(events.map(e => e.venueId))];
+                return ids.map(id => this.db.structures.find(s => s.id === id)).filter(Boolean);
+            };
+        },
+
+        // ── Projet : contacts liés (via structures liées) ──
+        getProjectContacts() {
+            return (projectId) => {
+                const structs = this.getProjectStructures(projectId);
+                const contacts = [];
+                structs.forEach(s => {
+                    (s.contacts || []).forEach(c => {
+                        contacts.push({
+                            ...c,
+                            structName: s.name,
+                            structCity: s.city,
+                            structId:   s.id,
+                        });
+                    });
+                });
+                return contacts;
+            };
+        },
+
+        // ── Projet : prochaine date à venir ──
+        getProjectNextDate() {
+            return (projectId) => {
+                const today = new Date().toISOString().slice(0, 10);
+                return this.db.events
+                    .filter(e => e.projectId === projectId && e.date && e.date >= today && e.stage !== 'ann')
+                    .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+            };
         },
 
         currentSelectionObj() {
@@ -1471,7 +1516,9 @@ async removeGlobalTag(familyName, tag) {
             if (p) {
                 this.editProjectData = JSON.parse(JSON.stringify(p));
                 if (!this.editProjectData.subProjects) this.editProjectData.subProjects = [];
+                if (!this.editProjectData.notes) this.editProjectData.notes = [];
                 this.isEditingProject = false;
+                this.projectTab = 'resume';
             } else {
                 this.editProjectData = {
                     id: '', name: '', genre: '', duration: '', defaultFee: 0, feeType: 'HT',
@@ -1482,10 +1529,23 @@ async removeGlobalTag(familyName, tag) {
                     salePrice: '', ticketPrice: '',
                     isActive: true, isPrivate: false,
                     subProjects: [],
+                    notes: [],
                 };
                 this.isEditingProject = true;
             }
             this.showProjectModal = true;
+        },
+
+        // Override getProjectStats pour inclure annulations et taux
+        getProjectStats(projectId) {
+            const events = this.db.events.filter(e => e.projectId === projectId);
+            const conf = events.filter(e => e.status === 'conf' || e.stage === 'won').length;
+            const opt  = events.filter(e => e.stage && e.stage !== 'won' && e.stage !== 'ann' && e.status !== 'conf' && e.status !== 'ann').length;
+            const ann  = events.filter(e => e.status === 'ann' || e.stage === 'ann').length;
+            const ca   = events.filter(e => e.status === 'conf' || e.stage === 'won').reduce((s, e) => s + (Number(e.fee) || 0), 0);
+            const total = conf + opt + ann;
+            const rate = total > 0 ? Math.round((conf / total) * 100) : 0;
+            return { conf, opt, ann, ca, rate };
         },
 
         addSubProject() {
@@ -2215,6 +2275,51 @@ async removeGlobalTag(familyName, tag) {
             this.exportMapping.filterCat    = '';
             this.exportMapping.filterGenre  = '';
             this.showExportMapping = true;
+        },
+
+        // --- NOTES PROJET ---
+        addProjectNote() {
+            if (!this.projectNoteText.trim()) return;
+            if (!this.editProjectData.notes) this.editProjectData.notes = [];
+            this.editProjectData.notes.push({
+                id:   Date.now().toString(),
+                text: this.projectNoteText.trim(),
+                date: this.getProTimestamp ? this.getProTimestamp() : new Date().toLocaleString('fr-FR'),
+                user: this.currentUserName,
+            });
+            this.projectNoteText = '';
+            this.saveProjectNotes();
+        },
+
+        removeProjectNote(noteId) {
+            this.editProjectData.notes = (this.editProjectData.notes || []).filter(n => n.id !== noteId);
+            this.saveProjectNotes();
+        },
+
+        saveProjectNotes() {
+            const idx = this.db.projects.findIndex(p => p.id === this.editProjectData.id);
+            if (idx > -1) {
+                this.db.projects[idx].notes = this.editProjectData.notes;
+                this.saveDB();
+            }
+        },
+
+        openEventFromProject(p) {
+            const prefilled = {
+                id: '', projectId: p.id, stage: 'lead',
+                venueId: '', venueName: '', city: '',
+                date: '', time: '', fee: p.defaultFee || '',
+                feeType: p.feeType || 'HT', contractType: 'cession',
+            };
+            this.showProjectModal = false;
+            this.tab = 'planning';
+            this.$nextTick(() => { this.openEventModal(null, prefilled); });
+        },
+
+        openCrmViewFromProject(s) {
+            this.showProjectModal = false;
+            this.tab = 'structures';
+            this.$nextTick(() => { this.openCrmView(s); });
         },
 
         // --- OMNIBOX ---

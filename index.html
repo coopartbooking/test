@@ -1793,73 +1793,131 @@
                 </div>
             </div>
 
-            <div v-if="!isEditingProject" class="p-6 overflow-y-auto bg-slate-50 flex-1">
-                <div class="grid grid-cols-3 gap-4 mb-6">
-                    <div class="bg-white border rounded-lg p-4 text-center shadow-sm">
-                        <div class="text-slate-500 text-[10px] font-bold uppercase mb-1">Chiffre d'Affaires</div>
-                        <div class="text-xl font-bold text-indigo-600">{{ formatMoney(getProjectStats(editProjectData.id).ca) }}</div>
-                    </div>
-                    <div class="bg-white border rounded-lg p-4 text-center shadow-sm">
-                        <div class="text-slate-500 text-[10px] font-bold uppercase mb-1">Dates confirmées</div>
-                        <div class="text-xl font-bold text-emerald-600">{{ getProjectStats(editProjectData.id).conf }}</div>
-                    </div>
-                    <div class="bg-white border rounded-lg p-4 text-center shadow-sm">
-                        <div class="text-slate-500 text-[10px] font-bold uppercase mb-1">Affaires en cours</div>
-                        <div class="text-xl font-bold text-orange-500">{{ getProjectStats(editProjectData.id).opt }}</div>
-                    </div>
-                </div>
+            <!-- Onglets navigation (vue seulement) -->
+            <div v-if="!isEditingProject" class="flex border-b border-slate-200 bg-white flex-shrink-0">
+                <button v-for="t in [{k:'resume',i:'fas fa-chart-bar',l:'Résumé'},{k:'affaires',i:'fas fa-calendar-alt',l:'Affaires'},{k:'structures',i:'fas fa-building',l:'Structures'},{k:'contacts',i:'fas fa-address-book',l:'Contacts'},{k:'notes',i:'fas fa-sticky-note',l:'Notes'}]" :key="t.k"
+                    @click="projectTab = t.k"
+                    :class="['px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5', projectTab===t.k ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
+                    <i :class="t.i"></i> {{ t.l }}
+                    <span v-if="t.k==='affaires'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ getProjectEvents(editProjectData.id).length }}</span>
+                    <span v-if="t.k==='contacts'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ getProjectContacts(editProjectData.id).length }}</span>
+                    <span v-if="t.k==='structures'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ getProjectStructures(editProjectData.id).length }}</span>
+                    <span v-if="t.k==='notes'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ (editProjectData.notes||[]).length }}</span>
+                </button>
+            </div>
 
-                <!-- Codes -->
-                <div v-if="editProjectData.code || editProjectData.adminCode || editProjectData.analytCode" class="bg-white border rounded-lg p-4 shadow-sm mb-4 flex flex-wrap gap-4 text-sm">
-                    <div v-if="editProjectData.code"><span class="text-slate-400 text-xs uppercase font-bold mr-1">Code artiste</span><span class="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{{ editProjectData.code }}</span></div>
-                    <div v-if="editProjectData.adminCode"><span class="text-slate-400 text-xs uppercase font-bold mr-1">Code admin</span><span class="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">{{ editProjectData.adminCode }}</span></div>
-                    <div v-if="editProjectData.analytCode"><span class="text-slate-400 text-xs uppercase font-bold mr-1">Analytique</span><span class="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded">{{ editProjectData.analytCode }} — {{ editProjectData.analytLabel }}</span></div>
-                    <div v-if="editProjectData.isPrivate" class="ml-auto"><span class="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-1 rounded"><i class="fas fa-lock mr-1"></i>Privé</span></div>
-                    <div v-if="editProjectData.isActive === false" class="ml-auto"><span class="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-1 rounded"><i class="fas fa-ban mr-1"></i>Inactif</span></div>
+            <!-- TAB RÉSUMÉ -->
+            <div v-if="!isEditingProject && projectTab==='resume'" class="p-6 overflow-y-auto bg-slate-50 flex-1">
+                <div class="grid grid-cols-5 gap-3 mb-5">
+                    <div class="bg-white border rounded-lg p-3 text-center shadow-sm"><div class="text-slate-400 text-[10px] font-bold uppercase mb-1">CA Confirmé</div><div class="text-lg font-bold text-indigo-600">{{ formatMoney(getProjectStats(editProjectData.id).ca) }}</div></div>
+                    <div class="bg-white border rounded-lg p-3 text-center shadow-sm"><div class="text-slate-400 text-[10px] font-bold uppercase mb-1">Confirmées</div><div class="text-lg font-bold text-emerald-600">{{ getProjectStats(editProjectData.id).conf }}</div></div>
+                    <div class="bg-white border rounded-lg p-3 text-center shadow-sm"><div class="text-slate-400 text-[10px] font-bold uppercase mb-1">En cours</div><div class="text-lg font-bold text-orange-500">{{ getProjectStats(editProjectData.id).opt }}</div></div>
+                    <div class="bg-white border rounded-lg p-3 text-center shadow-sm"><div class="text-slate-400 text-[10px] font-bold uppercase mb-1">Annulées</div><div class="text-lg font-bold text-red-400">{{ getProjectStats(editProjectData.id).ann || 0 }}</div></div>
+                    <div class="bg-white border rounded-lg p-3 text-center shadow-sm"><div class="text-slate-400 text-[10px] font-bold uppercase mb-1">Taux conf.</div><div class="text-lg font-bold text-purple-600">{{ getProjectStats(editProjectData.id).rate || 0 }}%</div></div>
                 </div>
-                
-                <div class="grid grid-cols-2 gap-6">
-                    <div class="bg-white border rounded-lg p-5 shadow-sm">
-                        <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i class="fas fa-truck mr-2 text-slate-400"></i>Logistique & Vente</h4>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between"><span class="text-slate-500">Cachet de base:</span> <span class="font-bold text-slate-800">{{ formatMoney(editProjectData.defaultFee) }} {{ editProjectData.feeType || 'HT' }}</span></div>
-                            <div v-if="editProjectData.salePrice" class="flex justify-between"><span class="text-slate-500">Prix de vente:</span> <span class="font-bold text-slate-800">{{ formatMoney(editProjectData.salePrice) }}</span></div>
-                            <div v-if="editProjectData.ticketPrice" class="flex justify-between"><span class="text-slate-500">Prix des places:</span> <span class="font-bold text-slate-800">{{ formatMoney(editProjectData.ticketPrice) }}</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">Durée du set:</span> <span class="font-bold text-slate-800">{{ editProjectData.duration || '-' }}</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">Équipe en tournée:</span> <span class="font-bold text-slate-800">{{ editProjectData.teamSize || 1 }} pers.</span></div>
-                            <div>
-                                <span class="text-slate-500 block mb-1">Conditions d'accueil :</span>
-                                <div class="bg-slate-50 p-2 rounded text-xs text-slate-600 border border-slate-100 italic">{{ editProjectData.expenses || 'Aucune condition spécifiée.' }}</div>
-                            </div>
+                <div v-if="getProjectNextDate(editProjectData.id)" class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-5 flex items-center gap-4">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0"><i class="fas fa-calendar-check text-white"></i></div>
+                    <div><div class="text-[10px] font-black text-indigo-400 uppercase mb-0.5">Prochaine date</div><div class="font-bold text-indigo-800">{{ getProjectNextDate(editProjectData.id).venueName || getProjectNextDate(editProjectData.id).city }}</div><div class="text-xs text-indigo-600">{{ getProjectNextDate(editProjectData.id).date }}</div></div>
+                </div>
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <h4 class="font-bold text-slate-700 mb-3 border-b pb-2"><i class="fas fa-truck mr-2 text-slate-400"></i>Logistique & Vente</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-slate-500">Cachet :</span><span class="font-bold">{{ formatMoney(editProjectData.defaultFee) }} {{ editProjectData.feeType||'HT' }}</span></div>
+                            <div v-if="editProjectData.salePrice" class="flex justify-between"><span class="text-slate-500">Prix vente :</span><span class="font-bold">{{ formatMoney(editProjectData.salePrice) }}</span></div>
+                            <div v-if="editProjectData.ticketPrice" class="flex justify-between"><span class="text-slate-500">Prix places :</span><span class="font-bold">{{ formatMoney(editProjectData.ticketPrice) }}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Durée :</span><span class="font-bold">{{ editProjectData.duration||"-" }}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Équipe :</span><span class="font-bold">{{ editProjectData.teamSize||1 }} pers.</span></div>
                         </div>
                     </div>
-
-                    <div class="bg-white border rounded-lg p-5 shadow-sm">
-                        <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i class="fas fa-link mr-2 text-slate-400"></i>Matériel Promo & Technique</h4>
-                        <div class="space-y-3">
-                            <a v-if="editProjectData.linkVideo" :href="editProjectData.linkVideo" target="_blank" class="block bg-red-50 text-red-700 p-2 rounded border border-red-100 hover:bg-red-100 transition text-sm font-bold"><i class="fab fa-youtube mr-2 w-4"></i> Vidéo Teaser</a>
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <h4 class="font-bold text-slate-700 mb-3 border-b pb-2"><i class="fas fa-link mr-2 text-slate-400"></i>Matériel Promo</h4>
+                        <div class="space-y-2">
+                            <a v-if="editProjectData.linkVideo" :href="editProjectData.linkVideo" target="_blank" class="block bg-red-50 text-red-700 p-2 rounded border border-red-100 hover:bg-red-100 transition text-sm font-bold"><i class="fab fa-youtube mr-2"></i>Vidéo</a>
                             <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucune vidéo</div>
-                            <a v-if="editProjectData.linkPress" :href="editProjectData.linkPress" target="_blank" class="block bg-blue-50 text-blue-700 p-2 rounded border border-blue-100 hover:bg-blue-100 transition text-sm font-bold"><i class="fas fa-file-pdf mr-2 w-4"></i> Dossier de Presse</a>
-                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucun dossier de presse</div>
-                            <a v-if="editProjectData.linkTech" :href="editProjectData.linkTech" target="_blank" class="block bg-slate-800 text-white p-2 rounded border border-slate-700 hover:bg-slate-700 transition text-sm font-bold"><i class="fas fa-sliders-h mr-2 w-4"></i> Fiche Technique</a>
+                            <a v-if="editProjectData.linkPress" :href="editProjectData.linkPress" target="_blank" class="block bg-blue-50 text-blue-700 p-2 rounded border border-blue-100 hover:bg-blue-100 transition text-sm font-bold"><i class="fas fa-file-pdf mr-2"></i>Dossier de Presse</a>
+                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucun dossier</div>
+                            <a v-if="editProjectData.linkTech" :href="editProjectData.linkTech" target="_blank" class="block bg-slate-800 text-white p-2 rounded hover:bg-slate-700 transition text-sm font-bold"><i class="fas fa-sliders-h mr-2"></i>Fiche Technique</a>
                             <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucune fiche technique</div>
-                            <a v-if="editProjectData.linkTree" :href="editProjectData.linkTree" target="_blank" class="block bg-emerald-50 text-emerald-700 p-2 rounded border border-emerald-100 hover:bg-emerald-100 transition text-sm font-bold"><i class="fas fa-globe mr-2 w-4"></i> Linktree / Site Web</a>
-                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucun site / réseau renseigné</div>
+                            <a v-if="editProjectData.linkTree" :href="editProjectData.linkTree" target="_blank" class="block bg-emerald-50 text-emerald-700 p-2 rounded border border-emerald-100 hover:bg-emerald-100 transition text-sm font-bold"><i class="fas fa-globe mr-2"></i>Site / Réseaux</a>
+                            <div v-else class="text-xs text-slate-400 p-2 border border-dashed rounded text-center">Aucun site</div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Sous-projets en vue -->
-                <div v-if="(editProjectData.subProjects||[]).length" class="mt-4 bg-white border rounded-lg p-5 shadow-sm">
-                    <h4 class="font-bold text-slate-700 mb-3 border-b pb-2"><i class="fas fa-layer-group mr-2 text-slate-400"></i>Sous-projets / Spectacles</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div v-for="sp in editProjectData.subProjects" :key="sp.id" class="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                            <div class="font-bold text-slate-800 text-sm">{{ sp.name }}</div>
-                            <div class="flex gap-4 text-xs text-slate-500 mt-1">
-                                <span v-if="sp.code"><i class="fas fa-barcode mr-1"></i>{{ sp.code }}</span>
-                                <span v-if="sp.fee"><i class="fas fa-euro-sign mr-1"></i>{{ formatMoney(sp.fee) }}</span>
-                                <span v-if="sp.ticketPrice"><i class="fas fa-ticket-alt mr-1"></i>{{ formatMoney(sp.ticketPrice) }}/place</span>
-                            </div>
+            <!-- TAB AFFAIRES -->
+            <div v-if="!isEditingProject && projectTab==='affaires'" class="flex-1 overflow-y-auto bg-slate-50 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="font-bold text-slate-700">{{ getProjectEvents(editProjectData.id).length }} affaire(s)</h4>
+                    <button @click="openEventFromProject(editProjectData)" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition shadow flex items-center gap-2"><i class="fas fa-plus"></i> Nouvelle affaire</button>
+                </div>
+                <div v-if="!getProjectEvents(editProjectData.id).length" class="flex flex-col items-center justify-center py-12 text-slate-400"><i class="fas fa-calendar-times text-4xl opacity-20 mb-3"></i><p class="font-bold">Aucune affaire pour ce projet</p></div>
+                <div class="space-y-2">
+                    <div v-for="e in getProjectEvents(editProjectData.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''))" :key="e.id"
+                         @click="openEventModal(null, e)"
+                         class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center gap-4 hover:border-indigo-200 transition cursor-pointer">
+                        <div :class="['w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-sm', e.stage==='won' ? 'bg-emerald-500' : e.stage==='option' ? 'bg-orange-400' : e.stage==='nego' ? 'bg-purple-400' : 'bg-slate-400']">
+                            <i :class="e.stage==='won' ? 'fas fa-check' : 'fas fa-hourglass-half'"></i>
+                        </div>
+                        <div class="flex-1 min-w-0"><div class="font-bold text-slate-800 text-sm">{{ e.venueName || e.city || 'Lieu à définir' }}</div><div class="text-xs text-slate-500">{{ e.city }} {{ e.date ? '· ' + e.date : '' }}</div></div>
+                        <div class="text-right flex-shrink-0"><div class="font-bold text-indigo-600">{{ formatMoney(e.fee) }}</div><div class="text-[10px] text-slate-400">{{ e.feeType||'HT' }}</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB STRUCTURES -->
+            <div v-if="!isEditingProject && projectTab==='structures'" class="flex-1 overflow-y-auto bg-slate-50 p-5">
+                <div class="mb-4"><h4 class="font-bold text-slate-700">{{ getProjectStructures(editProjectData.id).length }} structure(s) liée(s)</h4></div>
+                <div v-if="!getProjectStructures(editProjectData.id).length" class="flex flex-col items-center justify-center py-12 text-slate-400"><i class="fas fa-building text-4xl opacity-20 mb-3"></i><p class="font-bold">Aucune structure liée</p><p class="text-xs mt-1 opacity-70">Créez des affaires avec ce projet pour voir les structures ici</p></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div v-for="s in getProjectStructures(editProjectData.id)" :key="s.id"
+                         @click="openCrmViewFromProject(s)"
+                         class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-indigo-200 hover:shadow-md transition cursor-pointer group">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 min-w-0"><div class="font-bold text-slate-800">{{ s.name }}</div><div class="text-xs text-slate-500 mt-0.5"><i class="fas fa-map-marker-alt mr-1 opacity-50"></i>{{ s.city }}</div></div>
+                            <span class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded ml-2 opacity-0 group-hover:opacity-100 transition"><i class="fas fa-folder-open mr-1"></i>Fiche CRM</span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-1">
+                            <span v-for="cat in (s.tags && s.tags.categories || []).slice(0,3)" :key="cat" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">{{ cat }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTACTS -->
+            <div v-if="!isEditingProject && projectTab==='contacts'" class="flex-1 overflow-y-auto bg-slate-50 p-5">
+                <div class="mb-4"><h4 class="font-bold text-slate-700">{{ getProjectContacts(editProjectData.id).length }} contact(s) lié(s)</h4></div>
+                <div v-if="!getProjectContacts(editProjectData.id).length" class="flex flex-col items-center justify-center py-12 text-slate-400"><i class="fas fa-address-book text-4xl opacity-20 mb-3"></i><p class="font-bold">Aucun contact lié</p></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div v-for="c in getProjectContacts(editProjectData.id)" :key="c.id"
+                         class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:border-indigo-200 transition group relative">
+                        <div class="font-bold text-slate-800 text-sm">{{ c.name }}</div>
+                        <div v-if="c.role" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded inline-block mt-0.5">{{ c.role }}</div>
+                        <div class="text-xs text-slate-500 mt-1"><i class="fas fa-building mr-1 opacity-50"></i>{{ c.structName }}</div>
+                        <div v-if="c.emailPro||c.emailPerso" class="text-xs text-slate-400 mt-0.5"><i class="fas fa-envelope mr-1 opacity-50"></i>{{ c.emailPro||c.emailPerso }}</div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 rounded-b-xl px-3 py-1.5 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                            <button @click="openCrmFromContact(c)" class="flex-1 text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-1 rounded flex items-center justify-center gap-1"><i class="fas fa-folder-open"></i> CRM</button>
+                            <button @click="openTaskModal(null,{relType:'structure',relId:c.structId,relLabel:c.structName})" class="flex-1 text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 py-1 rounded flex items-center justify-center gap-1"><i class="fas fa-tasks"></i> Tâche</button>
+                            <button @click="openEventFromContact(c)" class="flex-1 text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-1 rounded flex items-center justify-center gap-1"><i class="fas fa-calendar-plus"></i> Affaire</button>
+                        </div>
+                        <div class="h-3 group-hover:h-8 transition-all duration-200"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB NOTES -->
+            <div v-if="!isEditingProject && projectTab==='notes'" class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+                <div class="p-4 border-b border-slate-200 bg-white flex-shrink-0 flex gap-3">
+                    <input v-model="projectNoteText" @keyup.enter="addProjectNote" class="input-field flex-1 text-sm" placeholder="Ajouter une note... (Entrée pour valider)">
+                    <button @click="addProjectNote" :disabled="!projectNoteText.trim()" class="bg-indigo-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition"><i class="fas fa-plus mr-1"></i> Ajouter</button>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+                    <div v-if="!(editProjectData.notes||[]).length" class="flex flex-col items-center justify-center h-full text-slate-400"><i class="fas fa-sticky-note text-4xl opacity-20 mb-3"></i><p class="font-bold">Aucune note</p></div>
+                    <div class="space-y-3">
+                        <div v-for="n in (editProjectData.notes||[]).slice().reverse()" :key="n.id" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm group">
+                            <div class="flex justify-between items-start"><p class="text-sm text-slate-700 flex-1">{{ n.text }}</p><button @click="removeProjectNote(n.id)" class="text-slate-200 hover:text-red-500 transition opacity-0 group-hover:opacity-100 ml-3"><i class="fas fa-times"></i></button></div>
+                            <div class="text-[10px] text-slate-400 mt-2"><i class="fas fa-clock mr-1"></i>{{ n.date }}<span v-if="n.user"> · {{ n.user }}</span></div>
                         </div>
                     </div>
                 </div>
