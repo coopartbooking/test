@@ -25,6 +25,7 @@ import { annuaireMethods }                       from './modules/annuaireMethods
 import { importMethods }                         from './modules/importMethods.js';
 import { gouvMethods }                           from './modules/gouvMethods.js';
 import { searchMethods }                         from './modules/searchMethods.js';
+import { projectMethods }                        from './modules/projectMethods.js';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -528,6 +529,7 @@ createApp({
         ...importMethods,
         ...gouvMethods,
         ...searchMethods,
+        ...projectMethods,
 
         // --- AUTHENTIFICATION FIREBASE ---
         async handleAuth() {
@@ -772,45 +774,6 @@ async removeGlobalTag(familyName, tag) {
             this.newContactComment = '';
             // Sauvegarde automatique immédiate
             this.saveDB();
-        },
-
-        // --- NOTES PROJET ---
-        addProjectNote() {
-            if (!this.projectNoteText.trim()) return;
-            if (!this.editProjectData.notes) this.editProjectData.notes = [];
-            this.editProjectData.notes.push({
-                id:   Date.now().toString(),
-                text: this.projectNoteText.trim(),
-                date: this.getProTimestamp ? this.getProTimestamp() : new Date().toLocaleString('fr-FR'),
-                user: this.currentUserName,
-            });
-            this.projectNoteText = '';
-            this.saveProjectNotes();
-        },
-
-        removeProjectNote(noteId) {
-            this.editProjectData.notes = (this.editProjectData.notes || []).filter(n => n.id !== noteId);
-            this.saveProjectNotes();
-        },
-
-        saveProjectNotes() {
-            const idx = this.db.projects.findIndex(p => p.id === this.editProjectData.id);
-            if (idx > -1) {
-                this.db.projects[idx].notes = this.editProjectData.notes;
-                this.saveDB();
-            }
-        },
-
-        openEventFromProject(p) {
-            const prefilled = {
-                id: '', projectId: p.id, stage: 'lead',
-                venueId: '', venueName: '', city: '',
-                date: '', time: '', fee: p.defaultFee || '',
-                feeType: p.feeType || 'HT', contractType: 'cession',
-            };
-            this.showProjectModal = false;
-            this.tab = 'planning';
-            this.$nextTick(() => { this.openEventModal(null, prefilled); });
         },
 
         // --- RECHERCHE VENUE (modal Affaire) ---
