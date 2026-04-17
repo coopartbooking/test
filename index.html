@@ -2,6 +2,54 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <!-- ═══ CONTENT SECURITY POLICY ═══
+         Autorise uniquement les sources connues et nécessaires.
+         Bloque l'exécution de scripts ou styles provenant de sources inconnues.
+    ═══════════════════════════════════════════════════════════ -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'none';
+
+        script-src  'self'
+                    'unsafe-eval'
+                    https://cdn.tailwindcss.com
+                    https://unpkg.com
+                    https://cdnjs.cloudflare.com
+                    https://cdn.jsdelivr.net
+                    https://cdn.sheetjs.com
+                    https://www.gstatic.com;
+
+        style-src   'self'
+                    'unsafe-inline'
+                    https://cdnjs.cloudflare.com
+                    https://unpkg.com
+                    https://fonts.googleapis.com;
+
+        font-src    'self'
+                    data:
+                    https://cdnjs.cloudflare.com
+                    https://fonts.gstatic.com;
+
+        img-src     'self'
+                    data:
+                    blob:
+                    https://*.tile.openstreetmap.org
+                    https://*.openstreetmap.org;
+
+        connect-src 'self'
+                    https://*.googleapis.com
+                    https://*.firebaseio.com
+                    https://*.cloudfunctions.net
+                    https://*.gstatic.com
+                    https://nominatim.openstreetmap.org
+                    https://data.culture.gouv.fr
+                    wss://*.firebaseio.com;
+
+        worker-src  blob:;
+
+        frame-src   'none';
+        object-src  'none';
+        base-uri    'self';
+    ">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
