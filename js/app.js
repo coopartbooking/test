@@ -144,6 +144,13 @@ createApp({
 
             // Import Culture.gouv.fr
             showGouvImport: false,
+            // Recherche structure dans modal Affaire
+            venueSearch: '',
+            venueSearchResults: [],
+            showVenueDropdown: false,
+            showVenueBrowser: false,
+            venueBrowserRegion: '',
+            venueBrowserCat: '',
             gouvImport: {
                 loading: false,
                 error: '',
@@ -342,6 +349,35 @@ createApp({
                     .filter(e => e.projectId === projectId && e.date && e.date >= today && e.stage !== 'ann')
                     .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
             };
+        },
+
+        // ── Recherche venue dans modal affaire ──
+        venueContacts() {
+            if (!this.editEventData.venueId) return [];
+            const s = this.db.structures.find(x => x.id === this.editEventData.venueId);
+            return s ? (s.contacts || []) : [];
+        },
+
+        venueRegions() {
+            const regions = new Set();
+            this.db.structures.forEach(s => { if (s.tags?.reseaux?.length) s.tags.reseaux.forEach(r => regions.add(r)); if (s.country) regions.add(s.country); });
+            // Régions françaises standard
+            ['Auvergne-Rhône-Alpes','Bourgogne-Franche-Comté','Bretagne','Centre-Val de Loire','Corse','Grand Est','Hauts-de-France','Île-de-France','Normandie','Nouvelle-Aquitaine','Occitanie','Pays de la Loire','Provence-Alpes-Côte d\'Azur'].forEach(r => regions.add(r));
+            return [...regions].sort();
+        },
+
+        venueBrowserResults() {
+            let list = this.db.structures;
+            if (this.venueBrowserRegion) {
+                list = list.filter(s =>
+                    (s.region || '').toLowerCase().includes(this.venueBrowserRegion.toLowerCase()) ||
+                    (s.tags?.reseaux || []).includes(this.venueBrowserRegion)
+                );
+            }
+            if (this.venueBrowserCat) {
+                list = list.filter(s => (s.tags?.categories || []).includes(this.venueBrowserCat));
+            }
+            return list.slice(0, 30);
         },
 
         currentSelectionObj() {
@@ -2314,6 +2350,64 @@ async removeGlobalTag(familyName, tag) {
             this.showProjectModal = false;
             this.tab = 'planning';
             this.$nextTick(() => { this.openEventModal(null, prefilled); });
+        },
+
+        // --- RECHERCHE VENUE (modal Affaire) ---
+        searchVenues() {
+            const q = (this.venueSearch || '').toLowerCase().trim();
+            if (q.length < 2) { this.venueSearchResults = []; return; }
+            this.venueSearchResults = this.db.structures.filter(s => {
+                return (s.name   || '').toLowerCase().includes(q) ||
+                       (s.city   || '').toLowerCase().includes(q) ||
+                       (s.zip    || '').includes(q) ||
+                       (s.region || '').toLowerCase().includes(q) ||
+                       (s.tags?.categories || []).some(t => t.toLowerCase().includes(q)) ||
+                       (s.tags?.reseaux    || []).some(t => t.toLowerCase().includes(q));
+            }).slice(0, 8);
+            this.showVenueDropdown = true;
+        },
+
+        selectVenue(s) {
+            this.editEventData.venueId   = s.id;
+            this.editEventData.venueName = s.name;
+            this.editEventData.city      = s.city || '';
+            // Pré-remplir la jauge si disponible
+            if (s.capacity && !this.editEventData.capacity) this.editEventData.capacity = s.capacity;
+            this.venueSearch        = '';
+            this.venueSearchResults = [];
+            this.showVenueDropdown  = false;
+            this.showVenueBrowser   = false;
+        },
+
+        clearVenueSelection() {
+            this.editEventData.venueId    = '';
+            this.editEventData.venueName  = '';
+            this.editEventData.city       = '';
+            this.editEventData.contactId  = '';
+            this.editEventData.contactName= '';
+            this.venueSearch = '';
+            this.venueSearchResults = [];
+        },
+
+        // Wrapper openEventModal pour réinitialiser la recherche venue
+        openEventModal(ev, data) {
+            this.venueSearch        = '';
+            this.venueSearchResults = [];
+            this.showVenueDropdown  = false;
+            this.showVenueBrowser   = false;
+            // Appel du module planning
+            if (this.$options.methods._openEventModal) {
+                this.$options.methods._openEventModal.call(this, ev, data);
+            } else {
+                // Fallback direct
+                this.editEventData = data ? JSON.parse(JSON.stringify(data)) : {
+                    id:'', projectId:'', stage:'lead', venueId:'', venueName:'', city:'',
+                    date:'', time:'', fee:'', feeType:'HT', contractType:'cession',
+                    capacity:'', ticketPrice:'', corealPercentage:'', tourExpenses:'', estFillRate:'',
+                    status:'prospect', notes:'', contactId:'', contactName:''
+                };
+                this.showEventModal = true;
+            }
         },
 
         openCrmViewFromProject(s) {
