@@ -863,6 +863,13 @@
                                         <input v-model="currentSearch.filterCity" @input="runSearch" class="input-field text-sm" placeholder="Ex: Paris, 75...">
                                     </div>
                                     <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                        <div class="text-[10px] font-black text-slate-400 uppercase mb-2">Région</div>
+                                        <select v-model="currentSearch.filterRegion" @change="runSearch" class="input-field text-sm">
+                                            <option value="">Toutes les régions</option>
+                                            <option v-for="r in frenchRegions" :key="r" :value="r">{{ r }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
                                         <div class="text-[10px] font-black text-slate-400 uppercase mb-2">Statut contact</div>
                                         <select v-model="currentSearch.filterStatus" @change="runSearch" class="input-field text-sm">
                                             <option value="">Tous</option>
@@ -2143,7 +2150,13 @@
                                         <input v-model="currentCrmStruct.zip" class="input-field text-sm w-1/3" placeholder="Code Postal">
                                         <input v-model="currentCrmStruct.city" class="input-field text-sm w-2/3 font-bold" placeholder="Ville">
                                     </div>
-                                    <input v-model="currentCrmStruct.country" class="input-field text-sm text-slate-500" placeholder="Pays">
+                                    <div class="flex gap-3">
+                                        <select v-model="currentCrmStruct.region" class="input-field text-sm flex-1">
+                                            <option value="">-- Région --</option>
+                                            <option v-for="r in frenchRegions" :key="r" :value="r">{{ r }}</option>
+                                        </select>
+                                        <input v-model="currentCrmStruct.country" class="input-field text-sm text-slate-500 flex-1" placeholder="Pays">
+                                    </div>
                                 </div>
                                 
                                 <div id="mini-map" class="w-full h-32 bg-slate-200 mt-4 rounded-lg border border-slate-300 z-10"></div>
@@ -2301,7 +2314,15 @@
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div><label class="input-label">Suivi Commercial par</label><input v-model="currentCrmContact.suiviPar" class="input-field text-sm" placeholder="Nom du commercial"></div>
-                                <div class="flex flex-col justify-center gap-2 mt-4">
+                                <div>
+                                    <label class="input-label">Région</label>
+                                    <select v-model="currentCrmContact.region" class="input-field text-sm">
+                                        <option value="">-- Région --</option>
+                                        <option v-for="r in frenchRegions" :key="r" :value="r">{{ r }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2">
                                     <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input type="checkbox" v-model="currentCrmContact.isVip" class="rounded text-orange-500"> Contact Prioritaire (VIP)</label>
                                     <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input type="checkbox" v-model="currentCrmContact.isActive" class="rounded text-emerald-500"> Toujours en poste (Actif)</label>
                                     <div class="flex items-center justify-between mt-1 p-2.5 rounded-xl border-2 cursor-pointer transition"
@@ -2863,7 +2884,6 @@
     </div>
 </div>
 
-</div><!-- /#app -->
 <script type="module" src="./js/app.js?v=8"></script>
 </body>
 </html>
