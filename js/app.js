@@ -273,7 +273,7 @@ createApp({
             deep: true,
             handler() { if (this.tab === 'geo') this.updateMap(); }
         },
-    },,
+    },
 
     // ─────────────────────────────────────────────────────────────────────────
     // METHODS — modules dans js/modules/
