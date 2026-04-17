@@ -21,6 +21,7 @@ import { contactsComputed, contactsMethods }    from './contacts.js';
 import { planningComputed, planningMethods }    from './planning.js';
 import { adminMethods }                           from './modules/adminMethods.js';
 import { mapMethods }                             from './modules/mapMethods.js';
+import { annuaireMethods }                       from './modules/annuaireMethods.js';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -520,6 +521,7 @@ createApp({
         ...planningMethods,
         ...adminMethods,
         ...mapMethods,
+        ...annuaireMethods,
 
         // --- AUTHENTIFICATION FIREBASE ---
         async handleAuth() {
@@ -764,38 +766,6 @@ async removeGlobalTag(familyName, tag) {
             this.newContactComment = '';
             // Sauvegarde automatique immédiate
             this.saveDB();
-        },
-
-        // --- ANNUAIRE PRO ---
-        editContact(c) {
-            const parentStruct = this.db.structures.find(s => s.id === c.structId);
-            if (parentStruct) {
-                this.tab = 'structures';
-                this.openCrmView(parentStruct);
-                setTimeout(() => {
-                    const contactToEdit = this.currentCrmStruct.contacts.find(x => x.id === c.id);
-                    if (contactToEdit) this.openCrmContact(contactToEdit);
-                }, 50);
-            }
-        },
-
-        goToContactStructure(c) {
-            const parentStruct = this.db.structures.find(s => s.id === c.structId);
-            if (parentStruct) {
-                this.tab = 'structures';
-                this.openCrmView(parentStruct);
-            } else {
-                Swal.fire({ title: 'Structure introuvable', text: 'La structure liée à ce contact est introuvable dans la base.', icon: 'warning', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
-            }
-        },
-
-        deleteContact(c) {
-            Swal.fire({ title: 'Supprimer ce contact ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-                .then(r => { if (r.isConfirmed) { const ps = this.db.structures.find(s => s.id === c.structId); if (ps) { ps.contacts = ps.contacts.filter(x => x.id !== c.id); this.saveDB(); } } });
-        },
-
-        addGlobalContact() {
-            Swal.fire({ icon: 'info', title: 'Nouveau système CRM', text: 'Pour ajouter un contact, ouvrez la fiche CRM de la structure à laquelle il appartient !', confirmButtonColor: '#4f46e5' });
         },
 
         // --- IMPORT EXCEL ---
