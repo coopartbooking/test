@@ -213,7 +213,7 @@ export const adminMethods = {
         if (!this.newChangelogEntry.trim()) return;
         const entry = {
             id:     Date.now().toString(),
-            text:   this.newChangelogEntry.trim(),
+            text:   this.sanitizeText(this.newChangelogEntry, 500),
             date:   new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }),
             author: this.currentUserName
         };

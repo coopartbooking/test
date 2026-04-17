@@ -453,7 +453,7 @@ async addGlobalTag(familyName) {
         if (!this.db[familyName]) this.db[familyName] = [];
         
         // On crée une nouvelle copie du tableau dans db pour la réactivité
-        this.db[familyName] = [...this.db[familyName], r.value.trim()];
+        this.db[familyName] = [...this.db[familyName], this.sanitizeText(r.value, 80)];
         
         // Sauvegarde de l'objet db (qui contient maintenant le nouveau tag)
         await this.saveDB();

@@ -2,6 +2,40 @@
 
 export const utilsMethods = {
 
+    // --- SÉCURITÉ : SANITISATION DES ENTRÉES TEXTE ---
+
+    // Supprime les balises HTML et les caractères dangereux
+    // Empêche l'injection de code dans la base de données
+    sanitizeText(str, maxLength = 2000) {
+        if (!str || typeof str !== 'string') return '';
+        return str
+            .replace(/<[^>]*>/g, '')          // Supprime les balises HTML (<script>, <img>...)
+            .replace(/javascript:/gi, '')      // Supprime les pseudo-URLs javascript:
+            .replace(/on\w+\s*=/gi, '')        // Supprime les handlers inline (onclick=, onerror=...)
+            .trim()
+            .substring(0, maxLength);          // Limite la longueur
+    },
+
+    // Version pour les emails : normalise + valide le format
+    sanitizeEmail(str) {
+        if (!str || typeof str !== 'string') return '';
+        const clean = str.trim().toLowerCase().substring(0, 254);
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean) ? clean : '';
+    },
+
+    // Version pour les URLs : vérifie que le protocole est http/https
+    sanitizeUrl(str) {
+        if (!str || typeof str !== 'string') return '';
+        const clean = str.trim().substring(0, 500);
+        if (!clean) return '';
+        try {
+            const url = new URL(clean.startsWith('http') ? clean : 'https://' + clean);
+            return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+        } catch {
+            return '';
+        }
+    },
+
     formatDate(d) {
         if (!d) return '';
         return new Date(d).toLocaleDateString('fr-FR');

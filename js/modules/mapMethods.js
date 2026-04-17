@@ -36,6 +36,14 @@ export const mapMethods = {
     saveCrmContact() {
         if (!this.currentCrmContact.lastName && !this.currentCrmContact.firstName)
             return Swal.fire('Erreur', 'Renseignez un nom ou prénom.', 'warning');
+        // Sanitiser les champs texte libres du contact
+        this.currentCrmContact.firstName  = this.sanitizeText(this.currentCrmContact.firstName, 100);
+        this.currentCrmContact.lastName   = this.sanitizeText(this.currentCrmContact.lastName, 100);
+        this.currentCrmContact.role       = this.sanitizeText(this.currentCrmContact.role, 150);
+        this.currentCrmContact.notes      = this.sanitizeText(this.currentCrmContact.notes, 5000);
+        this.currentCrmContact.emailPro   = this.sanitizeEmail(this.currentCrmContact.emailPro);
+        this.currentCrmContact.emailPerso = this.sanitizeEmail(this.currentCrmContact.emailPerso);
+        this.currentCrmContact.website    = this.sanitizeUrl(this.currentCrmContact.website);
         this.currentCrmContact.modifiedDate = new Date().toISOString();
         if (!this.currentCrmContact.createdDate) this.currentCrmContact.createdDate = new Date().toISOString();
         const idx = this.currentCrmStruct.contacts.findIndex(x => x.id === this.currentCrmContact.id);
