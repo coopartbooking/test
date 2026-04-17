@@ -147,6 +147,9 @@ createApp({
             saveStatus: 'idle',
             // Fonctions de désabonnement des listeners Firestore (pour logout propre)
             _firestoreUnsubs: [],
+            // Déconnexion automatique après inactivité
+            _inactivityTimer: null,
+            _inactivityDelay: 2 * 60 * 60 * 1000, // 2 heures en millisecondes
             saveStatusMessage: '',
 
             // Import Culture.gouv.fr
@@ -319,7 +322,36 @@ createApp({
             }
         },
 
+        // --- DÉCONNEXION AUTOMATIQUE PAR INACTIVITÉ ---
+        _resetInactivityTimer() {
+            if (!this.currentUser) return;
+            clearTimeout(this._inactivityTimer);
+            this._inactivityTimer = setTimeout(() => {
+                Swal.fire({
+                    title: 'Session expirée',
+                    html: `Vous avez été déconnecté automatiquement après 2 heures d'inactivité.`,
+                    icon: 'info',
+                    confirmButtonColor: '#4f46e5',
+                    confirmButtonText: 'Se reconnecter',
+                    allowOutsideClick: false,
+                }).then(() => this.logout());
+            }, this._inactivityDelay);
+        },
+
+        _startInactivityWatcher() {
+            const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+            const reset  = () => this._resetInactivityTimer();
+            events.forEach(ev => window.addEventListener(ev, reset, { passive: true }));
+            this._resetInactivityTimer(); // Démarre le timer initial
+        },
+
+        _stopInactivityWatcher() {
+            clearTimeout(this._inactivityTimer);
+            this._inactivityTimer = null;
+        },
+
         async logout() {
+            this._stopInactivityWatcher();
             // Désabonner tous les listeners Firestore AVANT la déconnexion
             // pour éviter les erreurs "permission-denied" sur les snapshots actifs
             this._firestoreUnsubs.forEach(unsub => { try { unsub(); } catch(e) {} });
@@ -478,6 +510,7 @@ async removeGlobalTag(familyName, tag) {
             if (user) {
                 this.currentUser     = user.uid;
                 this.currentUserName = user.displayName || user.email || user.uid;
+                this._startInactivityWatcher(); // Démarre la surveillance d'inactivité
 
                 // ── Enregistrement de l'utilisateur dans le registre ──
                 try {

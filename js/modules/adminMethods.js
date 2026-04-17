@@ -2,6 +2,7 @@
 // Section : entre // --- ADMIN --- et // --- FILTRES TAGS CARTE GEO ---
 
 import { auth, dbFirestore }                                  from '../firebase.js';
+import { sendPasswordResetEmail }                             from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, collection }           from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 export const adminMethods = {
@@ -251,12 +252,77 @@ export const adminMethods = {
     async saveAdminConfig() {
         try {
             await setDoc(doc(dbFirestore, "shared", "config"), {
-                adminEmails: this.adminEmails,
-                changelog:   this.adminChangelog,
+                adminEmails:   this.adminEmails,
+                allowedEmails: this.allowedEmails || [],
+                changelog:     this.adminChangelog,
             });
         } catch (e) {
             console.error("Erreur sauvegarde config admin:", e);
             Swal.fire('Erreur', 'Impossible de sauvegarder la configuration.', 'error');
+        }
+    },
+
+    // --- LISTE BLANCHE INSCRIPTIONS ---
+    async addAllowedEmail() {
+        const email = (this.newAllowedEmail || '').trim().toLowerCase();
+        if (!email || !email.includes('@')) return Swal.fire('Erreur', 'Email invalide.', 'warning');
+        if (!this.allowedEmails) this.allowedEmails = [];
+        if (this.allowedEmails.includes(email)) return Swal.fire('Info', 'Cet email est déjà autorisé.', 'info');
+        this.allowedEmails.push(email);
+        this.newAllowedEmail = '';
+        await this.saveAdminConfig();
+        Swal.fire({ title: 'Email autorisé ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+    },
+
+    async removeAllowedEmail(email) {
+        const r = await Swal.fire({
+            title: 'Retirer cet email ?',
+            text: `${email} ne pourra plus créer de compte.`,
+            icon: 'warning', showCancelButton: true,
+            confirmButtonColor: '#ef4444', confirmButtonText: 'Retirer'
+        });
+        if (r.isConfirmed) {
+            this.allowedEmails = (this.allowedEmails || []).filter(e => e !== email);
+            await this.saveAdminConfig();
+        }
+    },
+
+    // --- RÉINITIALISATION MOT DE PASSE (admin) ---
+    async sendPasswordReset() {
+        const r = await Swal.fire({
+            title: 'Réinitialiser un mot de passe',
+            html: `<p class="text-sm text-slate-500 mb-3">Firebase enverra un lien de réinitialisation à l'adresse indiquée.</p>
+                   <input id="swal-reset-email" class="swal2-input" type="email" placeholder="email@exemple.com">`,
+            showCancelButton:  true,
+            confirmButtonText: 'Envoyer le lien',
+            cancelButtonText:  'Annuler',
+            confirmButtonColor: '#4f46e5',
+            focusConfirm: false,
+            preConfirm: () => {
+                const email = document.getElementById('swal-reset-email').value.trim();
+                if (!email || !email.includes('@')) {
+                    Swal.showValidationMessage('Veuillez saisir un email valide');
+                    return false;
+                }
+                return email;
+            }
+        });
+
+        if (!r.isConfirmed || !r.value) return;
+
+        try {
+            await sendPasswordResetEmail(auth, r.value);
+            Swal.fire({
+                title: 'Email envoyé ✓',
+                html: `Un lien de réinitialisation a été envoyé à<br><strong>${r.value}</strong><br><small class="text-slate-400">Valable 1 heure — vérifier les spams</small>`,
+                icon: 'success',
+                confirmButtonColor: '#4f46e5',
+            });
+        } catch (e) {
+            const msg = e.code === 'auth/user-not-found'
+                ? 'Aucun compte Firebase trouvé pour cet email.'
+                : `Erreur : ${e.message}`;
+            Swal.fire('Erreur', msg, 'error');
         }
     },
 };
