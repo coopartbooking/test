@@ -85,7 +85,7 @@ createApp({
             searchContact: '', searchStruct: '',
             contactViewMode: 'grid',
             contactSubTab: 'annuaire',
-            currentSearch: { name: '', criteria: [], filterCity: '', filterStatus: '' },
+            currentSearch: { name: '', criteria: [], filterCity: '', filterStatus: '', filterRegion: '' },
             currentSearchId: null,
             searchResults: [],
             currentSelectionId: null,
@@ -359,37 +359,48 @@ createApp({
         },
 
         venueRegions() {
-            // Extraire les départements réels depuis les codes postaux des structures
-            const depts = new Set();
-            this.db.structures.forEach(s => {
-                const zip = (s.zip || '').trim();
-                if (zip.length >= 2) {
-                    const dept = zip.substring(0, 2);
-                    const label = this.getDeptLabel(dept);
-                    if (label) depts.add(label);
-                }
-                // Aussi ajouter la ville si pas de CP
-                if (!zip && s.city) depts.add(s.city);
-            });
-            return [...depts].sort();
+            const regions = new Set();
+            this.db.structures.forEach(s => { if (s.region) regions.add(s.region); });
+            return [...regions].sort();
         },
 
         venueBrowserResults() {
             let list = this.db.structures;
             if (this.venueBrowserRegion) {
-                const q = this.venueBrowserRegion.toLowerCase();
-                list = list.filter(s => {
-                    const zip  = (s.zip  || '').trim();
-                    const city = (s.city || '').toLowerCase();
-                    const dept = zip.substring(0, 2);
-                    const deptLabel = (this.getDeptLabel(dept) || '').toLowerCase();
-                    return deptLabel.includes(q) || city.includes(q) || zip.startsWith(this.venueBrowserRegion.replace(/\D/g,''));
-                });
+                list = list.filter(s => (s.region || '') === this.venueBrowserRegion);
             }
             if (this.venueBrowserCat) {
                 list = list.filter(s => (s.tags?.categories || []).includes(this.venueBrowserCat));
             }
             return list.slice(0, 50);
+        },
+
+        frenchRegions() {
+            return [
+                'Auvergne-Rhône-Alpes',
+                'Bourgogne-Franche-Comté',
+                'Bretagne',
+                'Centre-Val de Loire',
+                'Corse',
+                'Grand Est',
+                'Guadeloupe',
+                'Guyane',
+                'Hauts-de-France',
+                'Île-de-France',
+                'La Réunion',
+                'Martinique',
+                'Mayotte',
+                'Normandie',
+                'Nouvelle-Aquitaine',
+                'Occitanie',
+                'Pays de la Loire',
+                "Provence-Alpes-Côte d'Azur",
+                'Belgique',
+                'Suisse',
+                'Luxembourg',
+                'Canada',
+                'Autre',
+            ];
         },
 
         currentSelectionObj() {
@@ -668,7 +679,7 @@ async removeGlobalTag(familyName, tag) {
                 struct = {
                     id: Date.now().toString(), name: 'Nouvelle Structure', isClient: false, isActive: true,
                     clientCode: '', source: '', createdDate: new Date().toISOString(),
-                    address: '', suite: '', zip: '', city: '', country: 'France',
+                    address: '', suite: '', zip: '', city: '', region: '', country: 'France',
                     phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
                     capacity: '', season: '', hours: '', lat: null, lng: null,
                     progMonthStart: '', progMonthEnd: '',
@@ -2125,7 +2136,7 @@ async removeGlobalTag(familyName, tag) {
 
         // --- RECHERCHES SAUVEGARDÉES ---
         openNewSearch() {
-            this.currentSearch   = { name: '', criteria: [], filterCity: '', filterStatus: '' };
+            this.currentSearch   = { name: '', criteria: [], filterCity: '', filterStatus: '', filterRegion: '' };
             this.currentSearchId = null;
             this.searchResults   = [];
             this.$nextTick(() => {
@@ -2149,33 +2160,26 @@ async removeGlobalTag(familyName, tag) {
             const criteria = this.currentSearch.criteria;
             const city     = (this.currentSearch.filterCity   || '').toLowerCase().trim();
             const status   = this.currentSearch.filterStatus  || '';
+            const region   = this.currentSearch.filterRegion  || '';
 
-            // Regrouper les critères par famille : dans une famille = OU, entre familles = ET
             const byFamily = {};
             criteria.forEach(c => {
                 if (!byFamily[c.family]) byFamily[c.family] = [];
                 byFamily[c.family].push(c.tag);
             });
 
-            const allContacts = this.filteredContacts;
-            this.searchResults = allContacts.filter(c => {
+            this.searchResults = this.filteredContacts.filter(c => {
                 const s = this.db.structures.find(x => x.id === c.structId);
                 if (!s) return false;
-
-                // Filtres tag : ET entre familles, OU dans une famille
                 for (const [family, tags] of Object.entries(byFamily)) {
                     const structTags = (s.tags && s.tags[family]) || [];
                     if (!tags.some(t => structTags.includes(t))) return false;
                 }
-
-                // Filtre ville/dept
-                if (city && !(s.city||'').toLowerCase().includes(city) && !(s.zip||'').includes(city)) return false;
-
-                // Filtre statut
+                if (city   && !(s.city||'').toLowerCase().includes(city) && !(s.zip||'').includes(city)) return false;
+                if (region && (s.region || '') !== region) return false;
                 if (status === 'active'  && c.isActive === false) return false;
                 if (status === 'vip'     && !c.isVip)             return false;
                 if (status === 'public'  && c.isPrivate)          return false;
-
                 return true;
             });
         },
@@ -2185,13 +2189,14 @@ async removeGlobalTag(familyName, tag) {
             this.runSearch();
             const existing = (this.db.savedSearches || []).findIndex(s => s.id === this.currentSearchId);
             const entry = {
-                id:          this.currentSearchId || Date.now().toString(),
-                name:        this.currentSearch.name.trim(),
-                criteria:    JSON.parse(JSON.stringify(this.currentSearch.criteria)),
-                filterCity:  this.currentSearch.filterCity   || '',
-                filterStatus:this.currentSearch.filterStatus || '',
-                resultCount: this.searchResults.length,
-                savedAt:     new Date().toISOString(),
+                id:           this.currentSearchId || Date.now().toString(),
+                name:         this.currentSearch.name.trim(),
+                criteria:     JSON.parse(JSON.stringify(this.currentSearch.criteria)),
+                filterCity:   this.currentSearch.filterCity   || '',
+                filterStatus: this.currentSearch.filterStatus || '',
+                filterRegion: this.currentSearch.filterRegion || '',
+                resultCount:  this.searchResults.length,
+                savedAt:      new Date().toISOString(),
             };
             if (!this.db.savedSearches) this.db.savedSearches = [];
             if (existing > -1) this.db.savedSearches[existing] = entry;
@@ -2208,6 +2213,7 @@ async removeGlobalTag(familyName, tag) {
                 criteria:     JSON.parse(JSON.stringify(s.criteria)),
                 filterCity:   s.filterCity   || '',
                 filterStatus: s.filterStatus || '',
+                filterRegion: s.filterRegion || '',
             };
             this.runSearch();
         },
