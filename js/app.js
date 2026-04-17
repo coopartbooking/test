@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Bob Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './js/firebase.js';
+import { auth, dbFirestore }                                              from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, onSnapshot }                               from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -19,7 +19,7 @@ const { createApp, nextTick } = Vue;
 import { utilsMethods }                         from './utils.js';
 import { contactsComputed, contactsMethods }    from './contacts.js';
 import { planningComputed, planningMethods }    from './planning.js';
-import { adminMethods }                           from './js/modules/adminMethods.js';
+import { adminMethods }                           from './modules/adminMethods.js';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
