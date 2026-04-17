@@ -178,7 +178,6 @@ export const gouvMethods = {
 
             // Log du premier résultat pour voir les vrais noms de champs
             if (data.results && data.results.length > 0) {
-                console.log('[BASILIC] Champs disponibles:', Object.keys(data.results[0]));
             }
 
             this.gouvImport.results = (data.results || []).map((r, i) => {
@@ -218,7 +217,7 @@ export const gouvMethods = {
             }).filter(r => r.nom); // Ignorer les lignes sans nom
 
         } catch (e) {
-            console.error('Import Gouv:', e);
+            console.error('Import Gouv.fr');
             this.gouvImport.error = e.message || 'Erreur de connexion à l\'API.';
         } finally {
             this.gouvImport.loading = false;

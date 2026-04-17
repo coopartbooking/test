@@ -217,7 +217,7 @@ export const importMethods = {
                     `Importation terminée.<br><b>${countContacts}</b> contacts importés.<br><b>${countStructs}</b> nouvelles structures créées.`,
                     'success');
             } catch (err) {
-                console.error("Erreur import :", err);
+                console.error("Erreur import Excel");
                 Swal.fire('Erreur', 'Impossible de lire le fichier Excel.<br>' + err.message, 'error');
             }
         };
@@ -238,7 +238,7 @@ export const importMethods = {
             });
             this._exportNativeFormat(Array.from(structMap.values()), 'Export_Invitations');
         } catch (err) {
-            console.error(err);
+            console.error("Erreur export Excel");
             Swal.fire('Erreur', 'Export impossible.', 'error');
         }
     },

@@ -18,7 +18,7 @@ export const adminMethods = {
             const snapshot = await getDocs(collection(dbFirestore, "users_registry"));
             this.adminUsers = snapshot.docs.map(d => d.data()).sort((a, b) => (b.lastLogin || '').localeCompare(a.lastLogin || ''));
         } catch (e) {
-            console.error("Erreur chargement utilisateurs:", e);
+            console.error("Erreur chargement utilisateurs");
         }
     },
 
@@ -62,7 +62,7 @@ export const adminMethods = {
 
             Swal.fire({ title: 'Sauvegarde téléchargée ✓', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         } catch (e) {
-            console.error("Erreur export:", e);
+            console.error("Erreur export base");
             Swal.fire('Erreur', 'Impossible de générer la sauvegarde : ' + e.message, 'error');
         }
     },
@@ -111,7 +111,7 @@ export const adminMethods = {
                 confirmButtonColor: '#3b82f6'
             });
         } catch (e) {
-            console.error("Erreur import:", e);
+            console.error("Erreur import base");
             Swal.fire('Erreur', 'Fichier invalide ou corrompu : ' + e.message, 'error');
         }
     },
@@ -257,7 +257,7 @@ export const adminMethods = {
                 changelog:     this.adminChangelog,
             });
         } catch (e) {
-            console.error("Erreur sauvegarde config admin:", e);
+            console.error("Erreur sauvegarde config admin");
             Swal.fire('Erreur', 'Impossible de sauvegarder la configuration.', 'error');
         }
     },

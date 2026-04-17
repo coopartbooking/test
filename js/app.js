@@ -393,7 +393,7 @@ createApp({
                 setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle'; }, 4000);
             } catch (error) {
                 // ... reste de votre gestion d'erreur
-                console.error("Erreur sauvegarde cloud :", error);
+                console.error("Erreur sauvegarde cloud");
                 this.saveStatus = 'error';
                 this.saveStatusMessage = 'Erreur de sauvegarde !';
                 Swal.fire({
@@ -425,7 +425,7 @@ createApp({
             Swal.fire({ title: 'Tags actualisés', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
         }
     } catch (error) {
-        console.error("Erreur refresh tags:", error);
+        console.error("Erreur refresh tags");
         this.saveStatus = 'error';
     }
 },
@@ -524,7 +524,7 @@ async removeGlobalTag(familyName, tag) {
                         createdAt:  user.metadata?.creationTime || new Date().toISOString(),
                         loginCount: prevCount + 1,
                     }, { merge: true });
-                } catch (e) { console.warn("Registre utilisateur:", e); }
+                } catch (e) { /* enregistrement registre silencieux */ }
 
                 // ── Écoute de la config admin (changelog + adminEmails) ──
                 this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "config"), (snap) => {
@@ -566,7 +566,7 @@ async removeGlobalTag(familyName, tag) {
                                 this.db.tasks    = parsed.tasks    || [];
                                 this.db.events   = parsed.events   || [];
                                 this.saveDB();
-                            } catch (e) { console.error('Erreur lecture DB locale privée'); }
+                            } catch (e) { /* migration locale silencieuse */ }
                         } else {
                             this.db.projects = []; this.db.tasks = []; this.db.events = [];
                         }
@@ -595,7 +595,7 @@ async removeGlobalTag(familyName, tag) {
                                     this.db.structures = oldDb.structures;
                                     this.saveDB();
                                 }
-                            } catch (e) { console.error('Erreur migration annuaire'); }
+                            } catch (e) { /* migration annuaire silencieuse */ }
                         } else {
                             this.db.structures = [];
                         }
