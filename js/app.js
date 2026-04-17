@@ -302,7 +302,7 @@ createApp({
                         if (!isAllowed) {
                             return Swal.fire({
                                 title: 'Accès refusé',
-                                html: 'Cet email n'est pas autorisé à créer un compte.<br><small class="text-slate-400">Contactez un administrateur pour obtenir l'accès.</small>',
+                                html: `Cet email n'est pas autorisé à créer un compte.<br><small class="text-slate-400">Contactez un administrateur pour obtenir l'accès.</small>`,
                                 icon: 'error',
                                 confirmButtonColor: '#ef4444',
                             });
