@@ -2,6 +2,22 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+
+    <!-- ═══ PRECONNECT — Connexions DNS/TLS anticipées ═══
+         Réduit le temps de chargement des CDN de ~200ms
+    ════════════════════════════════════════════════════ -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.sheetjs.com">
+    <link rel="dns-prefetch" href="https://nominatim.openstreetmap.org">
+    <link rel="dns-prefetch" href="https://tile.openstreetmap.org">
+    <link rel="dns-prefetch" href="https://data.culture.gouv.fr">
+
     <!-- ═══ CONTENT SECURITY POLICY ═══
          Autorise uniquement les sources connues et nécessaires.
          Bloque l'exécution de scripts ou styles provenant de sources inconnues.
@@ -59,12 +75,14 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- jsPDF chargé à la demande (generateContract/generateRoadbook) — voir utils.js -->
+    <!-- FontAwesome 6 — subset solid uniquement (~80KB vs 400KB pour all.min.css) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/fontawesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/solid.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- SheetJS chargé à la demande (import/export Excel) — voir importMethods.js -->
+    <!-- Leaflet CSS chargé à la demande (onglet Carte) -->
+    <!-- Leaflet chargé à la demande (onglet Carte) — voir mapMethods.js -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="css/style.css">

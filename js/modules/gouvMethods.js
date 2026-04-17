@@ -19,7 +19,8 @@ export const gouvMethods = {
     },
 
     // --- IMPORT CSV LIBRE ---
-    loadCsvFile(event) {
+    async loadCsvFile(event) {
+        await this.requireXLSX();
         const file = event.target.files[0];
         if (!file) return;
         event.target.value = '';

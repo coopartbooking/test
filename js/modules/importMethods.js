@@ -10,7 +10,8 @@ export const importMethods = {
     // Gère 2 formats :
     //   • Format natif CRM (ex: export Billom) : 2 lignes d'en-tête, jusqu'à 3 contacts par ligne
     //   • Format export appli (flat, 1 contact par ligne)
-    importContactsExcel(event) {
+    async importContactsExcel(event) {
+        await this.requireXLSX();
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -225,7 +226,8 @@ export const importMethods = {
     },
 
     // --- EXPORT EXCEL (format natif CRM : Structure + Contact 1/2/3 + Tags) ---
-    exportContactsToExcel(contactsList) {
+    async exportContactsToExcel(contactsList) {
+        await this.requireXLSX();
         if (!contactsList || contactsList.length === 0)
             return Swal.fire('Export', 'Aucun contact à exporter.', 'info');
         try {
@@ -245,7 +247,8 @@ export const importMethods = {
 
     // ── Méthode partagée : génère le fichier Excel au format natif CRM ──────────
     // entries = [{ struct, contacts[] }]
-    _exportNativeFormat(entries, filename) {
+    async _exportNativeFormat(entries, filename) {
+        await this.requireXLSX();
         const CONTACT_FIELDS = ['Prénom','Nom','Adresse','Suite adresse','CP','Ville','Pays',
             'Tél. perso','Tél. direct','Mobile pro','Mobile','Mobile 2',
             'E-mail direct','Email perso','Est prioritaire','Tchat','Code du tchat',

@@ -87,7 +87,8 @@ export const mapMethods = {
     },
 
     // --- CARTOGRAPHIE CRM (mini-carte) ---
-    initMiniMap() {
+    async initMiniMap() {
+        await this.requireLeaflet();
         const mapEl = document.getElementById('mini-map');
         if (!mapEl) return;
         if (window.myCrmMap) { window.myCrmMap.off(); window.myCrmMap.remove(); }
@@ -129,7 +130,8 @@ export const mapMethods = {
     },
 
     // --- CARTOGRAPHIE GRANDE CARTE ---
-    initMap() {
+    async initMap() {
+        await this.requireLeaflet();
         const mapEl = document.getElementById('map') || document.getElementById('main-map');
         if (!mapEl) return;
         if (window.myGlobalMap) { window.myGlobalMap.off(); window.myGlobalMap.remove(); }

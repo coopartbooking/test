@@ -2,6 +2,74 @@
 
 export const utilsMethods = {
 
+    // --- CHARGEMENT DIFFÉRÉ DES LIBRAIRIES LOURDES ---
+    // Chaque lib est chargée UNE SEULE FOIS, à la première utilisation.
+    // Gain : ~1.5 MB non chargés au démarrage.
+
+    async _loadScript(url, globalCheck) {
+        // Si déjà chargé (global présent), ne rien faire
+        if (window[globalCheck]) return;
+        // Si déjà en cours de chargement, attendre
+        if (window[`_loading_${globalCheck}`]) {
+            return new Promise(resolve => {
+                const interval = setInterval(() => {
+                    if (window[globalCheck]) { clearInterval(interval); resolve(); }
+                }, 50);
+            });
+        }
+        window[`_loading_${globalCheck}`] = true;
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload  = () => { window[`_loading_${globalCheck}`] = false; resolve(); };
+            script.onerror = () => reject(new Error(`Impossible de charger : ${url}`));
+            document.head.appendChild(script);
+        });
+    },
+
+    async _loadStyle(url, id) {
+        if (document.getElementById(id)) return; // déjà chargé
+        return new Promise((resolve, reject) => {
+            const link  = document.createElement('link');
+            link.rel    = 'stylesheet';
+            link.href   = url;
+            link.id     = id;
+            link.onload  = resolve;
+            link.onerror = () => reject(new Error(`Impossible de charger : ${url}`));
+            document.head.appendChild(link);
+        });
+    },
+
+    // Charge SheetJS (XLSX) — utilisé pour import/export Excel
+    async requireXLSX() {
+        await this._loadScript(
+            'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
+            'XLSX'
+        );
+    },
+
+    // Charge jsPDF — utilisé pour générer contrats et roadbooks
+    async requireJsPDF() {
+        await this._loadScript(
+            'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+            'jspdf'
+        );
+    },
+
+    // Charge Leaflet (carte + CSS) — utilisé sur l'onglet Carte & CRM mini-map
+    async requireLeaflet() {
+        await Promise.all([
+            this._loadStyle(
+                'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+                'leaflet-css'
+            ),
+            this._loadScript(
+                'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+                'L'
+            ),
+        ]);
+    },
+
     // --- SÉCURITÉ : SANITISATION DES ENTRÉES TEXTE ---
 
     // Supprime les balises HTML et les caractères dangereux
@@ -93,8 +161,9 @@ export const utilsMethods = {
         XLSX.writeFile(workbook, filename);
     },
 
-    generateContract(e) {
+    async generateContract(e) {
         if (!e || !e.id) return;
+        await this.requireJsPDF();
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const proj = this.db.projects.find(p => p.id === e.projectId);
@@ -131,8 +200,9 @@ export const utilsMethods = {
         doc.save(`Contrat_${projName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`);
     },
 
-    generateRoadbook(e) {
+    async generateRoadbook(e) {
         if (!e || !e.id) return;
+        await this.requireJsPDF();
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const proj = this.db.projects.find(p => p.id === e.projectId);

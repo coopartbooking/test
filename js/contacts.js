@@ -87,7 +87,8 @@ export const contactsComputed = {
 
 export const contactsMethods = {
     // --- EXPORT ANNUAIRE EXCEL (format natif CRM) ---
-    exportContactsExcel() {
+    async exportContactsExcel() {
+        await this.requireXLSX();
         const contacts = this.filteredContacts;
         if (!contacts || contacts.length === 0) {
             return Swal.fire('Export', 'Aucun contact à exporter.', 'info');

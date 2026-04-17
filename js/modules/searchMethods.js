@@ -47,7 +47,8 @@ export const searchMethods = {
         return row;
     },
 
-    runExportMapping() {
+    async runExportMapping() {
+        await this.requireXLSX();
         const list = this.exportMappingFilteredContacts;
         if (!list.length || !this.exportMapping.cols.length) return;
 

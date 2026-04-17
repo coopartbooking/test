@@ -147,6 +147,8 @@ createApp({
             saveStatus: 'idle',
             // Fonctions de désabonnement des listeners Firestore (pour logout propre)
             _firestoreUnsubs: [],
+            // Debounce saveDB : évite les sauvegardes en rafale sur Firestore
+            _saveDebounceTimer: null,
             // Déconnexion automatique après inactivité
             _inactivityTimer: null,
             _inactivityDelay: 2 * 60 * 60 * 1000, // 2 heures en millisecondes
@@ -361,7 +363,16 @@ createApp({
         },
 
         // --- PERSISTANCE FIRESTORE ---
-        async saveDB() {
+
+        // saveDB() : version debouncée — attend 1.5s avant de sauvegarder
+        // Si appelée plusieurs fois en rafale, seul le dernier appel déclenche la sauvegarde
+        saveDB() {
+            clearTimeout(this._saveDebounceTimer);
+            this._saveDebounceTimer = setTimeout(() => this._saveDBNow(), 1500);
+        },
+
+        // _saveDBNow() : sauvegarde immédiate (utilisée par logout et saveData)
+        async _saveDBNow() {
             if (!this.currentUser) return;
             this.saveStatus = 'saving';
             this.saveStatusMessage = 'Synchronisation…';
@@ -430,7 +441,9 @@ createApp({
     }
 },
         async saveData() {
-            await this.saveDB();
+            // Sauvegarde manuelle = immédiate (bypass debounce)
+            clearTimeout(this._saveDebounceTimer);
+            await this._saveDBNow();
             if (this.saveStatus === 'saved') {
                 Swal.fire({ title: 'Enregistré sur Firebase ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
             }
