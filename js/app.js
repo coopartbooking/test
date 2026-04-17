@@ -248,7 +248,7 @@ createApp({
             latestChangelog: null,
             changelogDismissed: false,
         };
-    },,
+    },
 
     // ─────────────────────────────────────────────────────────────────────────
     // COMPUTED — voir js/modules/appComputed.js pour les détails
