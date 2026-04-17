@@ -2376,9 +2376,8 @@
                             <button @click="saveCrmContact" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow transition"><i class="fas fa-check mr-2"></i> Valider ce contact</button>
                         </div>
                     </div><!-- /v-else contact form -->
-                </div><!-- /flex-1 main content area -->
 
-                <div class="w-80 flex flex-col border-r border-slate-200 bg-white">
+                <div class="w-80 flex flex-col border-l border-slate-200 bg-white">
     <div class="bg-slate-50 p-4 border-b border-slate-100 shrink-0">
         <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-tags text-indigo-400 mr-2"></i> Classement & Tags</h3>
     </div>
@@ -2426,8 +2425,9 @@
 
     </div><!-- /tags scrollable -->
 </div><!-- /tags panel w-80 -->
-</div><!-- /flex-1 overflow-hidden flex -->
-</div><!-- /showCrmModal -->
+            </div><!-- /flex-1 overflow-hidden flex -->
+        </div><!-- /bg-slate-50 CRM wrapper -->
+    </div><!-- /showCrmModal -->
 
 <!-- ═══ MODAL IMPORT CULTURE.GOUV.FR ═══ -->
 <div v-if="showGouvImport" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
