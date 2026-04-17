@@ -1,11 +1,11 @@
-// app.js — Bob Booking CRM
+// app.js — Coop'Art Booking CRM
 // Architecture modulaire disponible dans js/modules/ :
 //   appComputed.js   | crmMethods.js    | adminMethods.js
 //   mapMethods.js    | importMethods.js | gouvMethods.js  
 //   searchMethods.js | projectMethods.js| venueMethods.js
 // ─────────────────────────────────────────────────────────
 
-// app.js — Point d'entrée Vue.js — Bob Booking
+// app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
 import { auth, dbFirestore }                                              from './firebase.js';
@@ -498,7 +498,7 @@ async removeGlobalTag(familyName, tag) {
                         this.db.savedSearches   = data.savedSearches   || [];
                         this.db.selections      = data.selections      || [];
                     } else {
-                        const savedPrivate = localStorage.getItem(`bobBookingDB_${this.currentUser}`);
+                        const savedPrivate = localStorage.getItem(`coopArtBookingDB_${this.currentUser}`);
                         if (savedPrivate) {
                             try {
                                 const parsed = JSON.parse(savedPrivate);
@@ -527,7 +527,7 @@ async removeGlobalTag(familyName, tag) {
                         this.db.tagKeywords   = d.tagKeywords   || this.db.tagKeywords;
                         if (!d.tagCategories) this.saveDB();
                     } else {
-                        const oldLocal = localStorage.getItem('bobBookingDB');
+                        const oldLocal = localStorage.getItem('coopArtBookingDB');
                         if (oldLocal) {
                             try {
                                 const oldDb = JSON.parse(oldLocal);

@@ -55,7 +55,7 @@ export const adminMethods = {
             const a    = document.createElement('a');
             const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
             a.href     = url;
-            a.download = `BobBooking_backup_${date}.json`;
+            a.download = `CoopArtBooking_backup_${date}.json`;
             a.click();
             URL.revokeObjectURL(url);
 
