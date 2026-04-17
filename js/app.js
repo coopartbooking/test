@@ -145,6 +145,8 @@ createApp({
 
             // Statut de synchronisation Firebase : 'idle' | 'saving' | 'saved' | 'error'
             saveStatus: 'idle',
+            // Fonctions de désabonnement des listeners Firestore (pour logout propre)
+            _firestoreUnsubs: [],
             saveStatusMessage: '',
 
             // Import Culture.gouv.fr
@@ -225,6 +227,8 @@ createApp({
             // Admin
             isAdmin: false,
             adminEmails: [],
+            allowedEmails: [],          // Liste blanche des emails autorisés à s'inscrire
+            newAllowedEmail: '',
             adminUsers: [],
             adminChangelog: [],
             newChangelogEntry: '',
@@ -283,21 +287,43 @@ createApp({
         async handleAuth() {
             try {
                 if (this.isLoginMode) {
+                    // ── Connexion ──────────────────────────────────────────
                     await signInWithEmailAndPassword(auth, this.authEmail, this.authPassword);
                     Swal.fire('Succès', 'Ravi de vous revoir !', 'success');
                 } else {
+                    // ── Inscription : vérification liste blanche ───────────
+                    const emailLower = this.authEmail.trim().toLowerCase();
+
+                    // Si la liste blanche est activée (non vide), vérifier l'email
+                    if (this.allowedEmails.length > 0) {
+                        const isAllowed = this.allowedEmails
+                            .map(e => e.toLowerCase())
+                            .includes(emailLower);
+                        if (!isAllowed) {
+                            return Swal.fire({
+                                title: 'Accès refusé',
+                                html: 'Cet email n'est pas autorisé à créer un compte.<br><small class="text-slate-400">Contactez un administrateur pour obtenir l'accès.</small>',
+                                icon: 'error',
+                                confirmButtonColor: '#ef4444',
+                            });
+                        }
+                    }
+
                     await createUserWithEmailAndPassword(auth, this.authEmail, this.authPassword);
                     Swal.fire('Bienvenue', 'Votre compte a été créé avec succès.', 'success');
                 }
                 this.authEmail = '';
                 this.authPassword = '';
             } catch (error) {
-                console.error(error);
                 Swal.fire('Erreur', 'Email ou mot de passe incorrect (ou compte déjà existant).', 'error');
             }
         },
 
         async logout() {
+            // Désabonner tous les listeners Firestore AVANT la déconnexion
+            // pour éviter les erreurs "permission-denied" sur les snapshots actifs
+            this._firestoreUnsubs.forEach(unsub => { try { unsub(); } catch(e) {} });
+            this._firestoreUnsubs = [];
             await signOut(auth);
             this.currentUser = null;
         },
@@ -468,11 +494,12 @@ async removeGlobalTag(familyName, tag) {
                 } catch (e) { console.warn("Registre utilisateur:", e); }
 
                 // ── Écoute de la config admin (changelog + adminEmails) ──
-                onSnapshot(doc(dbFirestore, "shared", "config"), (snap) => {
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "config"), (snap) => {
                     if (snap.exists()) {
                         const cfg = snap.data();
-                        this.adminEmails    = cfg.adminEmails || [];
-                        this.adminChangelog = cfg.changelog   || [];
+                        this.adminEmails    = cfg.adminEmails  || [];
+                        this.allowedEmails  = cfg.allowedEmails || [];
+                        this.adminChangelog = cfg.changelog    || [];
                         this.isAdmin        = this.adminEmails.includes(user.email);
                         // Afficher la dernière note de version si pas encore vue
                         if (this.adminChangelog.length > 0 && !this.changelogDismissed) {
@@ -485,9 +512,9 @@ async removeGlobalTag(familyName, tag) {
                         this.isAdmin     = true;
                         this.saveAdminConfig();
                     }
-                });
+                }));
                 // ── Données privées (projets, tâches, affaires, templates) ──
-                onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         this.db.projects        = data.projects        || [];
@@ -514,10 +541,10 @@ async removeGlobalTag(familyName, tag) {
                     if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
                     }
-                });
+                }));
 
                 // ── Annuaire partagé (structures + tags) ── UNIQUE listener ──
-                onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
                     if (docSnap.exists()) {
                         const d = docSnap.data();
                         this.db.structures    = d.structures    || [];
@@ -540,7 +567,7 @@ async removeGlobalTag(familyName, tag) {
                             this.db.structures = [];
                         }
                     }
-                });
+                }));
 
             } else {
                 this.currentUser = null;
