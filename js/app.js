@@ -230,8 +230,9 @@ createApp({
                 ],
             },
 
-            // Admin
-            isAdmin: false,
+            // Admin & permissions
+            isAdmin:   false,
+            userRole:  'lecteur',   // 'admin' | 'editeur' | 'lecteur'
             // Collaborateurs
             collaboratorsList:    [],
             collaboratorsLoading: false,
@@ -543,6 +544,18 @@ async removeGlobalTag(familyName, tag) {
                         loginCount: prevCount + 1,
                     }, { merge: true });
                 } catch (e) { /* enregistrement registre silencieux */ }
+
+                // ── Chargement du rôle depuis la collection collaborators ──
+                try {
+                    const collabRef  = doc(dbFirestore, "collaborators", user.uid);
+                    const collabSnap = await getDoc(collabRef);
+                    if (collabSnap.exists()) {
+                        this.userRole = collabSnap.data().role || 'lecteur';
+                    } else {
+                        // Utilisateur pas encore dans collaborators = admin si dans adminEmails
+                        this.userRole = 'admin';
+                    }
+                } catch (e) { this.userRole = 'lecteur'; }
 
                 // ── Écoute de la config admin (changelog + adminEmails) ──
                 this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "config"), (snap) => {

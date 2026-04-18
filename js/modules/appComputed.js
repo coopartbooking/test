@@ -3,6 +3,17 @@
 
 export const appComputed = {
 
+    // ── Permissions par rôle ──
+    canEdit() {
+        return this.userRole === 'admin' || this.userRole === 'editeur';
+    },
+    canAdmin() {
+        return this.userRole === 'admin';
+    },
+    canExport() {
+        return true; // Lecteur, Éditeur et Admin peuvent exporter
+    },
+
     totalCA() {
         return this.db.events
             .filter(e => e.status === 'conf')

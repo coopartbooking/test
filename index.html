@@ -131,9 +131,17 @@
             <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{{ (currentUserName || '').substring(0,2).toUpperCase() }}</div>
             <div class="flex-1 min-w-0">
                 <div class="text-white font-bold text-xs truncate">{{ currentUserName }}</div>
-                <button @click="logout" class="text-slate-400 hover:text-red-400 text-[10px] font-bold transition flex items-center gap-1 mt-0.5">
-                    <i class="fas fa-sign-out-alt"></i> Se déconnecter
-                </button>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-[9px] font-black px-1.5 py-0.5 rounded uppercase"
+                          :class="{
+                              'bg-red-500 text-white':    userRole === 'admin',
+                              'bg-indigo-500 text-white': userRole === 'editeur',
+                              'bg-slate-600 text-white':  userRole === 'lecteur'
+                          }">{{ userRole }}</span>
+                    <button @click="logout" class="text-slate-400 hover:text-red-400 text-[10px] font-bold transition flex items-center gap-1">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    </button>
+                </div>
             </div>
         </div>
         <nav class="flex-1 overflow-y-auto py-2">
@@ -213,14 +221,14 @@
             <div class="flex items-center gap-4">
                 <div class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded border border-indigo-100 text-xs font-bold">CA Confirmé: {{ formatMoney(totalCA) }}</div>
                 
-                <button v-if="tab==='pipeline' || tab==='planning'" @click="handleCalendarClick(new Date())" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Nouveau</button>
-                <button v-if="tab==='tasks'" @click="openTaskModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Tâche</button>
+                <button v-if="(tab==='pipeline' || tab==='planning') && canEdit" @click="handleCalendarClick(new Date())" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Nouveau</button>
+                <button v-if="tab==='tasks' && canEdit" @click="openTaskModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Tâche</button>
                 
-                <button v-if="tab==='contacts'" @click="addGlobalContact" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold">
+                <button v-if="tab==='contacts' && canEdit" @click="addGlobalContact" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold">
                     <i class="fas fa-user-plus mr-2"></i>Contact
                 </button>
                 
-                <div v-if="tab==='contacts'" class="flex ml-2">
+                <div v-if="tab==='contacts' && canEdit" class="flex ml-2">
                     <label class="bg-blue-600 text-white px-4 py-2 rounded-l shadow hover:bg-blue-700 text-sm font-bold cursor-pointer border-r border-blue-700">
                         <i class="fas fa-file-import mr-2"></i>Importer Excel
                         <input type="file" @change="importContactsExcel" class="hidden" accept=".xlsx, .xls">
@@ -229,12 +237,12 @@
                         <i class="fas fa-file-export mr-2"></i>Exporter Excel
                     </button>
                 </div>
-                <button v-if="tab==='contacts'" @click="openExportMapping('contacts')" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold ml-1">
+                <button v-if="tab==='contacts' && canExport" @click="openExportMapping('contacts')" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold ml-1">
                     <i class="fas fa-sliders-h mr-2"></i>Export personnalisé
                 </button>
-                <button v-if="tab==='projects'" @click="openProjectModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Projet</button>
-                <button v-if="tab==='structures'" @click="openCrmView(null)" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-building mr-2"></i>Structure</button>
-                <button v-if="tab==='structures'" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
+                <button v-if="tab==='projects' && canEdit" @click="openProjectModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Projet</button>
+                <button v-if="tab==='structures' && canEdit" @click="openCrmView(null)" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-building mr-2"></i>Structure</button>
+                <button v-if="tab==='structures' && canEdit" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
             </div>
         </header>
 
