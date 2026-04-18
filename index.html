@@ -484,7 +484,125 @@
                             </div>
                         </div>
 
-                        <!-- ═══ SECTION 6 : GESTION ADMINS ═══ -->
+                        <!-- ═══ SECTION 6 : GESTION COLLABORATEURS ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">
+                                        <i class="fas fa-users text-indigo-500 mr-2"></i>Collaborateurs
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Gérez les accès et les rôles de votre équipe.</p>
+                                </div>
+                                <button @click="createCollaborator()"
+                                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                                    <i class="fas fa-user-plus"></i> Nouveau
+                                </button>
+                            </div>
+
+                            <!-- Chargement -->
+                            <div v-if="collaboratorsLoading" class="text-center py-8 text-slate-400">
+                                <i class="fas fa-circle-notch fa-spin text-2xl"></i>
+                                <p class="text-sm mt-2">Chargement…</p>
+                            </div>
+
+                            <!-- Liste vide -->
+                            <div v-else-if="!collaboratorsList.length"
+                                 class="text-center py-8 border-2 border-dashed rounded-xl text-slate-400">
+                                <i class="fas fa-users text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Aucun collaborateur.</p>
+                                <button @click="loadCollaborators()"
+                                        class="mt-3 text-xs text-indigo-500 hover:underline">
+                                    <i class="fas fa-sync-alt mr-1"></i>Charger la liste
+                                </button>
+                            </div>
+
+                            <!-- Table collaborateurs -->
+                            <div v-else class="space-y-2">
+                                <div v-for="collab in collaboratorsList" :key="collab.uid"
+                                     class="flex items-center justify-between p-3 rounded-xl border"
+                                     :class="collab.isActive ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-100 opacity-60'">
+
+                                    <!-- Infos -->
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                                             :class="collab.isActive ? 'bg-indigo-500' : 'bg-slate-400'">
+                                            {{ (collab.displayName || '?').substring(0,2).toUpperCase() }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-slate-800 text-sm truncate">
+                                                {{ collab.displayName }}
+                                                <span v-if="!collab.isActive"
+                                                      class="ml-1 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black">
+                                                    Désactivé
+                                                </span>
+                                            </div>
+                                            <div class="text-xs text-slate-400 truncate">{{ collab.email }}</div>
+                                            <div class="text-[10px] text-slate-400">
+                                                Dernière connexion :
+                                                {{ collab.lastSignIn ? new Date(collab.lastSignIn).toLocaleDateString('fr-FR') : 'jamais' }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rôle + Actions -->
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <!-- Sélecteur de rôle -->
+                                        <select :value="collab.role"
+                                                @change="setCollaboratorRole(collab, $event.target.value)"
+                                                class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                            <option value="admin">Admin</option>
+                                            <option value="editeur">Éditeur</option>
+                                            <option value="lecteur">Lecteur</option>
+                                        </select>
+
+                                        <!-- Lien reset mdp -->
+                                        <button @click="sendCollaboratorPasswordReset(collab)"
+                                                title="Envoyer un lien de réinitialisation"
+                                                class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+
+                                        <!-- Activer / Désactiver -->
+                                        <button v-if="collab.isActive"
+                                                @click="disableCollaborator(collab)"
+                                                title="Désactiver ce collaborateur"
+                                                class="text-slate-400 hover:text-red-500 transition text-sm px-1">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
+                                        <button v-else
+                                                @click="enableCollaborator(collab)"
+                                                title="Réactiver ce collaborateur"
+                                                class="text-slate-400 hover:text-emerald-500 transition text-sm px-1">
+                                            <i class="fas fa-user-check"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Bouton actualiser -->
+                                <button @click="loadCollaborators()"
+                                        class="w-full mt-2 text-xs text-slate-400 hover:text-slate-600 transition flex items-center justify-center gap-1 py-2">
+                                    <i class="fas fa-sync-alt"></i> Actualiser la liste
+                                </button>
+                            </div>
+
+                            <!-- Légende des rôles -->
+                            <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+                                <div class="bg-red-50 rounded-lg p-2">
+                                    <div class="text-xs font-black text-red-700">Admin</div>
+                                    <div class="text-[10px] text-slate-500">Accès complet</div>
+                                </div>
+                                <div class="bg-indigo-50 rounded-lg p-2">
+                                    <div class="text-xs font-black text-indigo-700">Éditeur</div>
+                                    <div class="text-[10px] text-slate-500">Peut modifier</div>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-2">
+                                    <div class="text-xs font-black text-slate-700">Lecteur</div>
+                                    <div class="text-[10px] text-slate-500">Consultation seule</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 7 : GESTION ADMINS ═══ -->
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                             <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
                             <div class="flex gap-2 mb-4">
