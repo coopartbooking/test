@@ -576,7 +576,7 @@ async removeGlobalTag(familyName, tag) {
                     } catch (e) {
                         this.userRole = this.adminEmails.includes(user.email) ? 'admin' : 'editeur';
                     }
-                });
+                }));
                 // ── Données privées (projets, tâches, affaires, templates) ──
                 this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
