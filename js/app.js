@@ -605,12 +605,17 @@ async removeGlobalTag(familyName, tag) {
                         this.saveAdminConfig();
                     }
                     // ── Rôle chargé depuis userRoles dans shared/config ──
-                    const userRoles  = cfg ? (cfg.userRoles || {}) : {};
-                    const newRole    = userRoles[user.email] || (this.adminEmails.includes(user.email) ? 'admin' : 'editeur');
-                    const prevRole   = this.userRole;
-                    this.userRole    = newRole;
-                    // Si le rôle a changé après le chargement initial → recharger la page
-                    if (prevRole && prevRole !== newRole) {
+                    const cfg2       = snap.exists() ? snap.data() : {};
+                    const userRoles  = cfg2.userRoles || {};
+                    const inUserRoles = userRoles.hasOwnProperty(user.email);
+                    // Priorité : userRoles > adminEmails > editeur par défaut
+                    const newRole = inUserRoles
+                        ? userRoles[user.email]
+                        : (this.adminEmails.includes(user.email) ? 'admin' : 'editeur');
+                    const prevRole = this.userRole;
+                    this.userRole  = newRole;
+                    // Si le rôle a changé après le chargement initial → recharger
+                    if (prevRole && prevRole !== 'lecteur' && prevRole !== newRole) {
                         window.location.reload();
                     }
                 }));
