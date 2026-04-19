@@ -4,14 +4,24 @@
 export const appComputed = {
 
     // ── Permissions par rôle ──
+    // Note : isAdmin (basé sur adminEmails) prime toujours sur userRole
     canEdit() {
-        return this.userRole === 'admin' || this.userRole === 'editeur';
+        return this.isAdmin || this.userRole === 'admin' || this.userRole === 'editeur';
     },
     canAdmin() {
-        return this.userRole === 'admin';
+        return this.isAdmin || this.userRole === 'admin';
     },
     canExport() {
-        return true; // Lecteur, Éditeur et Admin peuvent exporter
+        return true; // Lecteur, Éditeur et Admin peuvent tous exporter
+    },
+
+    // ── Tableau de bord : prochaines dates à venir ──
+    dashboardNextDates() {
+        const today = new Date().toISOString().slice(0, 10);
+        return (this.db.events || [])
+            .filter(e => e.date && e.date >= today && e.stage !== 'ann' && e.status !== 'ann')
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(0, 5);
     },
 
     totalCA() {

@@ -758,38 +758,244 @@
                 </div>
             </div>
 
-            <div v-if="tab==='dashboard'" class="p-8 h-full overflow-y-auto">
-                <h3 class="text-2xl font-bold mb-4">Bienvenue, {{ currentUserName }}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-indigo-500 flex justify-between items-center">
-                        <div><div class="text-slate-500 font-bold uppercase text-xs">Chiffre d'Affaires</div><div class="text-2xl font-bold text-indigo-600">{{ formatMoney(totalCA) }}</div></div>
-                        <i class="fas fa-euro-sign text-3xl text-indigo-100"></i>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 flex justify-between items-center cursor-pointer hover:bg-emerald-50" @click="tab='pipeline'">
-                        <div><div class="text-slate-500 font-bold uppercase text-xs">Dates Confirmées</div><div class="text-2xl font-bold text-emerald-600">{{ db.events.filter(e=>e.status==='conf').length }}</div></div>
-                        <i class="fas fa-calendar-check text-3xl text-emerald-100"></i>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 flex justify-between items-center cursor-pointer hover:bg-red-50" @click="tab='tasks'">
-                        <div><div class="text-slate-500 font-bold uppercase text-xs">Tâches en retard</div><div class="text-2xl font-bold text-red-600">{{ tasksOverdue.length }}</div></div>
-                        <i class="fas fa-exclamation-circle text-3xl text-red-100"></i>
-                    </div>
-                </div>
+            <div v-if="tab==='dashboard'" class="h-full overflow-y-auto bg-slate-50 custom-scrollbar">
+                <div class="p-8 max-w-7xl mx-auto">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2">
-                            <h4 class="font-bold text-slate-700"><i class="fas fa-tasks mr-2 text-indigo-500"></i> Tâches Urgentes</h4>
-                            <button @click="tab='tasks'" class="text-indigo-600 text-xs font-bold hover:underline">Voir tout</button>
+                    <!-- En-tête -->
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-black text-slate-800">Tableau de bord</h2>
+                            <p class="text-slate-400 text-sm mt-1">Bonjour <strong>{{ currentUserName }}</strong> — {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) }}</p>
                         </div>
-                        <div class="space-y-3">
-                            <div v-if="tasksOverdue.length === 0 && tasksToday.length === 0" class="text-slate-400 text-center py-4 text-sm">Aucune tâche urgente.</div>
-                            <div v-for="t in tasksOverdue.slice(0,3)" :key="t.id" class="flex gap-3 items-start bg-red-50 p-3 rounded border border-red-100">
-                                <button @click.prevent="toggleTaskDone(t)" class="text-red-400 hover:text-red-600 mt-0.5"><i class="far fa-circle text-lg"></i></button>
-                                <div class="flex-1"><div class="font-bold text-sm text-red-800">{{ t.text }}</div><div class="text-xs text-red-600 mt-1 flex justify-between"><span><i :class="getTypeIcon(t.type)"></i> Échéance dépassée ({{ formatDate(t.dueDate) }})</span><span v-if="t.relType" @click="openRelated(t)" class="cursor-pointer font-bold hover:underline"><i class="fas fa-link"></i> Lié</span></div></div>
+                        <div class="bg-indigo-600 text-white px-5 py-3 rounded-2xl shadow-lg">
+                            <div class="text-xs font-bold uppercase opacity-70">CA Confirmé</div>
+                            <div class="text-2xl font-black">{{ formatMoney(totalCA) }}</div>
+                        </div>
+                    </div>
+
+                    <!-- KPIs -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div @click="tab='pipeline'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-emerald-200 transition group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition">
+                                    <i class="fas fa-calendar-check text-emerald-600"></i>
+                                </div>
+                                <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Confirmé</span>
                             </div>
-                            <div v-for="t in tasksToday.slice(0,4)" :key="t.id" class="flex gap-3 items-start bg-orange-50 p-3 rounded border border-orange-100">
-                                <button @click.prevent="toggleTaskDone(t)" class="text-orange-400 hover:text-orange-600 mt-0.5"><i class="far fa-circle text-lg"></i></button>
-                                <div class="flex-1"><div class="font-bold text-sm text-slate-800">{{ t.text }}</div><div class="text-xs text-slate-500 mt-1 flex justify-between"><span><i :class="[getTypeIcon(t.type), 'text-slate-400']"></i> À faire aujourd'hui</span></div></div>
+                            <div class="text-3xl font-black text-slate-800">{{ db.events.filter(e=>e.status==='conf'||e.stage==='won').length }}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">Dates confirmées</div>
+                        </div>
+
+                        <div @click="tab='pipeline'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-orange-200 transition group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition">
+                                    <i class="fas fa-hourglass-half text-orange-600"></i>
+                                </div>
+                                <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full">Pipeline</span>
+                            </div>
+                            <div class="text-3xl font-black text-slate-800">{{ db.events.filter(e=>e.stage&&e.stage!=='won'&&e.stage!=='ann').length }}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">En négociation</div>
+                        </div>
+
+                        <div @click="tab='contacts'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-indigo-200 transition group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-200 transition">
+                                    <i class="fas fa-address-book text-indigo-600"></i>
+                                </div>
+                                <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">Annuaire</span>
+                            </div>
+                            <div class="text-3xl font-black text-slate-800">{{ db.structures.reduce((a,s)=>a+(s.contacts||[]).length,0) }}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">Contacts</div>
+                        </div>
+
+                        <div @click="tab='tasks'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition group"
+                             :class="tasksOverdue.length > 0 ? 'hover:border-red-200' : 'hover:border-slate-200'">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center transition"
+                                     :class="tasksOverdue.length > 0 ? 'bg-red-100 group-hover:bg-red-200' : 'bg-slate-100 group-hover:bg-slate-200'">
+                                    <i class="fas fa-tasks" :class="tasksOverdue.length > 0 ? 'text-red-600' : 'text-slate-500'"></i>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 rounded-full"
+                                      :class="tasksOverdue.length > 0 ? 'text-red-600 bg-red-50' : 'text-slate-500 bg-slate-50'">
+                                    {{ tasksOverdue.length > 0 ? 'En retard' : 'OK' }}
+                                </span>
+                            </div>
+                            <div class="text-3xl font-black" :class="tasksOverdue.length > 0 ? 'text-red-600' : 'text-slate-800'">
+                                {{ tasksOverdue.length + tasksToday.length }}
+                            </div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">Tâches urgentes</div>
+                        </div>
+                    </div>
+
+                    <!-- Contenu principal -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        <!-- Colonne gauche : Prochaines dates + Pipeline -->
+                        <div class="lg:col-span-2 space-y-6">
+
+                            <!-- Prochaines dates -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-calendar-alt text-indigo-500"></i> Prochaines dates
+                                    </h3>
+                                    <button @click="tab='planning'" class="text-xs text-indigo-600 font-bold hover:underline">Voir le planning →</button>
+                                </div>
+                                <div v-if="dashboardNextDates.length === 0" class="text-center py-6 text-slate-400">
+                                    <i class="fas fa-calendar-times text-3xl opacity-30 block mb-2"></i>
+                                    <p class="text-sm">Aucune date à venir.</p>
+                                    <button @click="tab='pipeline'" class="mt-2 text-xs text-indigo-500 hover:underline">Ajouter une affaire →</button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div v-for="e in dashboardNextDates" :key="e.id"
+                                         class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer"
+                                         @click="tab='planning'; openEventModal(null, e)">
+                                        <!-- Date badge -->
+                                        <div class="w-12 h-12 rounded-xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-sm"
+                                             :style="{ backgroundColor: getProjectColor(e.projectId) }">
+                                            <div class="text-[10px] font-bold uppercase opacity-80">{{ new Date(e.date).toLocaleDateString('fr-FR',{month:'short'}) }}</div>
+                                            <div class="text-lg font-black leading-none">{{ new Date(e.date).getDate() }}</div>
+                                        </div>
+                                        <!-- Infos -->
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-slate-800 text-sm truncate">{{ e.venueName || 'Lieu à définir' }}</div>
+                                            <div class="text-xs text-slate-400 truncate">
+                                                <i class="fas fa-music mr-1"></i>{{ getProjectName(e.projectId) }}
+                                                <span v-if="e.city" class="ml-2"><i class="fas fa-map-marker-alt mr-1"></i>{{ e.city }}</span>
+                                            </div>
+                                        </div>
+                                        <!-- Cachet + statut -->
+                                        <div class="text-right flex-shrink-0">
+                                            <div class="text-sm font-bold text-slate-700">{{ e.fee ? formatMoney(e.fee) : '—' }}</div>
+                                            <div class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full mt-1"
+                                                 :class="{
+                                                     'bg-emerald-100 text-emerald-700': e.status==='conf'||e.stage==='won',
+                                                     'bg-orange-100 text-orange-700':  e.stage==='option',
+                                                     'bg-blue-100 text-blue-700':      e.stage==='nego',
+                                                     'bg-slate-100 text-slate-600':    !e.status&&e.stage==='lead'
+                                                 }">
+                                                {{ e.status==='conf'||e.stage==='won' ? 'Confirmé' : e.stage==='option' ? 'Option' : e.stage==='nego' ? 'Négo' : 'Prospect' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pipeline résumé -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-columns text-yellow-500"></i> Pipeline
+                                    </h3>
+                                    <button @click="tab='pipeline'" class="text-xs text-indigo-600 font-bold hover:underline">Voir tout →</button>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div v-for="col in pipelineCols.filter(c=>c.id!=='won')" :key="col.id"
+                                         @click="tab='pipeline'"
+                                         class="text-center p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition cursor-pointer">
+                                        <div class="text-2xl font-black text-slate-800">
+                                            {{ db.events.filter(e=>e.stage===col.id).length }}
+                                        </div>
+                                        <div class="text-[10px] font-bold text-slate-500 uppercase mt-1">{{ col.name }}</div>
+                                        <div class="w-2 h-2 rounded-full mx-auto mt-2" :class="col.dotColor"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Colonne droite : Tâches + Activité -->
+                        <div class="space-y-6">
+
+                            <!-- Tâches urgentes -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-tasks text-red-500"></i> Tâches
+                                    </h3>
+                                    <button @click="tab='tasks'" class="text-xs text-indigo-600 font-bold hover:underline">Tout voir →</button>
+                                </div>
+                                <div v-if="tasksOverdue.length === 0 && tasksToday.length === 0" class="text-center py-4 text-slate-400">
+                                    <i class="fas fa-check-circle text-3xl text-emerald-300 block mb-2"></i>
+                                    <p class="text-sm">Aucune tâche urgente !</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="t in [...tasksOverdue, ...tasksToday].slice(0,5)" :key="t.id"
+                                         class="flex gap-3 items-start p-3 rounded-xl border transition"
+                                         :class="tasksOverdue.includes(t) ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'">
+                                        <button @click.prevent="toggleTaskDone(t)" class="mt-0.5 flex-shrink-0"
+                                                :class="tasksOverdue.includes(t) ? 'text-red-400 hover:text-red-600' : 'text-orange-400 hover:text-orange-600'">
+                                            <i class="far fa-circle"></i>
+                                        </button>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm text-slate-800 truncate">{{ t.text }}</div>
+                                            <div class="text-[10px] font-bold mt-0.5"
+                                                 :class="tasksOverdue.includes(t) ? 'text-red-500' : 'text-orange-500'">
+                                                {{ tasksOverdue.includes(t) ? '⚠ ' + formatDate(t.dueDate) : "Aujourd'hui" }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Projets actifs -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-music text-purple-500"></i> Projets actifs
+                                    </h3>
+                                    <button @click="tab='projects'" class="text-xs text-indigo-600 font-bold hover:underline">Tout voir →</button>
+                                </div>
+                                <div v-if="db.projects.filter(p=>p.isActive!==false).length === 0" class="text-center py-4 text-slate-400 text-sm">
+                                    Aucun projet actif.
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="p in db.projects.filter(p=>p.isActive!==false).slice(0,4)" :key="p.id"
+                                         @click="tab='projects'; openProjectModal(p)"
+                                         class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-sm"
+                                             :style="{ backgroundColor: p.color || '#6366f1' }">
+                                            <i :class="p.icon || 'fas fa-music'" class="text-xs"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm text-slate-800 truncate">{{ p.name }}</div>
+                                            <div class="text-[10px] text-slate-400">
+                                                {{ db.events.filter(e=>e.projectId===p.id&&(e.status==='conf'||e.stage==='won')).length }} confirmé(s)
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-slate-300 text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stats annuaire -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <h3 class="font-bold text-slate-800 flex items-center gap-2 mb-4">
+                                    <i class="fas fa-database text-blue-500"></i> Annuaire
+                                </h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-500">Structures</span>
+                                        <span class="font-black text-slate-800">{{ db.structures.length }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-500">Contacts</span>
+                                        <span class="font-black text-slate-800">{{ db.structures.reduce((a,s)=>a+(s.contacts||[]).length,0) }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-500">Avec GPS</span>
+                                        <span class="font-black text-slate-800">{{ db.structures.filter(s=>s.lat&&s.lng).length }}</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-2 mt-2">
+                                        <div class="bg-indigo-500 h-2 rounded-full transition-all"
+                                             :style="{ width: db.structures.length ? (db.structures.filter(s=>s.lat&&s.lng).length/db.structures.length*100)+'%' : '0%' }"></div>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 text-right">
+                                        {{ db.structures.length ? Math.round(db.structures.filter(s=>s.lat&&s.lng).length/db.structures.length*100) : 0 }}% géolocalisées
+                                    </div>
+                                </div>
+                                <button @click="tab='structures'" class="w-full mt-3 text-xs text-indigo-600 font-bold hover:underline text-center">
+                                    Gérer l'annuaire →
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1631,7 +1837,7 @@
                     <h2 class="text-3xl font-black text-slate-800 mb-8"><i class="fas fa-cog text-indigo-500 mr-3"></i>Paramètres du CRM</h2>
 
                     <!-- Bloc activation admin -->
-                    <div v-if="!isAdmin" class="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mb-8 flex items-center justify-between gap-6">
+                    <div v-if="!isAdmin && adminEmails.length === 0" class="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mb-8 flex items-center justify-between gap-6">
                         <div>
                             <h3 class="font-bold text-slate-800 mb-1"><i class="fas fa-shield-alt text-amber-500 mr-2"></i> Accès Administrateur</h3>
                             <p class="text-sm text-slate-500">Vous n'êtes pas encore enregistré comme administrateur. Cliquez pour activer l'accès admin avec votre compte actuel.</p>
