@@ -604,17 +604,14 @@ async removeGlobalTag(familyName, tag) {
                         this.isAdmin     = true;
                         this.saveAdminConfig();
                     }
-                    // ── Rôle chargé APRÈS adminEmails ──
-                    try {
-                        const collabRef  = doc(dbFirestore, "collaborators", user.uid);
-                        const collabSnap = await getDoc(collabRef);
-                        if (collabSnap.exists()) {
-                            this.userRole = collabSnap.data().role || 'lecteur';
-                        } else {
-                            this.userRole = this.adminEmails.includes(user.email) ? 'admin' : 'editeur';
-                        }
-                    } catch (e) {
-                        this.userRole = this.adminEmails.includes(user.email) ? 'admin' : 'editeur';
+                    // ── Rôle chargé depuis userRoles dans shared/config ──
+                    const userRoles  = cfg ? (cfg.userRoles || {}) : {};
+                    const newRole    = userRoles[user.email] || (this.adminEmails.includes(user.email) ? 'admin' : 'editeur');
+                    const prevRole   = this.userRole;
+                    this.userRole    = newRole;
+                    // Si le rôle a changé après le chargement initial → recharger la page
+                    if (prevRole && prevRole !== newRole) {
+                        window.location.reload();
                     }
                 }));
                 // ── Données privées (projets, tâches, affaires, templates) ──
@@ -644,24 +641,6 @@ async removeGlobalTag(familyName, tag) {
                     }
                     if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
-                    }
-                }));
-
-                // ── Listener sur sa propre fiche collaborator (détecte changement de rôle) ──
-                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "collaborators", user.uid), async (snap) => {
-                    if (!snap.exists()) return;
-                    const newRole = snap.data().role || 'lecteur';
-                    const wasActive = snap.data().isActive !== false;
-                    // Si désactivé → déconnecter immédiatement
-                    if (!wasActive) {
-                        await this.logout();
-                        return;
-                    }
-                    // Si le rôle a changé → mettre à jour et recharger
-                    if (newRole !== this.userRole) {
-                        this.userRole = newRole;
-                        // Recharger la page pour appliquer les nouveaux droits
-                        window.location.reload();
                     }
                 }));
 
