@@ -152,6 +152,8 @@ createApp({
             _saveDebounceTimer: null,
             // Déconnexion automatique après inactivité
             _inactivityTimer: null,
+            // Vérification périodique du token (détecte révocation de session)
+            _tokenCheckTimer: null,
             _inactivityDelay: 2 * 60 * 60 * 1000, // 2 heures en millisecondes
             saveStatusMessage: '',
 
@@ -262,6 +264,13 @@ createApp({
     // WATCHERS
     // ─────────────────────────────────────────────────────────────────────────
     watch: {
+        // Recharge le menu quand le statut admin change
+        isAdmin(newVal, oldVal) {
+            if (oldVal !== undefined && newVal !== oldVal) {
+                // Forcer la mise à jour du menu sans recharger la page
+                this.$forceUpdate();
+            }
+        },
         tab(newVal) {
             if (newVal === 'geo') { nextTick(() => { setTimeout(() => { this.initMap(); }, 300); }); }
         },
@@ -330,6 +339,35 @@ createApp({
             }
         },
 
+        // --- VÉRIFICATION PÉRIODIQUE DU TOKEN ---
+        // Détecte si le token a été révoqué côté serveur (changement de rôle)
+        _startTokenCheck() {
+            this._tokenCheckTimer = setInterval(async () => {
+                if (!this.currentUser) return;
+                try {
+                    const { auth } = await import('./firebase.js');
+                    const user = auth.currentUser;
+                    if (!user) return;
+                    // Force le rafraîchissement du token
+                    await user.getIdToken(true);
+                } catch (e) {
+                    // Token révoqué ou invalide → déconnecter
+                    if (e.code === 'auth/user-token-expired' ||
+                        e.code === 'auth/user-disabled' ||
+                        e.code === 'auth/id-token-revoked') {
+                        await this.logout();
+                    }
+                }
+            }, 30000); // Vérifie toutes les 30 secondes
+        },
+
+        _stopTokenCheck() {
+            if (this._tokenCheckTimer) {
+                clearInterval(this._tokenCheckTimer);
+                this._tokenCheckTimer = null;
+            }
+        },
+
         // --- DÉCONNEXION AUTOMATIQUE PAR INACTIVITÉ ---
         _resetInactivityTimer() {
             if (!this.currentUser) return;
@@ -359,6 +397,7 @@ createApp({
         },
 
         async logout() {
+            this._stopTokenCheck();
             this._stopInactivityWatcher();
             // Désabonner tous les listeners Firestore AVANT la déconnexion
             // pour éviter les erreurs "permission-denied" sur les snapshots actifs
@@ -530,6 +569,7 @@ async removeGlobalTag(familyName, tag) {
                 this.currentUser     = user.uid;
                 this.currentUserName = user.displayName || user.email || user.uid;
                 this._startInactivityWatcher(); // Démarre la surveillance d'inactivité
+                this._startTokenCheck();           // Démarre la vérification du token
 
                 // ── Enregistrement de l'utilisateur dans le registre ──
                 try {
@@ -604,6 +644,24 @@ async removeGlobalTag(familyName, tag) {
                     }
                     if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
+                    }
+                }));
+
+                // ── Listener sur sa propre fiche collaborator (détecte changement de rôle) ──
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "collaborators", user.uid), async (snap) => {
+                    if (!snap.exists()) return;
+                    const newRole = snap.data().role || 'lecteur';
+                    const wasActive = snap.data().isActive !== false;
+                    // Si désactivé → déconnecter immédiatement
+                    if (!wasActive) {
+                        await this.logout();
+                        return;
+                    }
+                    // Si le rôle a changé → mettre à jour et recharger
+                    if (newRole !== this.userRole) {
+                        this.userRole = newRole;
+                        // Recharger la page pour appliquer les nouveaux droits
+                        window.location.reload();
                     }
                 }));
 
