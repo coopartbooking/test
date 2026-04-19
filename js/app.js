@@ -375,8 +375,7 @@ createApp({
             if (overdue.length > 0) {
                 this.sendBrowserNotification(
                     `⚠️ ${overdue.length} tâche(s) en retard`,
-                    overdue.slice(0, 3).map(t => t.text).join('
-'),
+                    overdue.slice(0, 3).map(t => t.text).join('\n'),
                     () => { this.tab = 'tasks'; window.focus(); }
                 );
             }
