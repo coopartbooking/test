@@ -34,7 +34,7 @@ export const collaboratorMethods = {
         }
     },
 
-    // --- CRÉER UN COLLABORATEUR ---
+    // --- CRÉER UN COLLABORATEUR (ou enregistrer un compte existant) ---
     async createCollaborator() {
         const r = await Swal.fire({
             title: 'Nouveau collaborateur',
@@ -56,9 +56,12 @@ export const collaboratorMethods = {
                             <option value="lecteur">Lecteur — consultation seule</option>
                         </select>
                     </div>
+                    <p class="text-xs text-slate-400 mt-1">
+                        💡 Si cette personne a déjà un compte, son rôle sera simplement mis à jour.
+                    </p>
                 </div>`,
             showCancelButton:  true,
-            confirmButtonText: 'Créer le compte',
+            confirmButtonText: 'Enregistrer',
             cancelButtonText:  'Annuler',
             confirmButtonColor: '#4f46e5',
             focusConfirm: false,
@@ -75,7 +78,7 @@ export const collaboratorMethods = {
         if (!r.isConfirmed) return;
 
         try {
-            Swal.fire({ title: 'Création en cours…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'Enregistrement…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             const result = await _createCollaborator({
                 email:       r.value.email,
@@ -83,28 +86,36 @@ export const collaboratorMethods = {
                 role:        r.value.role,
             });
 
-            await Swal.fire({
-                title: 'Collaborateur créé ✓',
-                html:  `<p class="text-sm">Le compte de <strong>${r.value.name}</strong> a été créé.</p>
-                        <p class="text-sm mt-2">Un <strong>lien de définition du mot de passe</strong> a été généré.</p>
-                        <div class="mt-3 p-3 bg-slate-100 rounded text-xs break-all text-left">
-                            ${result.data.resetLink}
-                        </div>
-                        <p class="text-xs text-slate-400 mt-2">Envoyez ce lien au collaborateur — il est valable 1 heure.</p>`,
-                icon:  'success',
-                confirmButtonColor: '#4f46e5',
-                confirmButtonText: 'Copier le lien',
-            }).then(() => {
-                navigator.clipboard.writeText(result.data.resetLink).catch(() => {});
-            });
+            // Compte nouveau → afficher le lien de réinitialisation
+            if (result.data.resetLink) {
+                await Swal.fire({
+                    title: 'Collaborateur créé ✓',
+                    html:  `<p class="text-sm">Le compte de <strong>${r.value.name}</strong> a été créé.</p>
+                            <p class="text-sm mt-2">Envoyez ce <strong>lien de connexion</strong> à la personne :</p>
+                            <div class="mt-3 p-3 bg-slate-100 rounded text-xs break-all text-left">
+                                ${result.data.resetLink}
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">Valable 1 heure.</p>`,
+                    icon:  'success',
+                    confirmButtonColor: '#4f46e5',
+                    confirmButtonText:  'Copier le lien',
+                }).then(() => {
+                    navigator.clipboard.writeText(result.data.resetLink).catch(() => {});
+                });
+            } else {
+                // Compte existant → rôle mis à jour silencieusement
+                Swal.fire({
+                    title: 'Rôle mis à jour ✓',
+                    html:  `<strong>${r.value.name}</strong> est maintenant <strong>${r.value.role}</strong>.`,
+                    icon:  'success',
+                    toast: true, position: 'top-end', timer: 3000, showConfirmButton: false,
+                });
+            }
 
             await this.loadCollaborators();
 
         } catch (e) {
-            const msg = e.code === 'functions/already-exists'
-                ? 'Un compte existe déjà avec cet email.'
-                : e.message || 'Erreur lors de la création.';
-            Swal.fire('Erreur', msg, 'error');
+            Swal.fire('Erreur', e.message || 'Erreur lors de la création.', 'error');
         }
     },
 
