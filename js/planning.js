@@ -334,11 +334,21 @@ export const planningMethods = {
 
     // --- PIPELINE KANBAN ---
     getPipelineEvents(stageId) {
+        const search = (this.pipelineSearch || '').toLowerCase().trim();
         return this.db.events
             .filter(e => {
+                // Filtre par étape
                 const isStage = (e.stage || 'lead') === stageId;
+                // Filtre par projet
                 const isProj  = this.pipelineFilterProj === '' || e.projectId === this.pipelineFilterProj;
-                return isStage && isProj;
+                // Filtre par recherche texte (lieu, ville, contact, notes)
+                const isSearch = !search || [
+                    e.venueName   || '',
+                    e.city        || '',
+                    e.contactName || '',
+                    e.notes       || '',
+                ].some(v => v.toLowerCase().includes(search));
+                return isStage && isProj && isSearch;
             })
             .sort((a, b) => {
                 if (a.date && b.date) return new Date(a.date) - new Date(b.date);

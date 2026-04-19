@@ -714,14 +714,36 @@
             </div>
             
             <div v-if="tab==='pipeline'" class="p-6 h-full flex flex-col bg-white">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
                     <h3 class="text-xl font-bold text-slate-800"><i class="fas fa-columns text-indigo-500 mr-2"></i> Suivi des Négociations</h3>
-                    <div class="flex items-center gap-3">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Filtrer par artiste :</label>
-                        <select v-model="pipelineFilterProj" class="input-field w-64 shadow-sm border-slate-200">
-                            <option value="">Tous les artistes / projets</option>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Recherche lieu / contact -->
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input v-model="pipelineSearch"
+                                   class="input-field pl-8 w-52 text-sm shadow-sm border-slate-200"
+                                   placeholder="Lieu, ville, contact...">
+                            <button v-if="pipelineSearch" @click="pipelineSearch=''"
+                                    class="absolute right-2 top-2 text-slate-300 hover:text-slate-500">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        <!-- Filtre projet -->
+                        <select v-model="pipelineFilterProj" class="input-field w-52 shadow-sm border-slate-200 text-sm">
+                            <option value="">Tous les projets</option>
                             <option v-for="p in db.projects" :value="p.id">{{ p.name }}</option>
                         </select>
+                        <!-- Compteur résultats -->
+                        <div v-if="pipelineSearch || pipelineFilterProj"
+                             class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full">
+                            {{ db.events.filter(e=>getPipelineEvents(e.stage||'lead').some(x=>x.id===e.id)).length }} affaire(s)
+                        </div>
+                        <!-- Reset filtres -->
+                        <button v-if="pipelineSearch || pipelineFilterProj"
+                                @click="pipelineSearch=''; pipelineFilterProj=''"
+                                class="text-xs text-slate-400 hover:text-slate-600 font-bold">
+                            <i class="fas fa-times mr-1"></i>Réinitialiser
+                        </button>
                     </div>
                 </div>
                 
