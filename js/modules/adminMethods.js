@@ -3,14 +3,25 @@
 
 import { auth, dbFirestore }                                  from '../firebase.js';
 import { sendPasswordResetEmail }                             from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { doc, setDoc, getDoc, getDocs, collection }           from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 export const adminMethods = {
 
     // --- ADMIN ---
     async refreshAdminStats() {
-        await this.loadAdminUsers();
+        await Promise.all([this.loadAdminUsers(), this.loadActivityLog()]);
         Swal.fire({ title: 'Données actualisées ✓', icon: 'success', toast: true, position: 'top-end', timer: 1500, showConfirmButton: false });
+    },
+
+    async loadActivityLog() {
+        try {
+            const q    = query(collection(dbFirestore, "activity_log"), orderBy("date", "desc"), limit(50));
+            const snap = await getDocs(q);
+            this.activityLog = snap.docs.map(d => d.data());
+        } catch (e) {
+            console.error("Erreur chargement activité");
+            this.activityLog = [];
+        }
     },
 
     async loadAdminUsers() {

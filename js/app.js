@@ -11,7 +11,7 @@
 import { auth, dbFirestore }                                              from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { doc, setDoc, getDoc, onSnapshot }                               from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { doc, setDoc, getDoc, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const { createApp, nextTick } = Vue;
 
@@ -237,6 +237,8 @@ createApp({
             userRole:  'lecteur',   // 'admin' | 'editeur' | 'lecteur'
             // Collaborateurs
             collaboratorsList:    [],
+            // Historique des modifications
+            activityLog:          [],
             collaboratorsLoading: false,
             adminEmails: [],
             allowedEmails: [],          // Liste blanche des emails autorisés à s'inscrire
@@ -417,6 +419,21 @@ createApp({
         },
 
         // _saveDBNow() : sauvegarde immédiate (utilisée par logout et saveData)
+        // --- HISTORIQUE DES MODIFICATIONS ---
+        async logActivity(action, details = '') {
+            if (!this.currentUser) return;
+            try {
+                await addDoc(collection(dbFirestore, "activity_log"), {
+                    uid:       this.currentUser,
+                    user:      this.currentUserName,
+                    action,
+                    details,
+                    timestamp: serverTimestamp(),
+                    date:      new Date().toISOString(),
+                });
+            } catch (e) { /* log silencieux */ }
+        },
+
         async _saveDBNow() {
             if (!this.currentUser) return;
             this.saveStatus = 'saving';

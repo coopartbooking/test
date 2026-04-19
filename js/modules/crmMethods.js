@@ -52,7 +52,11 @@ export const crmMethods = {
 
     deleteStructure(s) {
         Swal.fire({ title: 'Supprimer ?', text: "Supprimer la structure et ses contacts ?", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-            .then(r => { if (r.isConfirmed) { this.db.structures = this.db.structures.filter(x => x.id !== s.id); this.saveDB(); } });
+            .then(r => { if (r.isConfirmed) {
+                this.logActivity('Structure supprimée', s.name);
+                this.db.structures = this.db.structures.filter(x => x.id !== s.id);
+                this.saveDB();
+            }});
     },
 
     addCrmVenue() {
@@ -90,6 +94,7 @@ export const crmMethods = {
         if (!this.newCrmComment.trim()) return;
         if (!this.currentCrmStruct.comments) this.currentCrmStruct.comments = [];
         this.currentCrmStruct.comments.push({ id: Date.now(), date: this.getProTimestamp(), text: this.sanitizeText(this.newCrmComment, 1000), user: this.currentUserName });
+        this.logActivity('Commentaire ajouté', this.currentCrmStruct.name);
         this.newCrmComment = '';
         this.saveDB();
     },

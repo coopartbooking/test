@@ -492,7 +492,69 @@
                             </div>
                         </div>
 
-                        <!-- ═══ SECTION 6 : GESTION COLLABORATEURS ═══ -->
+                        <!-- ═══ SECTION 6 : HISTORIQUE DES MODIFICATIONS ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">
+                                        <i class="fas fa-history text-blue-500 mr-2"></i>Historique des modifications
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Les 50 dernières actions dans l'annuaire.</p>
+                                </div>
+                                <button @click="loadActivityLog()"
+                                        class="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition">
+                                    <i class="fas fa-sync-alt"></i> Actualiser
+                                </button>
+                            </div>
+
+                            <!-- Vide -->
+                            <div v-if="!activityLog.length" class="text-center py-8 border-2 border-dashed rounded-xl text-slate-400">
+                                <i class="fas fa-history text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Aucune activité enregistrée.</p>
+                                <button @click="loadActivityLog()" class="mt-2 text-xs text-indigo-500 hover:underline">
+                                    Charger l'historique
+                                </button>
+                            </div>
+
+                            <!-- Liste -->
+                            <div v-else class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                                <div v-for="(log, i) in activityLog" :key="i"
+                                     class="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 transition">
+                                    <!-- Icône action -->
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                         :class="{
+                                             'bg-emerald-100': log.action.includes('créée') || log.action.includes('créé'),
+                                             'bg-blue-100':    log.action.includes('modifi'),
+                                             'bg-red-100':     log.action.includes('supprim'),
+                                             'bg-indigo-100':  log.action.includes('Commentaire'),
+                                             'bg-slate-100':   !log.action.includes('créée') && !log.action.includes('créé') && !log.action.includes('modifi') && !log.action.includes('supprim') && !log.action.includes('Commentaire'),
+                                         }">
+                                        <i class="text-xs fas"
+                                           :class="{
+                                               'fa-plus text-emerald-600':      log.action.includes('créée') || log.action.includes('créé'),
+                                               'fa-pen text-blue-600':          log.action.includes('modifi'),
+                                               'fa-trash text-red-600':         log.action.includes('supprim'),
+                                               'fa-comment text-indigo-600':    log.action.includes('Commentaire'),
+                                               'fa-circle-notch text-slate-400': !log.action.includes('créée') && !log.action.includes('créé') && !log.action.includes('modifi') && !log.action.includes('supprim') && !log.action.includes('Commentaire'),
+                                           }"></i>
+                                    </div>
+                                    <!-- Contenu -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-bold text-slate-800 text-sm">{{ log.action }}</span>
+                                            <span v-if="log.details" class="text-xs text-slate-500 truncate">— {{ log.details }}</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
+                                            <span><i class="fas fa-user mr-1"></i>{{ log.user || 'Inconnu' }}</span>
+                                            <span>·</span>
+                                            <span><i class="fas fa-clock mr-1"></i>{{ log.date ? new Date(log.date).toLocaleString('fr-FR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 7 : GESTION COLLABORATEURS ═══ -->
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                             <div class="flex items-center justify-between mb-4">
                                 <div>

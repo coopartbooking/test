@@ -327,6 +327,11 @@ export const planningMethods = {
     deleteEvent() {
         if (confirm('Supprimer cette affaire définitivement ?')) {
             this.db.events = this.db.events.filter(e => e.id !== this.editEventData.id);
+            const isNew = !this.db.events.some(e => e.id === this.editEventData.id);
+            this.logActivity(
+                isNew ? 'Affaire créée' : 'Affaire modifiée',
+                (this.editEventData.venueName || 'Lieu inconnu') + (this.editEventData.city ? ' — ' + this.editEventData.city : '')
+            );
             this.saveDB();
             this.showEventModal = false;
         }
