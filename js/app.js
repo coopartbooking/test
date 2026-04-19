@@ -545,38 +545,38 @@ async removeGlobalTag(familyName, tag) {
                     }, { merge: true });
                 } catch (e) { /* enregistrement registre silencieux */ }
 
-                // ── Chargement du rôle depuis la collection collaborators ──
-                try {
-                    const collabRef  = doc(dbFirestore, "collaborators", user.uid);
-                    const collabSnap = await getDoc(collabRef);
-                    if (collabSnap.exists()) {
-                        this.userRole = collabSnap.data().role || 'lecteur';
-                    } else {
-                        // Utilisateur pas encore dans collaborators = admin si dans adminEmails
-                        this.userRole = 'admin';
-                    }
-                } catch (e) { this.userRole = 'lecteur'; }
+
 
                 // ── Écoute de la config admin (changelog + adminEmails) ──
-                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "config"), (snap) => {
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "config"), async (snap) => {
                     if (snap.exists()) {
                         const cfg = snap.data();
                         this.adminEmails    = cfg.adminEmails  || [];
                         this.allowedEmails  = cfg.allowedEmails || [];
                         this.adminChangelog = cfg.changelog    || [];
                         this.isAdmin        = this.adminEmails.includes(user.email);
-                        // Afficher la dernière note de version si pas encore vue
                         if (this.adminChangelog.length > 0 && !this.changelogDismissed) {
                             this.latestChangelog    = this.adminChangelog[0];
                             this.showChangelogBanner = true;
                         }
                     } else {
-                        // Premier lancement : initialiser avec l'email courant comme admin
                         this.adminEmails = [user.email];
                         this.isAdmin     = true;
                         this.saveAdminConfig();
                     }
-                }));
+                    // ── Rôle chargé APRÈS adminEmails ──
+                    try {
+                        const collabRef  = doc(dbFirestore, "collaborators", user.uid);
+                        const collabSnap = await getDoc(collabRef);
+                        if (collabSnap.exists()) {
+                            this.userRole = collabSnap.data().role || 'lecteur';
+                        } else {
+                            this.userRole = this.adminEmails.includes(user.email) ? 'admin' : 'editeur';
+                        }
+                    } catch (e) {
+                        this.userRole = this.adminEmails.includes(user.email) ? 'admin' : 'editeur';
+                    }
+                });
                 // ── Données privées (projets, tâches, affaires, templates) ──
                 this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
                     if (docSnap.exists()) {
