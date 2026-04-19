@@ -239,6 +239,8 @@ createApp({
             collaboratorsList:    [],
             // Historique des modifications
             activityLog:          [],
+            // Notification tâches (flag pour n'afficher qu'une fois)
+            _tasksAlertShown:     false,
             collaboratorsLoading: false,
             adminEmails: [],
             allowedEmails: [],          // Liste blanche des emails autorisés à s'inscrire
@@ -339,6 +341,69 @@ createApp({
             } catch (error) {
                 Swal.fire('Erreur', 'Email ou mot de passe incorrect (ou compte déjà existant).', 'error');
             }
+        },
+
+        // --- NOTIFICATIONS DE TÂCHES ---
+
+        // Demande la permission pour les notifications navigateur
+        async requestNotificationPermission() {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'default') {
+                await Notification.requestPermission();
+            }
+        },
+
+        // Envoie une notification navigateur
+        sendBrowserNotification(title, body, onClick = null) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            const notif = new Notification(title, {
+                body,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico',
+            });
+            if (onClick) notif.onclick = onClick;
+            setTimeout(() => notif.close(), 8000);
+        },
+
+        // Vérifie les tâches en retard et notifie si nécessaire
+        checkOverdueTasks() {
+            const overdue = this.tasksOverdue || [];
+            const today   = this.tasksToday   || [];
+            if (overdue.length === 0 && today.length === 0) return;
+
+            // Notification navigateur
+            if (overdue.length > 0) {
+                this.sendBrowserNotification(
+                    `⚠️ ${overdue.length} tâche(s) en retard`,
+                    overdue.slice(0, 3).map(t => t.text).join('
+'),
+                    () => { this.tab = 'tasks'; window.focus(); }
+                );
+            }
+        },
+
+        // Affiche l'alerte de tâches en retard au démarrage (une seule fois)
+        showTasksAlert() {
+            const overdue = this.tasksOverdue || [];
+            const today   = this.tasksToday   || [];
+            if (overdue.length === 0 && today.length === 0) return;
+
+            const lines = [];
+            if (overdue.length > 0) lines.push(`<li class="text-red-600 font-bold">⚠ ${overdue.length} tâche(s) en retard</li>`);
+            if (today.length  > 0) lines.push(`<li class="text-orange-600">📅 ${today.length} tâche(s) pour aujourd'hui</li>`);
+
+            Swal.fire({
+                title: 'Tâches à traiter',
+                html: `<ul class="text-left space-y-2 mt-2">${lines.join('')}</ul>
+                       <p class="text-xs text-slate-400 mt-3">Cliquez sur "Voir les tâches" pour y accéder.</p>`,
+                icon: overdue.length > 0 ? 'warning' : 'info',
+                showCancelButton:  true,
+                confirmButtonText: 'Voir les tâches',
+                cancelButtonText:  'Plus tard',
+                confirmButtonColor: overdue.length > 0 ? '#ef4444' : '#f59e0b',
+            }).then(r => {
+                if (r.isConfirmed) this.tab = 'tasks';
+            });
         },
 
         // --- VÉRIFICATION PÉRIODIQUE DU TOKEN ---
@@ -586,6 +651,7 @@ async removeGlobalTag(familyName, tag) {
                 this.currentUser     = user.uid;
                 this.currentUserName = user.displayName || user.email || user.uid;
                 this._startInactivityWatcher(); // Démarre la surveillance d'inactivité
+                this.requestNotificationPermission(); // Demande permission notifications
                 this._startTokenCheck();           // Démarre la vérification du token
 
                 // ── Enregistrement de l'utilisateur dans le registre ──
@@ -663,6 +729,19 @@ async removeGlobalTag(familyName, tag) {
                     }
                     if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
+                    }
+                    // Vérifier les tâches en retard après chargement initial
+                    if (!this._tasksAlertShown) {
+                        this._tasksAlertShown = true;
+                        this.$nextTick(() => {
+                            setTimeout(() => {
+                                this.checkOverdueTasks();
+                                // Alerte au démarrage seulement si tâches en retard
+                                if ((this.tasksOverdue || []).length > 0) {
+                                    this.showTasksAlert();
+                                }
+                            }, 2000); // Délai pour laisser l'app se charger
+                        });
                     }
                 }));
 

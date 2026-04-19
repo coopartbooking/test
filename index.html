@@ -148,8 +148,16 @@
             <div class="nav-header">Pilotage</div>
             <div @click="tab='dashboard'" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
             <div @click="tab='tasks'" :class="['nav-item', tab==='tasks'?'active':'']">
-                <i class="fas fa-tasks"></i> Tâches & Suivi 
-                <span v-if="pendingTaskCount>0" class="ml-auto bg-indigo-600 text-white px-2 rounded-full text-[10px]">{{pendingTaskCount}}</span>
+                <i class="fas fa-tasks"></i> Tâches & Suivi
+                <span v-if="tasksOverdue.length > 0"
+                      class="ml-auto bg-red-500 text-white px-2 rounded-full text-[10px] animate-pulse font-bold"
+                      title="Tâches en retard !">
+                    {{ tasksOverdue.length }}
+                </span>
+                <span v-else-if="pendingTaskCount > 0"
+                      class="ml-auto bg-indigo-600 text-white px-2 rounded-full text-[10px]">
+                    {{ pendingTaskCount }}
+                </span>
             </div>
             <div class="nav-header">Données</div>
             <div @click="tab='structures'" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
