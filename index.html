@@ -255,7 +255,14 @@
                        'fa-check-circle':            saveStatus === 'saved',
                        'fa-exclamation-triangle':   saveStatus === 'error'
                    }"></i>
-                <span v-if="saveStatus === 'idle'" class="text-slate-600 text-[10px]">Firebase</span>
+                <span v-if="saveStatus === 'idle'" class="text-slate-600 text-[10px] flex items-center gap-1.5">
+                    Firebase
+                    <span class="flex items-center gap-1 font-bold"
+                          :class="isOnline ? 'text-emerald-500' : 'text-orange-400'">
+                        <i :class="isOnline ? 'fas fa-circle' : 'fas fa-exclamation-circle'" style="font-size:7px"></i>
+                        {{ isOnline ? 'En ligne' : 'Hors ligne' }}
+                    </span>
+                </span>
                 <span v-if="saveStatus === 'saving'" class="text-[10px]">Sauvegarde…</span>
                 <span v-if="saveStatus === 'saved'" class="text-[10px] truncate">{{ saveStatusMessage }}</span>
                 <span v-if="saveStatus === 'error'" class="text-[10px] flex items-center gap-1">
