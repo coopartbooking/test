@@ -89,6 +89,15 @@ createApp({
 
             // Annuaire & contacts
             searchContact: '', searchStruct: '',
+            // Filtres avancés structures
+            structFilterCat:         '',
+            structFilterGenre:       '',
+            structFilterReseau:      '',
+            structFilterCity:        '',
+            structFilterStatus:      '',
+            structFilterGPS:         false,
+            structFilterHasContacts: false,
+            structFiltersOpen:       false,
             contactViewMode: 'grid',
             contactSubTab: 'annuaire',
             currentSearch: { name: '', criteria: [], filterCity: '', filterStatus: '', filterRegion: '' },

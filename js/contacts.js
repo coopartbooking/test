@@ -2,11 +2,37 @@
 
 export const contactsComputed = {
     filteredStructures() {
-        if (!this.searchStruct) return this.db.structures;
-        const s = this.searchStruct.toLowerCase();
-        return this.db.structures.filter(st =>
-            st.name.toLowerCase().includes(s) || st.city.toLowerCase().includes(s)
-        );
+        const s        = (this.searchStruct       || '').toLowerCase().trim();
+        const cat      = this.structFilterCat      || '';
+        const genre    = this.structFilterGenre    || '';
+        const reseau   = this.structFilterReseau   || '';
+        const city     = (this.structFilterCity    || '').toLowerCase().trim();
+        const status   = this.structFilterStatus   || '';
+        const hasGPS   = this.structFilterGPS      || false;
+        const hasContacts = this.structFilterHasContacts || false;
+
+        return this.db.structures.filter(st => {
+            // Recherche texte (nom, ville, email, notes)
+            if (s && ![ st.name, st.city, st.email, st.notes, st.address ]
+                .some(v => (v || '').toLowerCase().includes(s))) return false;
+            // Filtre ville
+            if (city && !(st.city || '').toLowerCase().includes(city)) return false;
+            // Filtre catégorie
+            if (cat && !(st.tags?.categories || []).includes(cat)) return false;
+            // Filtre genre
+            if (genre && !(st.tags?.genres || []).includes(genre)) return false;
+            // Filtre réseau
+            if (reseau && !(st.tags?.reseaux || []).includes(reseau)) return false;
+            // Filtre statut
+            if (status === 'active'  && st.isActive === false) return false;
+            if (status === 'inactive' && st.isActive !== false) return false;
+            if (status === 'vip'     && !st.isVip) return false;
+            // Filtre GPS
+            if (hasGPS && (!st.lat || !st.lng)) return false;
+            // Filtre contacts
+            if (hasContacts && !(st.contacts || []).length) return false;
+            return true;
+        });
     },
 
     filteredContacts() {
@@ -87,8 +113,7 @@ export const contactsComputed = {
 
 export const contactsMethods = {
     // --- EXPORT ANNUAIRE EXCEL (format natif CRM) ---
-    async exportContactsExcel() {
-        await this.requireXLSX();
+    exportContactsExcel() {
         const contacts = this.filteredContacts;
         if (!contacts || contacts.length === 0) {
             return Swal.fire('Export', 'Aucun contact à exporter.', 'info');

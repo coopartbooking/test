@@ -1463,8 +1463,106 @@
                 </div>
             </div>
 
-            <div v-if="tab==='structures'" class="p-8 h-full flex flex-col">
-                <div class="mb-4 flex gap-4"><input v-model="searchStruct" class="input-field max-w-sm" placeholder="Rechercher une structure..."></div>
+            <div v-if="tab==='structures'" class="p-6 h-full flex flex-col">
+
+                <!-- Barre de recherche + filtres -->
+                <div class="mb-4 flex-shrink-0 space-y-3">
+
+                    <!-- Ligne 1 : recherche + bouton filtres + compteur -->
+                    <div class="flex items-center gap-3">
+                        <div class="relative flex-1 max-w-sm">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input v-model="searchStruct" class="input-field pl-8 w-full" placeholder="Nom, ville, email, notes...">
+                            <button v-if="searchStruct" @click="searchStruct=''" class="absolute right-3 top-2.5 text-slate-300 hover:text-slate-500">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        <button @click="structFiltersOpen = !structFiltersOpen"
+                                class="flex items-center gap-2 px-4 py-2 rounded-xl border transition font-bold text-sm"
+                                :class="structFiltersOpen || structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'">
+                            <i class="fas fa-sliders-h"></i>
+                            Filtres
+                            <span v-if="structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts"
+                                  class="bg-white text-indigo-600 text-[10px] font-black px-1.5 rounded-full">
+                                {{ [structFilterCat, structFilterGenre, structFilterReseau, structFilterCity, structFilterStatus].filter(Boolean).length
+                                   + (structFilterGPS ? 1 : 0) + (structFilterHasContacts ? 1 : 0) }}
+                            </span>
+                        </button>
+                        <!-- Compteur résultats -->
+                        <div class="text-sm text-slate-500">
+                            <span class="font-black text-slate-800">{{ filteredStructures.length }}</span> / {{ db.structures.length }} structure(s)
+                        </div>
+                        <!-- Reset -->
+                        <button v-if="structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts || searchStruct"
+                                @click="searchStruct=''; structFilterCat=''; structFilterGenre=''; structFilterReseau=''; structFilterCity=''; structFilterStatus=''; structFilterGPS=false; structFilterHasContacts=false;"
+                                class="text-xs text-slate-400 hover:text-red-500 font-bold transition flex items-center gap-1">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </button>
+                    </div>
+
+                    <!-- Ligne 2 : filtres avancés (dépliables) -->
+                    <div v-if="structFiltersOpen" class="bg-slate-50 rounded-2xl p-4 border border-slate-200 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+
+                        <!-- Ville -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Ville / Région</label>
+                            <input v-model="structFilterCity" class="input-field text-sm w-full" placeholder="Ex: Lyon, Paris...">
+                        </div>
+
+                        <!-- Catégorie -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Catégorie</label>
+                            <select v-model="structFilterCat" class="input-field text-sm w-full">
+                                <option value="">Toutes</option>
+                                <option v-for="t in db.tagCategories" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Genre -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Genre</label>
+                            <select v-model="structFilterGenre" class="input-field text-sm w-full">
+                                <option value="">Tous</option>
+                                <option v-for="t in db.tagGenres" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Réseau -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Réseau</label>
+                            <select v-model="structFilterReseau" class="input-field text-sm w-full">
+                                <option value="">Tous</option>
+                                <option v-for="t in db.tagReseaux" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Statut -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Statut</label>
+                            <select v-model="structFilterStatus" class="input-field text-sm w-full">
+                                <option value="">Tous</option>
+                                <option value="active">Actifs</option>
+                                <option value="inactive">Inactifs</option>
+                                <option value="vip">VIP</option>
+                            </select>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="flex flex-col gap-2 justify-center">
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" v-model="structFilterGPS" class="rounded">
+                                <span class="text-sm text-slate-600 font-bold">Géolocalisés uniquement</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" v-model="structFilterHasContacts" class="rounded">
+                                <span class="text-sm text-slate-600 font-bold">Avec contacts</span>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
                 <div class="bg-white rounded-lg shadow overflow-hidden flex-1 overflow-y-auto">
                      <table class="w-full text-left">
                         <thead class="bg-slate-50 border-b text-xs uppercase text-slate-500"><tr><th class="p-4">Nom</th><th class="p-4">Ville</th><th class="p-4">Saison / Horaires</th><th class="p-4">Contacts</th><th class="p-4 text-right">Actions</th></tr></thead>
