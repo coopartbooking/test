@@ -241,6 +241,10 @@ createApp({
             activityLog:          [],
             // Notification tâches (flag pour n'afficher qu'une fois)
             _tasksAlertShown:     false,
+            // Tooltips d'aide (activables/désactivables)
+            tooltipsEnabled:      true,
+            // Statut connexion internet
+            isOnline:             true,
             collaboratorsLoading: false,
             adminEmails: [],
             allowedEmails: [],          // Liste blanche des emails autorisés à s'inscrire
@@ -268,6 +272,10 @@ createApp({
     // WATCHERS
     // ─────────────────────────────────────────────────────────────────────────
     watch: {
+        // Sauvegarde la préférence tooltips
+        tooltipsEnabled(val) {
+            localStorage.setItem('coopArtTooltips', val ? '1' : '0');
+        },
         // Recharge le menu quand le statut admin change
         isAdmin(newVal, oldVal) {
             if (oldVal !== undefined && newVal !== oldVal) {
@@ -650,7 +658,21 @@ async removeGlobalTag(familyName, tag) {
                 this.currentUser     = user.uid;
                 this.currentUserName = user.displayName || user.email || user.uid;
                 this._startInactivityWatcher(); // Démarre la surveillance d'inactivité
+                // Charger préférence tooltips
+                const savedTooltips = localStorage.getItem('coopArtTooltips');
+                if (savedTooltips !== null) this.tooltipsEnabled = savedTooltips === '1';
                 this.requestNotificationPermission(); // Demande permission notifications
+
+                // Surveillance de la connexion internet
+                this.isOnline = navigator.onLine;
+                window.addEventListener('online',  () => {
+                    this.isOnline = true;
+                    Swal.fire({ title: 'Connexion rétablie ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                });
+                window.addEventListener('offline', () => {
+                    this.isOnline = false;
+                    Swal.fire({ title: 'Hors ligne', html: 'Vous travaillez en mode hors ligne.<br><small>Les modifications seront synchronisées au retour de la connexion.</small>', icon: 'warning', toast: true, position: 'top-end', timer: 4000, showConfirmButton: false });
+                });
                 this._startTokenCheck();           // Démarre la vérification du token
 
                 // ── Enregistrement de l'utilisateur dans le registre ──

@@ -18,6 +18,66 @@
     <link rel="dns-prefetch" href="https://tile.openstreetmap.org">
     <link rel="dns-prefetch" href="https://data.culture.gouv.fr">
 
+    <style>
+    /* ═══ TOOLTIPS D'AIDE ═══ */
+    .no-tooltips [data-tooltip]::after,
+    .no-tooltips [data-tooltip]::before { display: none !important; }
+
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%) translateY(4px);
+        background: #1e293b;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        white-space: normal;
+        max-width: 200px;
+        text-align: center;
+        line-height: 1.4;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    [data-tooltip]::before {
+        content: '';
+        position: absolute;
+        bottom: calc(100% + 2px);
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #1e293b;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 9999;
+    }
+    [data-tooltip]:hover::after,
+    [data-tooltip]:hover::before { opacity: 1; transform: translateX(-50%) translateY(0); }
+    [data-tooltip]:hover::before  { transform: translateX(-50%); }
+    [data-tooltip-pos="right"]::after {
+        bottom: auto; top: 50%;
+        left: calc(100% + 8px);
+        transform: translateY(-50%) translateX(-4px);
+    }
+    [data-tooltip-pos="right"]::before {
+        bottom: auto; top: 50%;
+        left: calc(100% + 2px);
+        transform: translateY(-50%);
+        border-top-color: transparent;
+        border-right-color: #1e293b;
+    }
+    [data-tooltip-pos="right"]:hover::after  { transform: translateY(-50%) translateX(0); }
+    [data-tooltip-pos="right"]:hover::before { transform: translateY(-50%); }
+    </style>
+
     <!-- ═══ CONTENT SECURITY POLICY ═══
          Autorise uniquement les sources connues et nécessaires.
          Bloque l'exécution de scripts ou styles provenant de sources inconnues.
@@ -142,12 +202,19 @@
                         <i class="fas fa-sign-out-alt"></i> Déconnexion
                     </button>
                 </div>
+                <!-- Toggle tooltips -->
+                <button @click="tooltipsEnabled = !tooltipsEnabled"
+                        class="mt-1 text-[9px] font-bold transition flex items-center gap-1"
+                        :class="tooltipsEnabled ? 'text-indigo-400 hover:text-indigo-300' : 'text-slate-600 hover:text-slate-400'">
+                    <i :class="tooltipsEnabled ? 'fas fa-question-circle' : 'far fa-question-circle'"></i>
+                    {{ tooltipsEnabled ? 'Aide activée' : 'Aide désactivée' }}
+                </button>
             </div>
         </div>
         <nav class="flex-1 overflow-y-auto py-2">
             <div class="nav-header">Pilotage</div>
-            <div @click="tab='dashboard'" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
-            <div @click="tab='tasks'" :class="['nav-item', tab==='tasks'?'active':'']">
+            <div @click="tab='dashboard'" data-tooltip="Vue d'ensemble de votre activité" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
+            <div @click="tab='tasks'" data-tooltip="Gérer vos tâches et suivis" :class="['nav-item', tab==='tasks'?'active':'']">
                 <i class="fas fa-tasks"></i> Tâches & Suivi
                 <span v-if="tasksOverdue.length > 0"
                       class="ml-auto bg-red-500 text-white px-2 rounded-full text-[10px] animate-pulse font-bold"
@@ -160,14 +227,14 @@
                 </span>
             </div>
             <div class="nav-header">Données</div>
-            <div @click="tab='structures'" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
-            <div @click="tab='contacts'" :class="['nav-item', tab==='contacts'?'active':'']"><i class="fas fa-address-book"></i> Annuaire Pro</div>
-            <div @click="tab='projects'" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Projets</div>
+            <div @click="tab='structures'" data-tooltip="Annuaire des lieux et structures" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
+            <div @click="tab='contacts'" data-tooltip="Tous vos contacts" :class="['nav-item', tab==='contacts'?'active':'']"><i class="fas fa-address-book"></i> Annuaire Pro</div>
+            <div @click="tab='projects'" data-tooltip="Gérer vos projets artistiques" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Projets</div>
             <div class="nav-header">Production</div>
-            <div @click="tab='pipeline'" :class="['nav-item', tab==='pipeline'?'active':'']"><i class="fas fa-columns text-yellow-400"></i> Pipeline Commercial</div>
-            <div @click="tab='planning'" :class="['nav-item', tab==='planning'?'active':'']"><i class="fas fa-calendar-alt"></i> Agendas partagés</div>
-            <div @click="tab='geo'" :class="['nav-item', tab==='geo'?'active':'']"><i class="fas fa-map-marked-alt text-emerald-400"></i> Carte & Invitations</div>
-            <div @click="tab='mailing'" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
+            <div @click="tab='pipeline'" data-tooltip="Suivi des négociations en cours" :class="['nav-item', tab==='pipeline'?'active':'']"><i class="fas fa-columns text-yellow-400"></i> Pipeline Commercial</div>
+            <div @click="tab='planning'" data-tooltip="Agenda et planning des dates" :class="['nav-item', tab==='planning'?'active':'']"><i class="fas fa-calendar-alt"></i> Agendas partagés</div>
+            <div @click="tab='geo'" data-tooltip="Carte géographique des structures" :class="['nav-item', tab==='geo'?'active':'']"><i class="fas fa-map-marked-alt text-emerald-400"></i> Carte & Invitations</div>
+            <div @click="tab='mailing'" data-tooltip="Campagnes email et mailings" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
             <div @click="tab='settings'" :class="['nav-item', tab==='settings'?'active':'']"><i class="fas fa-cog text-slate-400"></i> Paramètres</div>
             <div v-if="isAdmin" @click="tab='admin'; loadAdminUsers()" :class="['nav-item', tab==='admin'?'active':'']"><i class="fas fa-shield-alt text-red-400"></i> Administration</div>
         </nav>
@@ -635,7 +702,7 @@
 
                                         <!-- Lien reset mdp -->
                                         <button @click="sendCollaboratorPasswordReset(collab)"
-                                                title="Envoyer un lien de réinitialisation"
+                                                data-tooltip="Envoyer un lien de réinitialisation du mot de passe"
                                                 class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
                                             <i class="fas fa-key"></i>
                                         </button>
@@ -643,13 +710,13 @@
                                         <!-- Activer / Désactiver -->
                                         <button v-if="collab.isActive"
                                                 @click="disableCollaborator(collab)"
-                                                title="Désactiver ce collaborateur"
+                                                data-tooltip="Désactiver l'accès de ce collaborateur"
                                                 class="text-slate-400 hover:text-red-500 transition text-sm px-1">
                                             <i class="fas fa-user-slash"></i>
                                         </button>
                                         <button v-else
                                                 @click="enableCollaborator(collab)"
-                                                title="Réactiver ce collaborateur"
+                                                data-tooltip="Réactiver l'accès de ce collaborateur"
                                                 class="text-slate-400 hover:text-emerald-500 transition text-sm px-1">
                                             <i class="fas fa-user-check"></i>
                                         </button>
@@ -1257,6 +1324,7 @@
                                 <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{{ (s.contacts||[]).length }}</span></td>
                                <td class="p-4 text-right whitespace-nowrap">
     <button @click="openCrmView(s)" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-1.5 rounded-lg text-xs font-bold transition mr-2 shadow-sm"><i class="fas fa-folder-open mr-1"></i> Fiche CRM</button>
+    <button @click="exportStructurePDF(s)" class="text-slate-300 hover:text-indigo-500 px-2 transition" data-tooltip="Exporter la fiche en PDF"><i class="fas fa-file-pdf"></i></button>
     <button @click="deleteStructure(s)" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fas fa-trash"></i></button>
 </td> 
                             </tr>
