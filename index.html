@@ -3,6 +3,17 @@
 <head>
     <meta charset="UTF-8">
 
+    <!-- ═══ PWA — Progressive Web App ═══ -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CoopArt">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
+
     <!-- ═══ PRECONNECT — Connexions DNS/TLS anticipées ═══
          Réduit le temps de chargement des CDN de ~200ms
     ════════════════════════════════════════════════════ -->
@@ -3524,5 +3535,28 @@
 
 </div><!-- /#app -->
 <script type="module" src="./js/app.js?v=9"></script>
+    <script>
+        // Enregistrement du Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => {
+                        // Vérifier les mises à jour
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Nouvelle version disponible
+                                    if (confirm('Une mise à jour est disponible. Recharger ?')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.error('Service Worker:', err));
+            });
+        }
+    </script>
 </body>
 </html>
