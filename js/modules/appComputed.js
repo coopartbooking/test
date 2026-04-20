@@ -15,6 +15,93 @@ export const appComputed = {
         return true; // Lecteur, Éditeur et Admin peuvent tous exporter
     },
 
+    // ── STATISTIQUES TABLEAU DE BORD ──
+
+    // CA et stats par projet
+    statsByProject() {
+        return (this.db.projects || []).map(p => {
+            const events     = (this.db.events || []).filter(e => e.projectId === p.id);
+            const confirmed  = events.filter(e => e.status === 'conf' || e.stage === 'won');
+            const inProgress = events.filter(e => e.stage && e.stage !== 'won' && e.stage !== 'ann');
+            const ca         = confirmed.reduce((s, e) => s + (Number(e.fee) || 0), 0);
+            const caEstim    = inProgress.reduce((s, e) => s + (Number(e.fee) || 0), 0);
+            return {
+                id:          p.id,
+                name:        p.name,
+                color:       p.color || '#6366f1',
+                confirmed:   confirmed.length,
+                inProgress:  inProgress.length,
+                ca,
+                caEstim,
+                total:       events.length,
+            };
+        }).sort((a, b) => b.ca - a.ca);
+    },
+
+    // CA total estimé (pipeline en cours)
+    totalCAEstim() {
+        return (this.db.events || [])
+            .filter(e => e.stage && e.stage !== 'won' && e.stage !== 'ann')
+            .reduce((s, e) => s + (Number(e.fee) || 0), 0);
+    },
+
+    // Taux de conversion par étape du pipeline
+    conversionFunnel() {
+        const stages = ['lead', 'contact', 'nego', 'option', 'contract', 'won'];
+        const total  = (this.db.events || []).filter(e => e.stage !== 'ann').length;
+        return stages.map(id => {
+            const col   = (this.pipelineCols || []).find(c => c.id === id);
+            const count = (this.db.events || []).filter(e => (e.stage || 'lead') === id).length;
+            return {
+                id,
+                name:  col ? col.name : id,
+                color: col ? col.dotColor : 'bg-slate-400',
+                count,
+                pct:   total > 0 ? Math.round(count / total * 100) : 0,
+            };
+        });
+    },
+
+    // Taux de conversion global lead → won
+    globalConversionRate() {
+        const total = (this.db.events || []).filter(e => e.stage !== 'ann').length;
+        const won   = (this.db.events || []).filter(e => e.stage === 'won').length;
+        return total > 0 ? Math.round(won / total * 100) : 0;
+    },
+
+    // Évolution du CA confirmé par mois (12 derniers mois)
+    caByMonth() {
+        const months = [];
+        const now    = new Date();
+        for (let i = 11; i >= 0; i--) {
+            const d     = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+            const ca    = (this.db.events || [])
+                .filter(e => (e.status === 'conf' || e.stage === 'won') && e.date && e.date.startsWith(key))
+                .reduce((s, e) => s + (Number(e.fee) || 0), 0);
+            months.push({ key, label, ca });
+        }
+        return months;
+    },
+
+    // Max CA mensuel (pour normaliser les barres)
+    caByMonthMax() {
+        return Math.max(...this.caByMonth.map(m => m.ca), 1);
+    },
+
+    // Top 5 lieux les plus sollicités
+    topVenues() {
+        const counts = {};
+        (this.db.events || []).filter(e => e.venueName && e.stage !== 'ann').forEach(e => {
+            const key = e.venueName;
+            if (!counts[key]) counts[key] = { name: key, city: e.city || '', count: 0, ca: 0 };
+            counts[key].count++;
+            counts[key].ca += Number(e.fee) || 0;
+        });
+        return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+    },
+
     // ── Tableau de bord : prochaines dates à venir ──
     dashboardNextDates() {
         const today = new Date().toISOString().slice(0, 10);
