@@ -199,6 +199,170 @@ export const crmMethods = {
         Swal.fire({ title: 'PDF exporté ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
     },
 
+    // ─── DÉTECTION ET FUSION DE DOUBLONS ─────────────────────────────────────
+
+    // Similarité entre deux chaînes (0-100%)
+    _stringSimilarity(a, b) {
+        if (!a || !b) return 0;
+        a = a.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        b = b.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        if (a === b) return 100;
+        if (!a.length || !b.length) return 0;
+        // Score basé sur les caractères communs
+        const longer  = a.length > b.length ? a : b;
+        const shorter = a.length > b.length ? b : a;
+        let matches = 0;
+        const used   = new Array(longer.length).fill(false);
+        for (let i = 0; i < shorter.length; i++) {
+            for (let j = 0; j < longer.length; j++) {
+                if (!used[j] && shorter[i] === longer[j]) {
+                    matches++;
+                    used[j] = true;
+                    break;
+                }
+            }
+        }
+        return Math.round(matches / longer.length * 100);
+    },
+
+    // Détecte les doublons potentiels dans la base
+    findDuplicates() {
+        const structs = this.db.structures;
+        const pairs   = [];
+        const seen    = new Set();
+
+        for (let i = 0; i < structs.length; i++) {
+            for (let j = i + 1; j < structs.length; j++) {
+                const a = structs[i];
+                const b = structs[j];
+                const key = `${a.id}-${b.id}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                const nameSimilarity = this._stringSimilarity(a.name, b.name);
+                const sameCity = a.city && b.city &&
+                    a.city.toLowerCase().trim() === b.city.toLowerCase().trim();
+
+                // Doublon probable : nom très similaire (>80%) OU même ville + nom similaire (>60%)
+                const score = nameSimilarity >= 80 ? nameSimilarity
+                            : (sameCity && nameSimilarity >= 60) ? nameSimilarity
+                            : 0;
+
+                if (score > 0) {
+                    pairs.push({ a, b, score, sameCity });
+                }
+            }
+        }
+
+        // Trier par score décroissant
+        this.duplicatePairs = pairs.sort((x, y) => y.score - x.score);
+        this.showDuplicatesModal = true;
+
+        if (!this.duplicatePairs.length) {
+            this.showDuplicatesModal = false;
+            Swal.fire({
+                title: 'Aucun doublon détecté ✓',
+                html: 'Votre base ne contient pas de structures avec des noms similaires.',
+                icon: 'success',
+                confirmButtonColor: '#4f46e5',
+            });
+        }
+    },
+
+    // Prépare la fusion : source = à absorber, target = à conserver
+    prepareMerge(pair, keepIndex) {
+        this.duplicateMergeSource = keepIndex === 0 ? pair.b : pair.a; // à supprimer
+        this.duplicateMergeTarget = keepIndex === 0 ? pair.a : pair.b; // à garder
+    },
+
+    // Effectue la fusion
+    async confirmMerge() {
+        const src = this.duplicateMergeSource;
+        const tgt = this.duplicateMergeTarget;
+        if (!src || !tgt) return;
+
+        const r = await Swal.fire({
+            title: 'Confirmer la fusion ?',
+            html: `<p>La fiche <strong>${src.name}</strong> sera absorbée dans <strong>${tgt.name}</strong>.</p>
+                   <p class="text-sm text-slate-500 mt-2">Les contacts, commentaires et tags seront fusionnés.<br>La fiche source sera supprimée.</p>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            confirmButtonText: 'Fusionner',
+            cancelButtonText: 'Annuler',
+        });
+
+        if (!r.isConfirmed) return;
+
+        // Trouver les fiches dans la base
+        const tgtIdx = this.db.structures.findIndex(s => s.id === tgt.id);
+        if (tgtIdx === -1) return;
+
+        const merged = { ...this.db.structures[tgtIdx] };
+
+        // Fusionner les contacts (éviter les doublons par email)
+        const existingEmails = new Set((merged.contacts || []).map(c => c.emailPro || c.email || '').filter(Boolean));
+        const newContacts = (src.contacts || []).filter(c => {
+            const email = c.emailPro || c.email || '';
+            return !email || !existingEmails.has(email);
+        });
+        merged.contacts = [...(merged.contacts || []), ...newContacts];
+
+        // Fusionner les commentaires
+        merged.comments = [
+            ...(merged.comments || []),
+            ...(src.comments || []).map(c => ({ ...c, text: `[Fusionné depuis ${src.name}] ${c.text}` })),
+        ].sort((a, b) => (b.id || 0) - (a.id || 0));
+
+        // Fusionner les tags
+        ['categories', 'genres', 'reseaux', 'keywords'].forEach(key => {
+            const existing = new Set(merged.tags?.[key] || []);
+            (src.tags?.[key] || []).forEach(t => existing.add(t));
+            if (!merged.tags) merged.tags = {};
+            merged.tags[key] = [...existing];
+        });
+
+        // Compléter les champs vides
+        ['phone1', 'phone2', 'mobile', 'email', 'website', 'address', 'zip', 'capacity', 'season', 'notes'].forEach(field => {
+            if (!merged[field] && src[field]) merged[field] = src[field];
+        });
+        // GPS
+        if ((!merged.lat || !merged.lng) && src.lat && src.lng) {
+            merged.lat = src.lat;
+            merged.lng = src.lng;
+        }
+
+        // Mettre à jour les affaires qui référencent la source
+        (this.db.events || []).forEach(e => {
+            if (e.venueId === src.id) e.venueId = tgt.id;
+            if (e.venueName === src.name) e.venueName = tgt.name;
+        });
+
+        // Supprimer la source et mettre à jour la cible
+        this.db.structures[tgtIdx] = merged;
+        this.db.structures = this.db.structures.filter(s => s.id !== src.id);
+
+        this.logActivity('Structures fusionnées', `${src.name} → ${tgt.name}`);
+        this.saveDB();
+
+        // Retirer la paire fusionnée de la liste
+        this.duplicatePairs = this.duplicatePairs.filter(p => p.a.id !== src.id && p.b.id !== src.id);
+        this.duplicateMergeSource = null;
+        this.duplicateMergeTarget = null;
+
+        Swal.fire({
+            title: 'Fusion effectuée ✓',
+            html: `<strong>${src.name}</strong> a été fusionné dans <strong>${tgt.name}</strong>.`,
+            icon: 'success',
+            toast: true, position: 'top-end', timer: 3000, showConfirmButton: false,
+        });
+    },
+
+    cancelMerge() {
+        this.duplicateMergeSource = null;
+        this.duplicateMergeTarget = null;
+    },
+
     deleteStructure(s) {
         Swal.fire({ title: 'Supprimer ?', text: "Supprimer la structure et ses contacts ?", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
             .then(r => { if (r.isConfirmed) {

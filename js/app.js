@@ -89,6 +89,12 @@ createApp({
 
             // Annuaire & contacts
             searchContact: '', searchStruct: '',
+            // Fusion de doublons
+            showDuplicatesModal:  false,
+            duplicatePairs:       [],
+            duplicateMergeSource: null,
+            duplicateMergeTarget: null,
+
             // Filtres avancés structures
             structFilterCat:         '',
             structFilterGenre:       '',
