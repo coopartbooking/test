@@ -78,6 +78,94 @@ export const adminMethods = {
         }
     },
 
+    async exportFullExcel() {
+        await this.requireXLSX();
+        try {
+            const wb = XLSX.utils.book_new();
+
+            // ── Feuille 1 : Structures ──
+            const structRows = (this.db.structures || []).map(s => ({
+                'Nom':           s.name        || '',
+                'Ville':         s.city         || '',
+                'Code postal':   s.zip          || '',
+                'Région':        s.region       || '',
+                'Adresse':       s.address      || '',
+                'Téléphone':     s.phone1       || '',
+                'Email':         s.email        || '',
+                'Site web':      s.website      || '',
+                'Capacité':      s.capacity     || '',
+                'Saison':        s.season       || '',
+                'Catégories':    (s.tags?.categories || []).join(', '),
+                'Genres':        (s.tags?.genres     || []).join(', '),
+                'Réseaux':       (s.tags?.reseaux    || []).join(', '),
+                'Notes':         s.notes        || '',
+                'Actif':         s.isActive !== false ? 'Oui' : 'Non',
+                'VIP':           s.isVip ? 'Oui' : 'Non',
+                'GPS Lat':       s.lat          || '',
+                'GPS Lng':       s.lng          || '',
+                'Nb contacts':   (s.contacts    || []).length,
+                'Date création': s.createdDate ? new Date(s.createdDate).toLocaleDateString('fr-FR') : '',
+            }));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(structRows), 'Structures');
+
+            // ── Feuille 2 : Contacts ──
+            const contactRows = [];
+            (this.db.structures || []).forEach(s => {
+                (s.contacts || []).forEach(c => {
+                    contactRows.push({
+                        'Prénom':        c.firstName    || '',
+                        'Nom':           c.lastName     || '',
+                        'Fonction':      c.role         || '',
+                        'Structure':     s.name         || '',
+                        'Ville':         s.city         || '',
+                        'Email pro':     c.emailPro     || '',
+                        'Email perso':   c.emailPerso   || '',
+                        'Téléphone':     c.phone        || '',
+                        'Mobile':        c.mobile       || '',
+                        'Notes':         c.notes        || '',
+                        'Privé':         c.isPrivate ? 'Oui' : 'Non',
+                        'Date création': c.createdDate ? new Date(c.createdDate).toLocaleDateString('fr-FR') : '',
+                    });
+                });
+            });
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactRows), 'Contacts');
+
+            // ── Feuille 3 : Affaires (pipeline) ──
+            const eventRows = (this.db.events || []).map(e => ({
+                'Lieu':          e.venueName    || '',
+                'Ville':         e.city         || '',
+                'Projet':        this.getProjectName(e.projectId) || '',
+                'Date':          e.date         || '',
+                'Étape':         e.stage        || '',
+                'Statut':        e.status       || '',
+                'Cachet':        e.fee          || '',
+                'Type contrat':  e.contractType || '',
+                'Contact':       e.contactName  || '',
+                'Notes':         e.notes        || '',
+            }));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eventRows), 'Affaires');
+
+            // ── Feuille 4 : Projets ──
+            const projectRows = (this.db.projects || []).map(p => ({
+                'Nom':          p.name         || '',
+                'Description':  p.description  || '',
+                'Actif':        p.isActive !== false ? 'Oui' : 'Non',
+                'Nb affaires':  (this.db.events || []).filter(e => e.projectId === p.id).length,
+                'CA confirmé':  (this.db.events || []).filter(e => e.projectId === p.id && (e.status === 'conf' || e.stage === 'won')).reduce((s, e) => s + (Number(e.fee) || 0), 0),
+            }));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projectRows), 'Projets');
+
+            // Télécharger
+            const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
+            XLSX.writeFile(wb, `CoopArtBooking_export_${date}.xlsx`);
+
+            Swal.fire({ title: 'Export Excel téléchargé ✓', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+        } catch (e) {
+            console.error("Erreur export Excel");
+            Swal.fire('Erreur', 'Impossible de générer le fichier Excel : ' + e.message, 'error');
+        }
+    },
+
     async importFullDB(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -96,8 +184,35 @@ export const adminMethods = {
 
         try {
             Swal.fire({ title: 'Restauration...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const text    = await file.text();
-            const backup  = JSON.parse(text);
+            const text   = await file.text();
+            const backup = JSON.parse(text);
+
+            // Validation : vérifier que c'est bien un backup CoopArt
+            if (!backup.exportDate && !backup.structures && !backup.projects) {
+                throw new Error('Ce fichier ne semble pas être un backup CoopArt Booking valide.');
+            }
+
+            // Afficher les infos du backup avant restauration
+            const backupInfo = `
+                <div class="text-left text-sm space-y-1 mt-2">
+                    <div><b>Exporté le :</b> ${backup.exportDate ? new Date(backup.exportDate).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '?'}</div>
+                    <div><b>Par :</b> ${backup.exportBy || '?'}</div>
+                    <div><b>Structures :</b> ${(backup.structures || []).length}</div>
+                    <div><b>Affaires :</b> ${(backup.events || []).length}</div>
+                    <div><b>Projets :</b> ${(backup.projects || []).length}</div>
+                    <div><b>Tâches :</b> ${(backup.tasks || []).length}</div>
+                </div>`;
+
+            const confirm2 = await Swal.fire({
+                title: 'Confirmer la restauration ?',
+                html: `${backupInfo}<p class="text-red-600 font-bold text-xs mt-3">⚠️ Toutes les données actuelles seront remplacées.</p>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Oui, restaurer',
+                cancelButtonText: 'Annuler',
+            });
+            if (!confirm2.isConfirmed) return Swal.close();
 
             // Restaurer données utilisateur
             this.db.projects        = backup.projects        || [];

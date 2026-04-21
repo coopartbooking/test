@@ -829,25 +829,38 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6">
                         <h3 class="font-bold text-slate-800 text-lg mb-1"><i class="fas fa-database text-red-500 mr-2"></i> Gestion de la Base de Données</h3>
                         <p class="text-xs text-slate-400 mb-6">Sauvegardez, restaurez ou réinitialisez les données de l'application.</p>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Export JSON -->
                             <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
                                 <div class="flex items-center gap-2 mb-2">
-                                    <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><i class="fas fa-download text-emerald-600"></i></div>
-                                    <h4 class="font-bold text-slate-800">Exporter</h4>
+                                    <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-code text-emerald-600"></i></div>
+                                    <h4 class="font-bold text-slate-800 text-sm">JSON complet</h4>
                                 </div>
-                                <p class="text-xs text-slate-500 mb-4">Télécharge un fichier <code class="bg-white px-1 rounded">.json</code> complet de toute la base.</p>
-                                <button @click="exportFullDB" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
-                                    <i class="fas fa-file-download"></i> Télécharger la sauvegarde
+                                <p class="text-xs text-slate-500 mb-4">Sauvegarde complète — structures, contacts, affaires, projets, tâches.</p>
+                                <button @click="exportFullDB" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-download"></i> Télécharger .json
                                 </button>
                             </div>
+                            <!-- Export Excel -->
+                            <div class="bg-teal-50 border border-teal-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-excel text-teal-600"></i></div>
+                                    <h4 class="font-bold text-slate-800 text-sm">Excel multi-feuilles</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4">Structures, contacts et affaires dans 3 feuilles Excel séparées.</p>
+                                <button @click="exportFullExcel" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-file-excel"></i> Télécharger .xlsx
+                                </button>
+                            </div>
+                            <!-- Import JSON -->
                             <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-upload text-blue-600"></i></div>
-                                    <h4 class="font-bold text-slate-800">Restaurer</h4>
+                                    <h4 class="font-bold text-slate-800 text-sm">Restaurer JSON</h4>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> et remplace la base actuelle.</p>
-                                <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fas fa-file-upload"></i> Charger un fichier
+                                <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fas fa-file-upload"></i> Charger .json
                                     <input type="file" @change="importFullDB" class="hidden" accept=".json">
                                 </label>
                             </div>
