@@ -327,11 +327,6 @@ export const planningMethods = {
     deleteEvent() {
         if (confirm('Supprimer cette affaire définitivement ?')) {
             this.db.events = this.db.events.filter(e => e.id !== this.editEventData.id);
-            const isNew = !this.db.events.some(e => e.id === this.editEventData.id);
-            this.logActivity(
-                isNew ? 'Affaire créée' : 'Affaire modifiée',
-                (this.editEventData.venueName || 'Lieu inconnu') + (this.editEventData.city ? ' — ' + this.editEventData.city : '')
-            );
             this.saveDB();
             this.showEventModal = false;
         }
@@ -339,21 +334,11 @@ export const planningMethods = {
 
     // --- PIPELINE KANBAN ---
     getPipelineEvents(stageId) {
-        const search = (this.pipelineSearch || '').toLowerCase().trim();
         return this.db.events
             .filter(e => {
-                // Filtre par étape
                 const isStage = (e.stage || 'lead') === stageId;
-                // Filtre par projet
                 const isProj  = this.pipelineFilterProj === '' || e.projectId === this.pipelineFilterProj;
-                // Filtre par recherche texte (lieu, ville, contact, notes)
-                const isSearch = !search || [
-                    e.venueName   || '',
-                    e.city        || '',
-                    e.contactName || '',
-                    e.notes       || '',
-                ].some(v => v.toLowerCase().includes(search));
-                return isStage && isProj && isSearch;
+                return isStage && isProj;
             })
             .sort((a, b) => {
                 if (a.date && b.date) return new Date(a.date) - new Date(b.date);
@@ -466,56 +451,149 @@ export const planningMethods = {
         if (tpl) { this.mailSubject = tpl.subject; this.mailBody = tpl.body; }
     },
 
-    // Remplace les variables {{...}} dans un texte pour la prévisualisation
-    parseMailVars(text, contact) {
+    // Remplace les variables {{...}} dans un texte
+    parseMailVars(text, contact, includeUnsubscribe = false) {
         if (!text || !contact) return text || '';
+        const unsubLink = includeUnsubscribe
+            ? `[Pour vous désinscrire, répondez à cet email avec "DÉSINSCRIPTION"]`
+            : '';
         return text
-            .replace(/{{contactName}}/g, contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '')
-            .replace(/{{contactFirstName}}/g, contact.firstName || contact.name || '')
-            .replace(/{{structName}}/g, contact.structName || '')
-            .replace(/{{structCity}}/g, contact.structCity || '')
-            .replace(/{{userName}}/g, this.currentUser || '');
+            .replace(/{{contactName}}/g,      contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '')
+            .replace(/{{contactFirstName}}/g,  contact.firstName || contact.name || '')
+            .replace(/{{contactLastName}}/g,   contact.lastName  || '')
+            .replace(/{{contactRole}}/g,       contact.role      || '')
+            .replace(/{{structName}}/g,        contact.structName   || '')
+            .replace(/{{structCity}}/g,        contact.structCity   || '')
+            .replace(/{{structRegion}}/g,      contact.structRegion || '')
+            .replace(/{{userName}}/g,          this.currentUserName || this.currentUser || '')
+            .replace(/{{unsubscribeLink}}/g,   unsubLink);
     },
 
-    executeMailing() {
+    async executeMailing() {
         if (!this.selectedMailingContacts.length)
             return Swal.fire('Erreur', 'Sélectionnez au moins un destinataire.', 'warning');
         if (!this.mailSubject || !this.mailBody)
             return Swal.fire('Erreur', 'Le sujet et le corps du message sont obligatoires.', 'warning');
 
-        const hasVars = this.mailBody.includes('{{contactName}}')
-            || this.mailBody.includes('{{contactFirstName}}')
-            || this.mailBody.includes('{{structName}}');
+        const total    = this.selectedMailingContacts.length;
+        const hasVars  = /{{contact|{{struct/.test(this.mailBody);
+        const addUnsub = this.mailingAddUnsubscribe;
 
-        if (hasVars && this.selectedMailingContacts.length > 1) {
-            // Simulation envoi personnalisé
-            Swal.fire({ title: 'Envoi en cours', html: `Temporisation anti-spam... <br><b>0</b>/${this.selectedMailingContacts.length}`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            let count = 0;
-            const total = this.selectedMailingContacts.length;
-            const interval = setInterval(() => {
-                count++;
-                Swal.getHtmlContainer().innerHTML = `Temporisation anti-spam... <br><b>${count}</b>/${total}`;
-                if (count >= total) {
-                    clearInterval(interval);
-                    // Enregistrement dans l'historique
-                    if (!this.db.campaignHistory) this.db.campaignHistory = [];
-                    this.db.campaignHistory.unshift({
-                        id: Date.now(), date: new Date().toISOString(), sentBy: this.currentUser,
-                        subject: this.mailSubject, body: this.mailBody,
-                        recipientCount: total,
-                        recipients: this.selectedMailingContacts.map(c => ({ name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(), email: c.primaryEmail || c.emailPro, struct: c.structName }))
-                    });
-                    this.saveDB();
-                    Swal.fire('Campagne terminée', `${total} emails personnalisés envoyés (Simulation) !`, 'success');
-                    this.selectedMailingContacts = [];
-                }
-            }, 800);
+        // Confirmation avant envoi
+        const confirm = await Swal.fire({
+            title: `Envoyer à ${total} contact(s) ?`,
+            html: `<div class="text-left text-sm space-y-1 mt-2">
+                <div><b>Objet :</b> ${this.sanitizeText(this.mailSubject, 100)}</div>
+                <div><b>Personnalisation :</b> ${hasVars ? '✓ Variables activées' : '— Aucune variable'}</div>
+                <div><b>Lien désinscription :</b> ${addUnsub ? '✓ Inclus' : '— Non inclus'}</div>
+            </div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            confirmButtonText: `Envoyer à ${total} contact(s)`,
+            cancelButtonText: 'Annuler',
+        });
+        if (!confirm.isConfirmed) return;
+
+        // Afficher la barre de progression
+        Swal.fire({
+            title: 'Envoi en cours…',
+            html: `<div class="text-sm text-slate-500 mb-3">Préparation des emails…</div>
+                   <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                       <div id="swal-progress" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width:0%"></div>
+                   </div>
+                   <div id="swal-count" class="text-xs text-slate-400 mt-2">0 / ${total}</div>`,
+            allowOutsideClick: false,
+            showConfirmButton: false,
+        });
+
+        const updateProgress = (n) => {
+            const pct = Math.round(n / total * 100);
+            const bar = document.getElementById('swal-progress');
+            const cnt = document.getElementById('swal-count');
+            if (bar) bar.style.width = pct + '%';
+            if (cnt) cnt.textContent = `${n} / ${total} — ${pct}%`;
+        };
+
+        // Préparer les emails
+        const recipients = [];
+        for (let i = 0; i < total; i++) {
+            const c = this.selectedMailingContacts[i];
+            const email = c.primaryEmail || c.emailPro;
+            if (!email) continue;
+            const body    = this.parseMailVars(this.mailBody,    c, addUnsub);
+            const subject = this.parseMailVars(this.mailSubject, c, false);
+            recipients.push({ name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(), email, struct: c.structName, body, subject });
+            updateProgress(i + 1);
+            await new Promise(r => setTimeout(r, 50)); // micro-délai pour animation
+        }
+
+        // Ouvrir le client mail avec le premier contact (ou BCC pour envoi groupé)
+        if (hasVars) {
+            // Envoi personnalisé : ouvrir le premier, les autres sont dans l'historique
+            const first = recipients[0];
+            if (first) {
+                window.location.href = `mailto:${first.email}?subject=${encodeURIComponent(first.subject)}&body=${encodeURIComponent(first.body)}`;
+            }
         } else {
-            const bccList = this.selectedMailingContacts.map(c => c.primaryEmail || c.emailPro).filter(Boolean).join(',');
-            const bodyParsed = this.mailBody.replace(/{{userName}}/g, this.currentUser || 'Moi');
-            window.location.href = `mailto:?bcc=${bccList}&subject=${encodeURIComponent(this.mailSubject)}&body=${encodeURIComponent(bodyParsed)}`;
-            Swal.fire('Succès', 'Votre client de messagerie a été ouvert.', 'success');
-            this.selectedMailingContacts = [];
+            // Envoi groupé en BCC
+            const bccList   = recipients.map(r => r.email).join(',');
+            const bodyFinal = this.parseMailVars(this.mailBody, { userName: this.currentUserName }, addUnsub);
+            window.location.href = `mailto:?bcc=${bccList}&subject=${encodeURIComponent(this.mailSubject)}&body=${encodeURIComponent(bodyFinal)}`;
+        }
+
+        // Enregistrer dans l'historique
+        if (!this.db.campaignHistory) this.db.campaignHistory = [];
+        this.db.campaignHistory.unshift({
+            id:             Date.now(),
+            date:           new Date().toISOString(),
+            sentBy:         this.currentUserName || this.currentUser,
+            subject:        this.mailSubject,
+            body:           this.mailBody,
+            recipientCount: recipients.length,
+            hasVars,
+            addUnsub,
+            recipients:     recipients.map(r => ({ name: r.name, email: r.email, struct: r.struct })),
+        });
+        this.saveDB();
+
+        Swal.fire({
+            title: 'Campagne lancée ✓',
+            html: `<b>${recipients.length}</b> email(s) préparés.<br>
+                   <span class="text-sm text-slate-500">Votre client de messagerie a été ouvert.</span>`,
+            icon: 'success',
+            confirmButtonColor: '#4f46e5',
+        });
+        this.selectedMailingContacts = [];
+    },
+
+    // Renvoyer une campagne depuis l'historique
+    resendCampaign(campaign) {
+        this.mailSubject = campaign.subject;
+        this.mailBody    = campaign.body;
+        this.mailingActiveTab = 'compose';
+        Swal.fire({
+            title: 'Campagne chargée ✓',
+            html: 'Le sujet et le corps ont été rechargés.<br><span class="text-sm text-slate-500">Sélectionnez les destinataires et envoyez.</span>',
+            icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false,
+        });
+    },
+
+    // Marquer un contact comme désinscrit
+    unsubscribeContact(email) {
+        if (!email) return;
+        let found = false;
+        this.db.structures.forEach(s => {
+            (s.contacts || []).forEach(c => {
+                if ((c.emailPro || c.emailPerso || '').toLowerCase() === email.toLowerCase()) {
+                    c.isUnsubscribed = true;
+                    found = true;
+                }
+            });
+        });
+        if (found) {
+            this.saveDB();
+            Swal.fire({ title: 'Contact désinscrit', icon: 'info', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
         }
     },
 

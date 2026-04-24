@@ -137,7 +137,11 @@ createApp({
             selectedTemplateId: '',
             mailSubject: '', mailBody: '',
             previewContactIndex: 0,
+            mailingProgress: 0,
+            mailingProgressTotal: 0,
+            mailingInProgress: false,
             mailingTagFilter: {},
+            mailingAddUnsubscribe: true,  // Inclure un lien de désinscription
             mailingRightTab: 'contacts',
 
             // Carte géographique

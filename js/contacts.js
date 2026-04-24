@@ -85,7 +85,8 @@ export const contactsComputed = {
     },
 
     filteredMailingContacts() {
-        let list = this.validMailingContacts;
+        // Exclure automatiquement les contacts désinscrits
+        let list = this.validMailingContacts.filter(c => !c.isUnsubscribed);
 
         // Filtrage par tags
         const f = this.mailingTagFilter || {};

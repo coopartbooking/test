@@ -1997,6 +1997,10 @@
                             <button @click="toggleSelectAll" class="w-full text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded font-bold transition text-left">
                                 <i class="fas fa-check-square mr-1 text-indigo-500"></i> Tout sélectionner / désélectionner
                             </button>
+                            <div class="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                <i class="fas fa-ban text-red-400"></i>
+                                {{ (selectedMailingContacts.filter(c=>c.isUnsubscribed)).length }} désinscrits exclus
+                            </div>
                         </div>
 
                         <!-- Filtres par tags — scrollable -->
@@ -2077,7 +2081,14 @@
                             <div class="mb-4">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="input-label">Corps du message</label>
-                                    <span class="text-xs text-slate-400">Variables : <code class="bg-slate-100 px-1 rounded">&#123;&#123;contactFirstName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;structName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;structCity&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;userName&#125;&#125;</code></span>
+                                    <div class="flex flex-wrap gap-1">
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{contactFirstName}}'">{{contactFirstName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{contactLastName}}'">{{contactLastName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{structName}}'">{{structName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{structCity}}'">{{structCity}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{userName}}'">{{userName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-blue-700 cursor-pointer hover:bg-blue-50" @click="mailBody += '\n\n---\nPour ne plus recevoir nos emails : {{unsubscribeLink}}'" title="Ajouter un lien de désinscription">{{unsubscribeLink}}</code>
+                                    </div>
                                 </div>
                                 <textarea v-model="mailBody" rows="12" class="input-field resize-none font-mono text-sm" placeholder="Rédigez votre message..."></textarea>
                             </div>
@@ -2093,11 +2104,22 @@
                                     <i class="fas fa-file-csv"></i> Export Mailchimp
                                 </button>
                             </div>
-                            <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody"
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" v-model="mailingAddUnsubscribe" class="rounded">
+                                <span class="text-xs text-slate-600 font-bold">Inclure lien de désinscription</span>
+                            </label>
+                            <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody || mailingInProgress"
                                 class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold shadow transition disabled:opacity-40 disabled:cursor-not-allowed">
-                                <i class="fas fa-paper-plane"></i>
-                                Lancer la campagne ({{ selectedMailingContacts.length }})
+                                <i :class="mailingInProgress ? 'fas fa-circle-notch fa-spin' : 'fas fa-paper-plane'"></i>
+                                {{ mailingInProgress ? mailingProgress + ' / ' + mailingProgressTotal : 'Lancer la campagne (' + selectedMailingContacts.length + ')' }}
                             </button>
+                        </div>
+                        <!-- Barre de progression -->
+                        <div v-if="mailingInProgress" class="border-t border-slate-100 bg-white px-6 py-2">
+                            <div class="w-full bg-slate-100 rounded-full h-1.5">
+                                <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
+                                     :style="{ width: mailingProgressTotal > 0 ? (mailingProgress / mailingProgressTotal * 100) + '%' : '0%' }"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -2124,7 +2146,10 @@
                                         <i v-if="isContactSelected(c)" class="fas fa-check text-white text-[8px]"></i>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="font-bold text-sm text-slate-800 truncate">{{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}</div>
+                                        <div class="font-bold text-sm text-slate-800 truncate flex items-center gap-1">
+                                            {{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}
+                                            <span v-if="c.isUnsubscribed" class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black">DÉSINSCRIT</span>
+                                        </div>
                                         <div class="text-xs text-slate-400 truncate">{{ c.structName }} · {{ c.primaryEmail }}</div>
                                     </div>
                                 </div>
@@ -2221,11 +2246,24 @@
                                     </span>
                                 </div>
                                 <div class="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 mb-3 whitespace-pre-wrap line-clamp-3 leading-relaxed font-mono">{{ campaign.body }}</div>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <button @click="resendCampaign(campaign)"
+                                            class="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition flex items-center gap-1">
+                                        <i class="fas fa-redo"></i> Renvoyer
+                                    </button>
+                                    <span v-if="campaign.hasVars" class="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-bold">
+                                        <i class="fas fa-magic mr-1"></i>Personnalisé
+                                    </span>
+                                    <span v-if="campaign.addUnsub" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">
+                                        <i class="fas fa-user-minus mr-1"></i>Désinscription incluse
+                                    </span>
+                                </div>
                                 <details class="text-xs text-slate-500">
                                     <summary class="cursor-pointer font-bold text-slate-600 hover:text-indigo-600 transition">Voir les destinataires</summary>
                                     <div class="mt-2 flex flex-wrap gap-1">
-                                        <span v-for="r in campaign.recipients" :key="r.email" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                        <span v-for="r in campaign.recipients" :key="r.email" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
                                             {{ r.name }} ({{ r.struct }})
+                                            <button @click.stop="unsubscribeContact(r.email)" :title="'Désinscrire ' + r.email" class="text-slate-300 hover:text-red-400 transition ml-1"><i class="fas fa-times text-[8px]"></i></button>
                                         </span>
                                     </div>
                                 </details>
@@ -2254,7 +2292,16 @@
                         <div>
                             <div class="flex justify-between items-center mb-1">
                                 <label class="input-label">Corps du message</label>
-                                <span class="text-xs text-slate-400">Variables : <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;contactFirstName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;structName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;structCity&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;userName&#125;&#125;</code></span>
+                                <span class="text-xs text-slate-400 flex flex-wrap gap-1">
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactFirstName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactLastName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactRole}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{structName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{structCity}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{structRegion}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{userName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{unsubscribeLink}}</code>
+                            </span>
                             </div>
                             <textarea v-model="editTemplateData.body" rows="10" class="input-field resize-none font-mono text-sm" placeholder="Rédigez le corps de votre template..."></textarea>
                         </div>
