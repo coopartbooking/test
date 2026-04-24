@@ -380,7 +380,26 @@ export const planningMethods = {
 
     openProjectModal(p = null) {
         if (p) { this.editProjectData = JSON.parse(JSON.stringify(p)); this.isEditingProject = false; }
-        else   { this.editProjectData = { id: null, name: '', genre: '', duration: '', defaultFee: 0, feeType: 'HT', teamSize: 1, expenses: '', linkVideo: '', linkPress: '', linkTech: '', linkTree: '', icon: 'fas fa-music', color: '#3b82f6' }; this.isEditingProject = true; }
+        else   { this.editProjectData = { id: null, name: '', genre: '', duration: '', defaultFee: 0, feeType: 'HT', teamSize: 1, expenses: '',
+              linkVideo: '', linkPress: '', linkTech: '', linkTree: '',
+              icon: 'fas fa-music', color: '#3b82f6',
+              // Fiche artiste
+              bio:             '',
+              members:         '',
+              artistNote:      '',
+              minFee:          0,
+              contractTypes:   '',
+              fraisRoute:      '',
+              linkSpotify:     '',
+              linkInstagram:   '',
+              linkFacebook:    '',
+              linkAppleMusic:  '',
+              linkBandcamp:    '',
+              linkDeezer:      '',
+              photoLinks:      '',
+              labelDistrib:    '',
+              productionYear:  '',
+            }; this.isEditingProject = true; }
         this.showProjectModal = true;
     },
 

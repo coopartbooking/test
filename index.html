@@ -2837,7 +2837,7 @@
 
             <!-- Onglets navigation (vue seulement) -->
             <div v-if="!isEditingProject" class="flex border-b border-slate-200 bg-white flex-shrink-0">
-                <button v-for="t in [{k:'resume',i:'fas fa-chart-bar',l:'Résumé'},{k:'affaires',i:'fas fa-calendar-alt',l:'Affaires'},{k:'structures',i:'fas fa-building',l:'Structures'},{k:'contacts',i:'fas fa-address-book',l:'Contacts'},{k:'notes',i:'fas fa-sticky-note',l:'Notes'}]" :key="t.k"
+                <button v-for="t in [{k:'artiste',i:'fas fa-star',l:'Artiste'},{k:'resume',i:'fas fa-chart-bar',l:'Résumé'},{k:'affaires',i:'fas fa-calendar-alt',l:'Affaires'},{k:'structures',i:'fas fa-building',l:'Structures'},{k:'contacts',i:'fas fa-address-book',l:'Contacts'},{k:'notes',i:'fas fa-sticky-note',l:'Notes'}]" :key="t.k"
                     @click="projectTab = t.k"
                     :class="['px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5', projectTab===t.k ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
                     <i :class="t.i"></i> {{ t.l }}
@@ -2846,6 +2846,146 @@
                     <span v-if="t.k==='structures'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ getProjectStructures(editProjectData.id).length }}</span>
                     <span v-if="t.k==='notes'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ (editProjectData.notes||[]).length }}</span>
                 </button>
+            </div>
+
+            <!-- TAB ARTISTE -->
+            <div v-if="!isEditingProject && projectTab==='artiste'" class="p-6 overflow-y-auto bg-slate-50 flex-1 custom-scrollbar">
+                <div class="max-w-2xl mx-auto space-y-5">
+
+                    <!-- En-tête artiste -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-black text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-star text-yellow-400"></i> Fiche Artiste
+                            </h4>
+                            <button v-if="canEdit" @click="isEditingProject=true; projectTab='edit'"
+                                    class="text-xs text-indigo-600 hover:underline font-bold">
+                                <i class="fas fa-pen mr-1"></i>Modifier
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div v-if="editProjectData.genre">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Genre</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.genre }}</div>
+                            </div>
+                            <div v-if="editProjectData.productionYear">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Création</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.productionYear }}</div>
+                            </div>
+                            <div v-if="editProjectData.labelDistrib">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Label / Distribution</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.labelDistrib }}</div>
+                            </div>
+                            <div v-if="editProjectData.duration">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Durée spectacle</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.duration }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div v-if="editProjectData.bio" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-align-left text-indigo-400"></i> Biographie
+                        </h4>
+                        <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{{ editProjectData.bio }}</p>
+                    </div>
+
+                    <!-- Membres -->
+                    <div v-if="editProjectData.members" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-users text-purple-400"></i> Composition
+                        </h4>
+                        <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{{ editProjectData.members }}</p>
+                    </div>
+
+                    <!-- Conditions booking -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-handshake text-emerald-400"></i> Conditions de booking
+                        </h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Cachet catalogue</div>
+                                <div class="font-black text-indigo-600 text-lg">{{ formatMoney(editProjectData.defaultFee) }} {{ editProjectData.feeType||'HT' }}</div>
+                            </div>
+                            <div v-if="editProjectData.minFee">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Cachet minimum</div>
+                                <div class="font-black text-orange-500 text-lg">{{ formatMoney(editProjectData.minFee) }}</div>
+                            </div>
+                            <div v-if="editProjectData.contractTypes">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Types de contrat</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.contractTypes }}</div>
+                            </div>
+                            <div v-if="editProjectData.fraisRoute">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Frais de route</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.fraisRoute }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Équipe</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.teamSize || 1 }} personne(s)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Réseaux sociaux -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-share-alt text-pink-400"></i> Liens & Réseaux
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <a v-if="editProjectData.linkVideo" :href="editProjectData.linkVideo" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition text-sm font-bold">
+                                <i class="fab fa-youtube w-5 text-center"></i> Vidéo
+                            </a>
+                            <a v-if="editProjectData.linkSpotify" :href="editProjectData.linkSpotify" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition text-sm font-bold">
+                                <i class="fab fa-spotify w-5 text-center"></i> Spotify
+                            </a>
+                            <a v-if="editProjectData.linkInstagram" :href="editProjectData.linkInstagram" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-pink-50 text-pink-700 rounded-xl hover:bg-pink-100 transition text-sm font-bold">
+                                <i class="fab fa-instagram w-5 text-center"></i> Instagram
+                            </a>
+                            <a v-if="editProjectData.linkFacebook" :href="editProjectData.linkFacebook" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition text-sm font-bold">
+                                <i class="fab fa-facebook w-5 text-center"></i> Facebook
+                            </a>
+                            <a v-if="editProjectData.linkAppleMusic" :href="editProjectData.linkAppleMusic" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition text-sm font-bold">
+                                <i class="fab fa-apple w-5 text-center"></i> Apple Music
+                            </a>
+                            <a v-if="editProjectData.linkBandcamp" :href="editProjectData.linkBandcamp" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-teal-50 text-teal-700 rounded-xl hover:bg-teal-100 transition text-sm font-bold">
+                                <i class="fab fa-bandcamp w-5 text-center"></i> Bandcamp
+                            </a>
+                            <a v-if="editProjectData.linkPress" :href="editProjectData.linkPress" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition text-sm font-bold">
+                                <i class="fas fa-file-pdf w-5 text-center"></i> Dossier de presse
+                            </a>
+                            <a v-if="editProjectData.linkTech" :href="editProjectData.linkTech" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition text-sm font-bold">
+                                <i class="fas fa-sliders-h w-5 text-center"></i> Fiche technique
+                            </a>
+                            <a v-if="editProjectData.linkTree" :href="editProjectData.linkTree" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition text-sm font-bold">
+                                <i class="fas fa-globe w-5 text-center"></i> Site / Linktree
+                            </a>
+                            <div v-if="!editProjectData.linkVideo && !editProjectData.linkSpotify && !editProjectData.linkInstagram && !editProjectData.linkFacebook && !editProjectData.linkPress && !editProjectData.linkTech && !editProjectData.linkTree"
+                                 class="col-span-2 text-center text-slate-400 text-sm py-4 border-2 border-dashed rounded-xl">
+                                Aucun lien renseigné
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Note artistique interne -->
+                    <div v-if="editProjectData.artistNote" class="bg-amber-50 rounded-2xl border border-amber-100 p-5">
+                        <h4 class="font-bold text-amber-800 mb-2 flex items-center gap-2">
+                            <i class="fas fa-lock text-amber-400"></i> Note interne
+                        </h4>
+                        <p class="text-sm text-amber-700 leading-relaxed whitespace-pre-wrap">{{ editProjectData.artistNote }}</p>
+                    </div>
+
+                </div>
             </div>
 
             <!-- TAB RÉSUMÉ -->
@@ -3029,7 +3169,29 @@
                     <div class="col-span-2"><label class="input-label"><i class="fas fa-file-pdf text-blue-500 mr-1"></i> Lien Dossier de Presse (Drive, Dropbox...)</label><input v-model="editProjectData.linkPress" type="url" class="input-field" placeholder="https://..."></div>
                     <div class="col-span-2"><label class="input-label"><i class="fas fa-sliders-h text-slate-700 mr-1"></i> Lien Fiche Technique</label><input v-model="editProjectData.linkTech" type="url" class="input-field" placeholder="https://..."></div>
                     <div class="col-span-2"><label class="input-label"><i class="fas fa-globe text-emerald-500 mr-1"></i> Lien Linktree / Réseaux / Site Web</label><input v-model="editProjectData.linkTree" type="url" class="input-field" placeholder="https://linktr.ee/..."></div>
-                    
+
+                    <!-- Réseaux sociaux -->
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-share-alt text-pink-400 mr-2"></i>Réseaux sociaux</h4></div>
+                    <div><label class="input-label"><i class="fab fa-spotify text-green-500 mr-1"></i> Spotify</label><input v-model="editProjectData.linkSpotify" type="url" class="input-field" placeholder="https://open.spotify.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-instagram text-pink-500 mr-1"></i> Instagram</label><input v-model="editProjectData.linkInstagram" type="url" class="input-field" placeholder="https://instagram.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-facebook text-blue-600 mr-1"></i> Facebook</label><input v-model="editProjectData.linkFacebook" type="url" class="input-field" placeholder="https://facebook.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-apple mr-1"></i> Apple Music</label><input v-model="editProjectData.linkAppleMusic" type="url" class="input-field" placeholder="https://music.apple.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-bandcamp text-teal-600 mr-1"></i> Bandcamp</label><input v-model="editProjectData.linkBandcamp" type="url" class="input-field" placeholder="https://....bandcamp.com"></div>
+
+                    <!-- Fiche artiste -->
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-star text-yellow-400 mr-2"></i>Fiche artiste</h4></div>
+                    <div><label class="input-label">Année de création</label><input v-model="editProjectData.productionYear" class="input-field" placeholder="Ex: 2022"></div>
+                    <div><label class="input-label">Label / Distribution</label><input v-model="editProjectData.labelDistrib" class="input-field" placeholder="Ex: Autoproduit, Sony..."></div>
+                    <div class="col-span-2"><label class="input-label">Biographie artistique</label><textarea v-model="editProjectData.bio" rows="4" class="input-field resize-none" placeholder="Description du projet artistique, histoire, style..."></textarea></div>
+                    <div class="col-span-2"><label class="input-label">Composition (membres)</label><textarea v-model="editProjectData.members" rows="2" class="input-field resize-none" placeholder="Ex: Marie Dupont — Chant / Jean Martin — Guitare..."></textarea></div>
+
+                    <!-- Conditions booking -->
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-handshake text-emerald-400 mr-2"></i>Conditions de booking</h4></div>
+                    <div><label class="input-label">Cachet minimum (€)</label><input v-model.number="editProjectData.minFee" type="number" class="input-field" placeholder="0"></div>
+                    <div><label class="input-label">Types de contrat acceptés</label><input v-model="editProjectData.contractTypes" class="input-field" placeholder="Ex: Cession, Co-réalisation..."></div>
+                    <div class="col-span-2"><label class="input-label">Frais de route / hébergement</label><input v-model="editProjectData.fraisRoute" class="input-field" placeholder="Ex: 0,40€/km + 2 nuits hotel si > 200km"></div>
+                    <div class="col-span-2"><label class="input-label"><i class="fas fa-lock text-amber-400 mr-1"></i> Note interne (non partagée)</label><textarea v-model="editProjectData.artistNote" rows="2" class="input-field resize-none" placeholder="Notes internes sur les conditions, contacts, stratégie..."></textarea></div>
+
                     <!-- Apparence -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100 flex gap-6">
                         <div class="flex-1">
