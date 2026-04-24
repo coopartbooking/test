@@ -273,8 +273,7 @@ export const utilsMethods = {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
 
-        const paragraphs = body.split('
-');
+        const paragraphs = body.split('\n');
         paragraphs.forEach(para => {
             if (y > 260) { doc.addPage(); y = margin; }
             // Titre de section (ligne en majuscules ou commençant par #)
