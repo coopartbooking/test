@@ -161,43 +161,202 @@ export const utilsMethods = {
         XLSX.writeFile(workbook, filename);
     },
 
-    async generateContract(e) {
+    // ── Variables disponibles dans les contrats ──
+    _contractVars(e) {
+        const proj    = (this.db.projects || []).find(p => p.id === e.projectId) || {};
+        const dateStr = e.date ? this.formatDate(e.date) : 'Date à définir';
+        return {
+            '{{artiste}}':        proj.name                              || '',
+            '{{lieu}}':           e.venueName                            || '',
+            '{{ville}}':          e.city                                 || '',
+            '{{date}}':           dateStr,
+            '{{heure}}':          e.time                                 || '--:--',
+            '{{cachet}}':         this.formatMoney(e.fee || proj.defaultFee || 0),
+            '{{cachetType}}':     proj.feeType                           || 'HT',
+            '{{typeContrat}}':    e.contractType                         || 'Cession',
+            '{{producteur}}':     this.currentUserName || this.currentUser || '',
+            '{{teamSize}}':       String(proj.teamSize                   || 1),
+            '{{duree}}':          proj.duration                          || '',
+            '{{fraisRoute}}':     proj.fraisRoute                        || '',
+            '{{dateAujourdhui}}': new Date().toLocaleDateString('fr-FR'),
+            '{{notes}}':          e.notes                                || '',
+            '{{contactNom}}':     e.contactName                          || '',
+            '{{contactEmail}}':   e.contactEmail                         || '',
+        };
+    },
+
+    // ── Remplace les variables dans un texte ──
+    _parseContractVars(text, e) {
+        const vars = this._contractVars(e);
+        let result = text;
+        Object.entries(vars).forEach(([k, v]) => {
+            result = result.replaceAll(k, v);
+        });
+        return result;
+    },
+
+    // ── Ouvre le sélecteur de modèle de contrat ──
+    async openContractSelector(e) {
         if (!e || !e.id) return;
+        const templates = this.db.contractTemplates || [];
+
+        if (!templates.length) {
+            // Aucun modèle — générer le contrat par défaut
+            const r = await Swal.fire({
+                title: 'Aucun modèle de contrat',
+                html: `Vous n'avez pas encore créé de modèle personnalisé.<br>
+                       Voulez-vous utiliser le contrat par défaut ou créer un modèle ?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Contrat par défaut',
+                cancelButtonText: 'Créer un modèle',
+                confirmButtonColor: '#4f46e5',
+            });
+            if (r.isConfirmed) return this._generateDefaultContract(e);
+            this.showContractEditor = true;
+            this.editingContractTpl = null;
+            return;
+        }
+
+        // Choisir parmi les modèles
+        const options = templates.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
+        const r = await Swal.fire({
+            title: 'Choisir un modèle de contrat',
+            html: `<select id="swal-contract-tpl" class="swal2-input">
+                       <option value="">-- Choisir un modèle --</option>
+                       ${options}
+                   </select>`,
+            showCancelButton: true,
+            confirmButtonText: 'Générer le PDF',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#4f46e5',
+            preConfirm: () => {
+                const val = document.getElementById('swal-contract-tpl').value;
+                if (val === '') return Swal.showValidationMessage('Choisissez un modèle');
+                return Number(val);
+            }
+        });
+        if (!r.isConfirmed) return;
+        this.generateContractFromTemplate(e, templates[r.value]);
+    },
+
+    // ── Génère un PDF depuis un modèle personnalisé ──
+    async generateContractFromTemplate(e, template) {
         await this.requireJsPDF();
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const proj = this.db.projects.find(p => p.id === e.projectId);
-        const projName = proj ? proj.name : 'Projet inconnu';
-        const fee = e.fee || (proj ? proj.defaultFee : 0);
-        const feeType = proj ? (proj.feeType || 'HT') : 'HT';
-        const dateStr = e.date ? this.formatDate(e.date) : 'Date à définir';
+        const doc      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const proj     = (this.db.projects || []).find(p => p.id === e.projectId) || {};
+        const pageW    = 210;
+        const margin   = 20;
+        const colW     = pageW - margin * 2;
+        let   y        = margin;
 
-        doc.setFillColor(79, 70, 229); doc.rect(0, 0, 210, 30, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
-        doc.text('CONTRAT DE CESSION', 105, 20, null, null, 'center');
-        doc.setTextColor(0, 0, 0); doc.setFontSize(12); doc.setFont('helvetica', 'normal');
-        doc.text('ENTRE LES SOUSSIGNÉS :', 20, 50);
-        doc.text(`La production : ${this.currentUser || 'Votre Structure'} d'une part,`, 20, 60);
-        doc.text(`ET l'organisateur : ${e.venueName || '____________________'} à ${e.city || '____________________'} d'autre part.`, 20, 70);
-        doc.setFont('helvetica', 'bold'); doc.text('ARTICLE 1 : OBJET', 20, 90);
+        // ── En-tête couleur ──
+        const color = template.color || [79, 70, 229];
+        doc.setFillColor(...color);
+        doc.rect(0, 0, pageW, 35, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(255, 255, 255);
+        doc.text(template.title || 'CONTRAT', pageW / 2, 15, { align: 'center' });
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`L'organisateur engage la production pour la représentation du spectacle :`, 20, 100);
-        doc.text(`"${projName}"`, 30, 110);
-        doc.text(`Date : ${dateStr} à ${e.time || '--:--'}`, 30, 120);
-        doc.setFont('helvetica', 'bold'); doc.text('ARTICLE 2 : CONDITIONS FINANCIÈRES', 20, 140);
+        doc.text(proj.name || '', pageW / 2, 24, { align: 'center' });
+        const vars    = this._contractVars(e);
+        const dateStr = vars['{{date}}'];
+        doc.text(`${vars['{{lieu}}'] || ''} — ${dateStr}`, pageW / 2, 30, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        y = 50;
+
+        // ── Corps du contrat ──
+        const body = this._parseContractVars(template.body || '', e);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
-        if (e.contractType === 'coreal') {
-            doc.text(`L'organisateur s'engage à reverser à la production une part des recettes :`, 20, 150);
-            doc.text(`Pourcentage de la billetterie : ${e.corealPercentage || '_____'} %`, 30, 160);
-            doc.text(`Estimation du cachet : ${this.formatMoney(fee)} ${feeType}`, 30, 170);
-        } else {
-            doc.text(`L'organisateur s'engage à verser à la production un cachet de :`, 20, 150);
-            doc.text(`${this.formatMoney(fee)} ${feeType}`, 30, 160);
+
+        const paragraphs = body.split('
+');
+        paragraphs.forEach(para => {
+            if (y > 260) { doc.addPage(); y = margin; }
+            // Titre de section (ligne en majuscules ou commençant par #)
+            if (para.startsWith('#') || para === para.toUpperCase() && para.trim().length > 3) {
+                if (y > 20) y += 4;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.text(para.replace(/^#+\s*/, '').trim(), margin, y);
+                y += 6;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+            } else if (para.trim() === '') {
+                y += 4;
+            } else {
+                doc.setFontSize(10);
+                const lines = doc.splitTextToSize(para, colW);
+                doc.text(lines, margin, y);
+                y += lines.length * 5 + 1;
+            }
+        });
+
+        // ── Signatures ──
+        if (y > 240) { doc.addPage(); y = 20; }
+        y += 15;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Fait à ___________________, le ${vars['{{dateAujourdhui}}']}`, margin, y);
+        y += 15;
+        doc.text("Signature de l'organisateur", margin, y);
+        doc.text('Signature de la production', margin + 100, y);
+        y += 20;
+        doc.line(margin, y, margin + 70, y);
+        doc.line(margin + 100, y, margin + 170, y);
+
+        // ── Pied de page ──
+        const pages = doc.getNumberOfPages();
+        for (let i = 1; i <= pages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(7);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                `Coop'Art Booking — ${proj.name || ''} — Page ${i}/${pages}`,
+                pageW / 2, 288, { align: 'center' }
+            );
         }
-        doc.text(`Fait à ___________________, le ${new Date().toLocaleDateString('fr-FR')}`, 20, 210);
-        doc.text("Signature de l'organisateur", 20, 230);
-        doc.text('Signature de la production', 120, 230);
-        doc.save(`Contrat_${projName.replace(/\s+/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`);
+
+        doc.save(`Contrat_${(proj.name || 'artiste').replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr.replace(/\//g, '-')}.pdf`);
+        Swal.fire({ title: 'Contrat généré ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+    },
+
+    // ── Contrat par défaut (fallback) ──
+    async _generateDefaultContract(e) {
+        await this.requireJsPDF();
+        const { jsPDF } = window.jspdf;
+        const doc  = new jsPDF();
+        const proj = (this.db.projects || []).find(p => p.id === e.projectId) || {};
+        const fee  = e.fee || proj.defaultFee || 0;
+        const vars = this._contractVars(e);
+        const defaultBody = `ENTRE LES SOUSSIGNÉS :
+
+La production : {{producteur}} d'une part,
+ET l'organisateur : {{lieu}} à {{ville}} d'autre part.
+
+# ARTICLE 1 : OBJET
+L'organisateur engage la production pour la représentation du spectacle "{{artiste}}"
+Date : {{date}} à {{heure}}
+
+# ARTICLE 2 : CONDITIONS FINANCIÈRES
+L'organisateur s'engage à verser à la production un cachet de :
+{{cachet}} {{cachetType}}
+
+# ARTICLE 3 : CONDITIONS TECHNIQUES
+La fiche technique sera transmise à la signature du présent contrat.
+Durée du spectacle : {{duree}}
+Équipe : {{teamSize}} personne(s)`;
+
+        const template = { title: 'CONTRAT DE CESSION', body: defaultBody, color: [79, 70, 229] };
+        this.generateContractFromTemplate(e, template);
+    },
+
+    async generateContract(e) {
+        return this.openContractSelector(e);
     },
 
     async generateRoadbook(e) {

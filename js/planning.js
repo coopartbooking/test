@@ -616,6 +616,53 @@ export const planningMethods = {
         }
     },
 
+    // --- MODÈLES DE CONTRATS ---
+    getDefaultContractBody() {
+        return `ENTRE LES SOUSSIGNÉS :
+
+La production : {{producteur}} d'une part,
+ET l'organisateur : {{lieu}} à {{ville}} d'autre part.
+
+# ARTICLE 1 : OBJET
+L'organisateur engage la production pour la représentation du spectacle "{{artiste}}"
+Date : {{date}} à {{heure}}
+Durée : {{duree}}
+
+# ARTICLE 2 : CONDITIONS FINANCIÈRES
+L'organisateur s'engage à verser à la production un cachet de :
+{{cachet}} {{cachetType}}
+
+# ARTICLE 3 : CONDITIONS TECHNIQUES
+La fiche technique sera transmise à la signature du présent contrat.
+Équipe en déplacement : {{teamSize}} personne(s)
+Frais de route : {{fraisRoute}}
+
+# ARTICLE 4 : DISPOSITIONS GÉNÉRALES
+Le présent contrat est soumis à la législation française.
+Toute modification devra faire l'objet d'un avenant écrit signé des deux parties.`;
+    },
+
+    saveContractTemplate() {
+        const tpl = this.editingContractTpl;
+        if (!tpl) return;
+        if (!tpl.name) return Swal.fire('Erreur', 'Le nom du modèle est obligatoire.', 'warning');
+        if (!tpl.body) return Swal.fire('Erreur', 'Le corps du contrat est obligatoire.', 'warning');
+
+        if (!this.db.contractTemplates) this.db.contractTemplates = [];
+
+        if (!tpl.id) {
+            tpl.id = 'ct' + Date.now();
+            this.db.contractTemplates.push({ ...tpl });
+        } else {
+            const idx = this.db.contractTemplates.findIndex(t => t.id === tpl.id);
+            if (idx >= 0) this.db.contractTemplates[idx] = { ...tpl };
+        }
+
+        this.saveDB();
+        this.editingContractTpl = null;
+        Swal.fire({ title: 'Modèle enregistré ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+    },
+
     // --- TEMPLATES ---
     openTemplateModal(tpl = null) {
         this.editTemplateData = tpl

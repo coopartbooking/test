@@ -52,6 +52,7 @@ createApp({
             // Base de données locale (miroir Firestore)
             db: {
             projects: [],
+            contractTemplates: [],
             structures: [],
             tasks: [],
             events: [],
@@ -120,6 +121,11 @@ createApp({
             showTaskModal:    false, editTaskData:    {},
             showEventModal:   false, editEventData:   {},
             showProjectModal: false, editProjectData: {}, isEditingProject: false,
+            // Contrats personnalisables
+            showContractEditor:    false,
+            contractTemplates:     [],
+            editingContractTpl:    null,
+            contractPreviewEvent:  null,
             projectTab: 'resume',
             projectNoteText: '',
             showCrmModal:     false, currentCrmStruct: null, currentCrmContact: null,
@@ -747,6 +753,8 @@ async removeGlobalTag(familyName, tag) {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         this.db.projects        = data.projects        || [];
+                    this.db.contractTemplates = data.contractTemplates || [];
+                    this.contractTemplates    = this.db.contractTemplates;
                         this.db.tasks           = data.tasks           || [];
                         this.db.events          = data.events          || [];
                         this.db.templates       = data.templates       || this.db.templates;
