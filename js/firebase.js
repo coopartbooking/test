@@ -3,7 +3,7 @@
 
 import { initializeApp }                                            from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth }                                                  from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey:            "AIzaSyD_Cu2VR2YhFMOB65-5155d2hFVaHymGwU",
@@ -16,9 +16,4 @@ const firebaseConfig = {
 
 export const firebaseApp = initializeApp(firebaseConfig);
 export const auth        = getAuth(firebaseApp);
-// ── Mode hors ligne : cache persistant (API moderne, sans dépréciation) ──
-export const dbFirestore = initializeFirestore(firebaseApp, {
-    cache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
+export const dbFirestore = getFirestore(firebaseApp);
