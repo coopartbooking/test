@@ -260,7 +260,7 @@ export const collaboratorMethods = {
                     navigator.clipboard.writeText(result.data.resetLink).catch(() => {});
                 });
             } catch (e2) {
-                Swal.fire('Erreur', e2.message || 'Impossible d'envoyer l'email.', 'error');
+                Swal.fire('Erreur', e2.message || "Impossible d'envoyer l'email.", 'error');
             }
         }
     },
