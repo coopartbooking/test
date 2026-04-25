@@ -231,7 +231,7 @@ export const collaboratorMethods = {
             html:  `Firebase va envoyer automatiquement un email à <strong>${collab.email}</strong>.<br>
                     <span class="text-sm text-slate-500">Le lien est valable 1 heure.</span>`,
             showCancelButton:  true,
-            confirmButtonText: 'Envoyer l'email',
+            confirmButtonText: "Envoyer l'email",
             cancelButtonText:  'Annuler',
             confirmButtonColor: '#4f46e5',
         });
