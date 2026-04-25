@@ -15,6 +15,28 @@ export const appComputed = {
         return true; // Lecteur, Éditeur et Admin peuvent tous exporter
     },
 
+    // ── RELANCES AUTOMATIQUES ──
+
+    // Affaires à relancer (date de relance dépassée ou dans les 48h)
+    affairesToRelance() {
+        const now     = new Date();
+        const in48h   = new Date(now.getTime() + 48 * 3600 * 1000);
+        return (this.db.events || [])
+            .filter(e => {
+                if (!e.relanceDate) return false;
+                if (e.stage === 'won' || e.stage === 'ann') return false;
+                const d = new Date(e.relanceDate);
+                return d <= in48h;
+            })
+            .sort((a, b) => new Date(a.relanceDate) - new Date(b.relanceDate));
+    },
+
+    // Affaires en retard de relance (date dépassée)
+    affairesRelanceOverdue() {
+        const now = new Date().toISOString().slice(0, 10);
+        return (this.affairesToRelance || []).filter(e => e.relanceDate < now);
+    },
+
     // ── STATISTIQUES TABLEAU DE BORD ──
 
     // CA et stats par projet

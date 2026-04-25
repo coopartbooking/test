@@ -784,11 +784,15 @@ async removeGlobalTag(familyName, tag) {
                         this.$nextTick(() => {
                             setTimeout(() => {
                                 this.checkOverdueTasks();
-                                // Alerte au démarrage seulement si tâches en retard
                                 if ((this.tasksOverdue || []).length > 0) {
                                     this.showTasksAlert();
                                 }
-                            }, 2000); // Délai pour laisser l'app se charger
+                                // Vérifier les relances en attente
+                                if (!this.relanceAlertShown && (this.affairesToRelance || []).length > 0) {
+                                    this.relanceAlertShown = true;
+                                    this.showRelanceAlert();
+                                }
+                            }, 2500);
                         });
                     }
                 }));

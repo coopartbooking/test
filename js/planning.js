@@ -616,6 +616,130 @@ export const planningMethods = {
         }
     },
 
+    // --- RELANCES AUTOMATIQUES ---
+
+    // Délais par défaut selon l'étape
+    _defaultRelanceDelay(stage) {
+        const delays = { lead: 14, contact: 10, nego: 7, option: 3, contract: 2 };
+        return delays[stage] || 7;
+    },
+
+    // Définir une date de relance sur une affaire
+    async setRelanceDate(e, autoDelay = null) {
+        const delay = autoDelay || this._defaultRelanceDelay(e.stage || 'lead');
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + delay);
+        const defaultStr = defaultDate.toISOString().slice(0, 10);
+
+        const r = await Swal.fire({
+            title: `Relance — ${e.venueName || 'Affaire'}`,
+            html: `<div class="text-left space-y-3 mt-2">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Date de relance</label>
+                    <input id="swal-relance-date" type="date" class="swal2-input !mt-0" value="${defaultStr}">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Note (optionnelle)</label>
+                    <input id="swal-relance-note" class="swal2-input !mt-0" placeholder="Ex: Attendre retour budget...">
+                </div>
+                <div class="flex gap-2 mt-1">
+                    ${[3,7,14,30].map(d => {
+                        const dt = new Date(); dt.setDate(dt.getDate()+d);
+                        return `<button type="button" onclick="document.getElementById('swal-relance-date').value='${dt.toISOString().slice(0,10)}'"
+                                class="flex-1 text-xs bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-700 px-2 py-1 rounded-lg font-bold transition">+${d}j</button>`;
+                    }).join('')}
+                </div>
+            </div>`,
+            showCancelButton: true,
+            confirmButtonText: 'Définir la relance',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#4f46e5',
+            focusConfirm: false,
+            preConfirm: () => ({
+                date: document.getElementById('swal-relance-date').value,
+                note: document.getElementById('swal-relance-note').value.trim(),
+            })
+        });
+        if (!r.isConfirmed) return;
+
+        const idx = this.db.events.findIndex(x => x.id === e.id);
+        if (idx === -1) return;
+        this.db.events[idx].relanceDate = r.value.date;
+        this.db.events[idx].relanceNote = r.value.note || '';
+        this.db.events[idx].relanceDone = false;
+        this.saveDB();
+        Swal.fire({ title: 'Relance planifiée ✓', html: `Le ${this.formatDate(r.value.date)}`, icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+    },
+
+    // Marquer une relance comme effectuée et proposer la suivante
+    async markRelanceDone(e) {
+        const r = await Swal.fire({
+            title: 'Relance effectuée ✓',
+            html: `Voulez-vous planifier une prochaine relance pour <strong>${e.venueName || 'cette affaire'}</strong> ?`,
+            icon: 'success',
+            showCancelButton: true,
+            confirmButtonText: 'Planifier une relance',
+            cancelButtonText: 'Non merci',
+            confirmButtonColor: '#4f46e5',
+        });
+
+        const idx = this.db.events.findIndex(x => x.id === e.id);
+        if (idx === -1) return;
+
+        // Enregistrer dans l'historique de l'affaire
+        if (!this.db.events[idx].relanceHistory) this.db.events[idx].relanceHistory = [];
+        this.db.events[idx].relanceHistory.push({
+            date:  new Date().toISOString(),
+            note:  this.db.events[idx].relanceNote || '',
+            by:    this.currentUserName,
+        });
+        this.db.events[idx].relanceDone = true;
+        this.db.events[idx].relanceDate = null;
+        this.db.events[idx].relanceNote = '';
+        this.saveDB();
+
+        if (r.isConfirmed) await this.setRelanceDate(this.db.events[idx]);
+    },
+
+    // Email de relance pré-rempli
+    sendRelanceEmail(e) {
+        const contact = e.contactEmail || '';
+        const subject = encodeURIComponent(`Relance — ${e.venueName || 'Notre projet'}`);
+        const body    = encodeURIComponent(
+            `Bonjour,
+
+Je me permets de revenir vers vous concernant notre projet ${this.getProjectName(e.projectId) || ''} ` +
+            `pour une date à ${e.city || e.venueName || ''}.
+
+Avez-vous eu l'occasion d'étudier notre proposition ?
+
+` +
+            `Cordialement,
+${this.currentUserName}`
+        );
+        window.location.href = `mailto:${contact}?subject=${subject}&body=${body}`;
+    },
+
+    // Alerte de relances au démarrage
+    showRelanceAlert() {
+        const overdue = this.affairesRelanceOverdue || [];
+        const soon    = (this.affairesToRelance || []).filter(e => !this.affairesRelanceOverdue.some(x => x.id === e.id));
+        const lines = [];
+        if (overdue.length) lines.push(`<li class="text-red-600 font-bold">⚠ ${overdue.length} relance(s) en retard</li>`);
+        if (soon.length)    lines.push(`<li class="text-orange-600">📅 ${soon.length} relance(s) dans les 48h</li>`);
+
+        Swal.fire({
+            title: 'Relances à effectuer',
+            html: `<ul class="text-left space-y-2 mt-2">${lines.join('')}</ul>
+                   <p class="text-xs text-slate-400 mt-3">Accédez au pipeline pour les traiter.</p>`,
+            icon: overdue.length ? 'warning' : 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Voir le pipeline',
+            cancelButtonText: 'Plus tard',
+            confirmButtonColor: '#f59e0b',
+        }).then(r => { if (r.isConfirmed) this.tab = 'pipeline'; });
+    },
+
     // --- MODÈLES DE CONTRATS ---
     getDefaultContractBody() {
         return `ENTRE LES SOUSSIGNÉS :
