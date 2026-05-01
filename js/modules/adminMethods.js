@@ -24,6 +24,271 @@ export const adminMethods = {
         }
     },
 
+
+    // ══════════════════════════════════════════════════════════════════════
+    // IMPORTEUR BOB BOOKING
+    // ══════════════════════════════════════════════════════════════════════
+
+    _normalizeBobPhone(p) {
+        if (!p) return '';
+        const s = String(p).trim();
+        if (s.includes('@') || s.length < 8) return '';
+        const digits = s.replace(/\D/g, '');
+        if (!digits) return '';
+        let d = digits;
+        if (d.startsWith('33') && d.length === 11) d = '0' + d.slice(2);
+        if (d.length === 10) return `${d.slice(0,2)} ${d.slice(2,4)} ${d.slice(4,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
+        return d;
+    },
+
+    _parseBobContact(row, offset) {
+        const nom = row[offset] ? String(row[offset]).trim() : '';
+        if (!nom || nom === ' ') return null;
+        const nameParts = nom.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName  = nameParts.slice(1).join(' ') || '';
+        const emailPro  = row[offset + 11] ? String(row[offset + 11]).trim() : '';
+        const emailPerso = row[offset + 12] ? String(row[offset + 12]).trim() : '';
+        // Ignorer si email ressemble à un téléphone
+        const validEmail = (e) => e && e.includes('@') ? e : '';
+        return {
+            id:          Date.now() + Math.random(),
+            firstName,
+            lastName,
+            role:        row[offset + 17] ? String(row[offset + 17]).trim() : '',
+            phone:       this._normalizeBobPhone(row[offset + 7]),
+            mobile:      this._normalizeBobPhone(row[offset + 8]) || this._normalizeBobPhone(row[offset + 9]),
+            emailPro:    validEmail(emailPro),
+            emailPerso:  validEmail(emailPerso),
+            isActive:    true,
+            createdDate: new Date().toISOString(),
+        };
+    },
+
+    _parseBobTags(val) {
+        if (!val) return [];
+        return String(val).split(';').map(t => t.trim()).filter(Boolean);
+    },
+
+    async previewBobImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        await this.requireXLSX();
+        Swal.fire({ title: 'Analyse en cours…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const wb   = XLSX.read(e.target.result, { type: 'array' });
+                const ws   = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+                // Vérification format Bob Booking
+                const header2 = rows[1] || [];
+                if (!header2[0] || !String(header2[0]).includes('Nom')) {
+                    return Swal.fire('Erreur', "Ce fichier ne semble pas être un export Bob Booking valide.", 'error');
+                }
+
+                const dataRows = rows.slice(2).filter(r => r[0] && String(r[0]).trim());
+                let totalContacts = 0, duplicates = 0;
+                const allCats = new Set(), allGenres = new Set(), allReseaux = new Set();
+                const existingNames = new Set(this.db.structures.map(s => s.name.toLowerCase().trim()));
+
+                dataRows.forEach(row => {
+                    if (row[17] && String(row[17]).trim()) totalContacts++;
+                    if (row[39] && String(row[39]).trim()) totalContacts++;
+                    if (row[61] && String(row[61]).trim()) totalContacts++;
+                    this._parseBobTags(row[83]).forEach(t => allCats.add(t));
+                    this._parseBobTags(row[84]).forEach(t => allGenres.add(t));
+                    this._parseBobTags(row[85]).forEach(t => allReseaux.add(t));
+                    if (existingNames.has(String(row[0]).toLowerCase().trim())) duplicates++;
+                });
+
+                Swal.close();
+
+                const r = await Swal.fire({
+                    title: "Aperçu — Import Bob Booking",
+                    html: `<div class="text-left space-y-3 mt-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-indigo-50 rounded-xl p-3 text-center">
+                                <div class="text-2xl font-black text-indigo-700">${dataRows.length}</div>
+                                <div class="text-xs text-indigo-500 font-bold">Structures</div>
+                            </div>
+                            <div class="bg-purple-50 rounded-xl p-3 text-center">
+                                <div class="text-2xl font-black text-purple-700">${totalContacts}</div>
+                                <div class="text-xs text-purple-500 font-bold">Contacts</div>
+                            </div>
+                            <div class="bg-emerald-50 rounded-xl p-3 text-center">
+                                <div class="text-2xl font-black text-emerald-700">${allCats.size + allGenres.size + allReseaux.size}</div>
+                                <div class="text-xs text-emerald-500 font-bold">Tags uniques</div>
+                            </div>
+                            <div class="bg-${duplicates > 0 ? 'orange' : 'slate'}-50 rounded-xl p-3 text-center">
+                                <div class="text-2xl font-black text-${duplicates > 0 ? 'orange' : 'slate'}-700">${duplicates}</div>
+                                <div class="text-xs text-${duplicates > 0 ? 'orange' : 'slate'}-500 font-bold">Doublons</div>
+                            </div>
+                        </div>
+                        ${duplicates > 0 ? `
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-700">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            <strong>${duplicates} structure(s)</strong> existent déjà dans votre base.
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Gestion des doublons :</label>
+                            <select id="swal-bob-dup" class="swal2-input !mt-0 text-sm">
+                                <option value="skip">Ignorer (garder l'existant)</option>
+                                <option value="merge">Fusionner (compléter les champs vides)</option>
+                                <option value="replace">Remplacer (écraser avec Bob Booking)</option>
+                            </select>
+                        </div>` : ''}
+                        <div class="text-xs text-slate-400">Fichier : ${file.name}</div>
+                    </div>`,
+                    showCancelButton:  true,
+                    confirmButtonText: `<i class="fas fa-file-import mr-1"></i> Importer ${dataRows.length} structures`,
+                    cancelButtonText:  'Annuler',
+                    confirmButtonColor: '#4f46e5',
+                    focusConfirm: false,
+                    preConfirm: () => ({
+                        duplicateMode: document.getElementById('swal-bob-dup')?.value || 'skip',
+                    })
+                });
+
+                if (!r.isConfirmed) return;
+                await this.executeBobImport(dataRows, r.value.duplicateMode);
+
+            } catch (err) {
+                Swal.fire('Erreur', 'Impossible de lire le fichier : ' + err.message, 'error');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        event.target.value = '';
+    },
+
+    async executeBobImport(dataRows, duplicateMode = 'skip') {
+        Swal.fire({ title: 'Import en cours…', html: '<b>0</b> / ' + dataRows.length, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        let imported = 0, skipped = 0, merged = 0, errors = 0;
+        const newCats = new Set(), newGenres = new Set(), newReseaux = new Set();
+
+        for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i];
+            if (!row[0]) continue;
+            try {
+                const name    = String(row[0]).trim();
+                const cats    = this._parseBobTags(row[83]);
+                const genres  = this._parseBobTags(row[84]);
+                const reseaux = this._parseBobTags(row[85]);
+
+                cats.forEach(t => newCats.add(t));
+                genres.forEach(t => newGenres.add(t));
+                reseaux.forEach(t => newReseaux.add(t));
+
+                const contacts = [17, 39, 61]
+                    .map(offset => this._parseBobContact(row, offset))
+                    .filter(Boolean);
+
+                const rawEmail = row[9] ? String(row[9]).trim() : '';
+                const email    = rawEmail.includes('@') ? rawEmail : '';
+
+                const struct = {
+                    id:           String(Date.now()) + String(Math.floor(Math.random()*9999)),
+                    name,
+                    address:      row[2]  ? String(row[2]).trim()  : '',
+                    suiteAddress: row[3]  ? String(row[3]).trim()  : '',
+                    zip:          row[4]  ? String(row[4]).trim()  : '',
+                    city:         row[5]  ? String(row[5]).trim()  : '',
+                    country:      row[6]  ? String(row[6]).trim()  : 'France',
+                    phone1:       this._normalizeBobPhone(row[7]),
+                    phone2:       this._normalizeBobPhone(row[8]),
+                    mobile:       this._normalizeBobPhone(row[10]),
+                    email,
+                    website:      row[12] ? String(row[12]).trim() : '',
+                    isActive:     row[14] === 1 || row[14] === true || row[14] === '1',
+                    notes:        row[86] ? String(row[86]).trim() : '',
+                    contacts,
+                    tags:         { categories: cats, genres, reseaux, keywords: [] },
+                    createdDate:  row[16] ? new Date(String(row[16])).toISOString() : new Date().toISOString(),
+                    importedFrom: 'Bob Booking',
+                    comments:     [],
+                };
+
+                const existIdx = this.db.structures.findIndex(s =>
+                    s.name.toLowerCase().trim() === name.toLowerCase().trim()
+                );
+
+                if (existIdx >= 0) {
+                    if (duplicateMode === 'skip') {
+                        skipped++;
+                    } else if (duplicateMode === 'merge') {
+                        const ex = this.db.structures[existIdx];
+                        if (!ex.phone1  && struct.phone1)  ex.phone1  = struct.phone1;
+                        if (!ex.email   && struct.email)   ex.email   = struct.email;
+                        if (!ex.city    && struct.city)    ex.city    = struct.city;
+                        if (!ex.website && struct.website) ex.website = struct.website;
+                        if (!ex.notes   && struct.notes)   ex.notes   = struct.notes;
+                        if (!ex.zip     && struct.zip)     ex.zip     = struct.zip;
+                        const existEmails = new Set((ex.contacts || []).map(c => c.emailPro || '').filter(Boolean));
+                        struct.contacts.forEach(c => {
+                            if (!c.emailPro || !existEmails.has(c.emailPro)) (ex.contacts = ex.contacts || []).push(c);
+                        });
+                        ['categories', 'genres', 'reseaux'].forEach(k => {
+                            const s = new Set(ex.tags?.[k] || []);
+                            (struct.tags[k] || []).forEach(t => s.add(t));
+                            if (!ex.tags) ex.tags = {};
+                            ex.tags[k] = [...s];
+                        });
+                        this.db.structures[existIdx] = ex;
+                        merged++;
+                    } else {
+                        struct.id = this.db.structures[existIdx].id;
+                        this.db.structures[existIdx] = struct;
+                        merged++;
+                    }
+                } else {
+                    this.db.structures.push(struct);
+                    imported++;
+                }
+            } catch (err) { errors++; }
+
+            if (i % 25 === 0) {
+                try { Swal.getHtmlContainer().innerHTML = `<b>${i+1}</b> / ${dataRows.length}`; } catch(e){}
+            }
+        }
+
+        // Ajouter les nouveaux tags à la base globale
+        if (!this.db.tagCategories) this.db.tagCategories = [];
+        if (!this.db.tagGenres)     this.db.tagGenres     = [];
+        if (!this.db.tagReseaux)    this.db.tagReseaux    = [];
+        newCats.forEach(t    => { if (!this.db.tagCategories.includes(t)) this.db.tagCategories.push(t); });
+        newGenres.forEach(t  => { if (!this.db.tagGenres.includes(t))     this.db.tagGenres.push(t); });
+        newReseaux.forEach(t => { if (!this.db.tagReseaux.includes(t))    this.db.tagReseaux.push(t); });
+
+        this.logActivity('Import Bob Booking', `${imported} importées, ${merged} fusionnées, ${skipped} ignorées`);
+        this.saveDB();
+
+        Swal.fire({
+            title: 'Import terminé ✓',
+            html: `<div class="text-left space-y-2 mt-3">
+                <div class="flex justify-between text-sm p-2 bg-emerald-50 rounded-lg">
+                    <span>✅ Nouvelles structures importées</span>
+                    <strong class="text-emerald-700">${imported}</strong>
+                </div>
+                <div class="flex justify-between text-sm p-2 bg-indigo-50 rounded-lg">
+                    <span>🔀 Fusionnées / Remplacées</span>
+                    <strong class="text-indigo-700">${merged}</strong>
+                </div>
+                <div class="flex justify-between text-sm p-2 bg-slate-50 rounded-lg">
+                    <span>⏭ Ignorées (doublons)</span>
+                    <strong class="text-slate-600">${skipped}</strong>
+                </div>
+                ${errors ? `<div class="flex justify-between text-sm p-2 bg-red-50 rounded-lg">
+                    <span>❌ Erreurs</span><strong class="text-red-600">${errors}</strong>
+                </div>` : ''}
+            </div>`,
+            icon: 'success',
+            confirmButtonColor: '#4f46e5',
+        });
+    },
+
     async loadAdminUsers() {
         try {
             const snapshot = await getDocs(collection(dbFirestore, "users_registry"));
