@@ -2,20 +2,162 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+
+    <!-- ═══ PWA — Progressive Web App ═══ -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CoopArt">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
+    <link rel="shortcut icon" href="icons/favicon.ico">
+
+    <!-- ═══ PRECONNECT — Connexions DNS/TLS anticipées ═══
+         Réduit le temps de chargement des CDN de ~200ms
+    ════════════════════════════════════════════════════ -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.sheetjs.com">
+    <link rel="dns-prefetch" href="https://nominatim.openstreetmap.org">
+    <link rel="dns-prefetch" href="https://tile.openstreetmap.org">
+    <link rel="dns-prefetch" href="https://data.culture.gouv.fr">
+
+    <style>
+    /* ═══ TOOLTIPS D'AIDE ═══ */
+    .no-tooltips [data-tooltip]::after,
+    .no-tooltips [data-tooltip]::before { display: none !important; }
+
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%) translateY(4px);
+        background: #1e293b;
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        white-space: normal;
+        max-width: 200px;
+        text-align: center;
+        line-height: 1.4;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    [data-tooltip]::before {
+        content: '';
+        position: absolute;
+        bottom: calc(100% + 2px);
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #1e293b;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 9999;
+    }
+    [data-tooltip]:hover::after,
+    [data-tooltip]:hover::before { opacity: 1; transform: translateX(-50%) translateY(0); }
+    [data-tooltip]:hover::before  { transform: translateX(-50%); }
+    [data-tooltip-pos="right"]::after {
+        bottom: auto; top: 50%;
+        left: calc(100% + 8px);
+        transform: translateY(-50%) translateX(-4px);
+    }
+    [data-tooltip-pos="right"]::before {
+        bottom: auto; top: 50%;
+        left: calc(100% + 2px);
+        transform: translateY(-50%);
+        border-top-color: transparent;
+        border-right-color: #1e293b;
+    }
+    [data-tooltip-pos="right"]:hover::after  { transform: translateY(-50%) translateX(0); }
+    [data-tooltip-pos="right"]:hover::before { transform: translateY(-50%); }
+    </style>
+
+    <!-- ═══ CONTENT SECURITY POLICY ═══
+         Autorise uniquement les sources connues et nécessaires.
+         Bloque l'exécution de scripts ou styles provenant de sources inconnues.
+    ═══════════════════════════════════════════════════════════ -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'none';
+
+        manifest-src 'self';
+
+        script-src  'self'
+                    'unsafe-eval'
+                    'unsafe-inline'
+                    https://cdn.tailwindcss.com
+                    https://unpkg.com
+                    https://cdnjs.cloudflare.com
+                    https://cdn.jsdelivr.net
+                    https://cdn.sheetjs.com
+                    https://www.gstatic.com;
+
+        style-src   'self'
+                    'unsafe-inline'
+                    https://cdnjs.cloudflare.com
+                    https://unpkg.com
+                    https://fonts.googleapis.com;
+
+        font-src    'self'
+                    data:
+                    https://cdnjs.cloudflare.com
+                    https://fonts.gstatic.com;
+
+        img-src     'self'
+                    data:
+                    blob:
+                    https:;
+
+        connect-src 'self'
+                    https://*.googleapis.com
+                    https://*.firebaseio.com
+                    https://*.cloudfunctions.net
+                    https://*.gstatic.com
+                    https://nominatim.openstreetmap.org
+                    https://data.culture.gouv.fr
+                    https://cdnjs.cloudflare.com
+                    https://unpkg.com
+                    wss://*.firebaseio.com;
+
+        worker-src  'self' blob:;
+
+        frame-src   'none';
+        object-src  'none';
+        base-uri    'self';
+    ">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bob Booking — CRM &amp; Gestion de Tournée</title>
+    <title>Coop'Art Booking — CRM &amp; Gestion de Tournée</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- jsPDF chargé à la demande (generateContract/generateRoadbook) — voir utils.js -->
+    <!-- FontAwesome 6 — subset solid uniquement (~80KB vs 400KB pour all.min.css) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/fontawesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/solid.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- SheetJS chargé à la demande (import/export Excel) — voir importMethods.js -->
+    <!-- Leaflet CSS chargé à la demande (onglet Carte) -->
+    <!-- Leaflet chargé à la demande (onglet Carte) — voir mapMethods.js -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="css/style.css">
@@ -27,7 +169,7 @@
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
             <div class="text-center mb-8">
                 <i class="fas fa-bolt text-indigo-600 text-4xl mb-2"></i>
-                <h1 class="text-2xl font-bold text-slate-800">Bob Booking</h1>
+                <h1 class="text-2xl font-bold text-slate-800">Coop'Art Booking</h1>
                 <p class="text-slate-500 text-sm">Connexion à l'espace collaboratif</p>
             </div>
             
@@ -64,27 +206,56 @@
             <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{{ (currentUserName || '').substring(0,2).toUpperCase() }}</div>
             <div class="flex-1 min-w-0">
                 <div class="text-white font-bold text-xs truncate">{{ currentUserName }}</div>
-                <button @click="logout" class="text-slate-400 hover:text-red-400 text-[10px] font-bold transition flex items-center gap-1 mt-0.5">
-                    <i class="fas fa-sign-out-alt"></i> Se déconnecter
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="text-[9px] font-black px-1.5 py-0.5 rounded uppercase"
+                          :class="{
+                              'bg-red-500 text-white':    userRole === 'admin',
+                              'bg-indigo-500 text-white': userRole === 'editeur',
+                              'bg-slate-600 text-white':  userRole === 'lecteur'
+                          }">{{ userRole }}</span>
+                    <button @click="logout" class="text-slate-400 hover:text-red-400 text-[10px] font-bold transition flex items-center gap-1">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    </button>
+                </div>
+                <!-- Toggle tooltips -->
+                <button @click="tooltipsEnabled = !tooltipsEnabled"
+                        class="mt-1 text-[9px] font-bold transition flex items-center gap-1"
+                        :class="tooltipsEnabled ? 'text-indigo-400 hover:text-indigo-300' : 'text-slate-600 hover:text-slate-400'">
+                    <i :class="tooltipsEnabled ? 'fas fa-question-circle' : 'far fa-question-circle'"></i>
+                    {{ tooltipsEnabled ? 'Aide activée' : 'Aide désactivée' }}
                 </button>
             </div>
         </div>
         <nav class="flex-1 overflow-y-auto py-2">
             <div class="nav-header">Pilotage</div>
-            <div @click="tab='dashboard'" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
-            <div @click="tab='tasks'" :class="['nav-item', tab==='tasks'?'active':'']">
-                <i class="fas fa-tasks"></i> Tâches & Suivi 
-                <span v-if="pendingTaskCount>0" class="ml-auto bg-indigo-600 text-white px-2 rounded-full text-[10px]">{{pendingTaskCount}}</span>
+            <div @click="tab='dashboard'" data-tooltip="Vue d'ensemble de votre activité" :class="['nav-item', tab==='dashboard'?'active':'']"><i class="fas fa-chart-line"></i> Tableau de bord</div>
+            <div @click="tab='tasks'" data-tooltip="Gérer vos tâches et suivis" :class="['nav-item', tab==='tasks'?'active':'']">
+                <i class="fas fa-tasks"></i> Tâches & Suivi
+                <span v-if="tasksOverdue.length > 0"
+                      class="ml-auto bg-red-500 text-white px-2 rounded-full text-[10px] animate-pulse font-bold"
+                      title="Tâches en retard !">
+                    {{ tasksOverdue.length }}
+                </span>
+                <span v-else-if="pendingTaskCount > 0"
+                      class="ml-auto bg-indigo-600 text-white px-2 rounded-full text-[10px]">
+                    {{ pendingTaskCount }}
+                </span>
             </div>
             <div class="nav-header">Données</div>
-            <div @click="tab='structures'" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
-            <div @click="tab='contacts'" :class="['nav-item', tab==='contacts'?'active':'']"><i class="fas fa-address-book"></i> Annuaire Pro</div>
-            <div @click="tab='projects'" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Projets</div>
+            <div @click="tab='structures'" data-tooltip="Annuaire des lieux et structures" :class="['nav-item', tab==='structures'?'active':'']"><i class="fas fa-building"></i> Structures & Lieux</div>
+            <div @click="tab='contacts'" data-tooltip="Tous vos contacts" :class="['nav-item', tab==='contacts'?'active':'']"><i class="fas fa-address-book"></i> Annuaire Pro</div>
+            <div @click="tab='projects'" data-tooltip="Gérer vos projets artistiques" :class="['nav-item', tab==='projects'?'active':'']"><i class="fas fa-music"></i> Mes Projets</div>
             <div class="nav-header">Production</div>
-            <div @click="tab='pipeline'" :class="['nav-item', tab==='pipeline'?'active':'']"><i class="fas fa-columns text-yellow-400"></i> Pipeline Commercial</div>
-            <div @click="tab='planning'" :class="['nav-item', tab==='planning'?'active':'']"><i class="fas fa-calendar-alt"></i> Agendas partagés</div>
-            <div @click="tab='geo'" :class="['nav-item', tab==='geo'?'active':'']"><i class="fas fa-map-marked-alt text-emerald-400"></i> Carte & Invitations</div>
-            <div @click="tab='mailing'" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
+            <div @click="tab='pipeline'" data-tooltip="Suivi des négociations en cours" :class="['nav-item', tab==='pipeline'?'active':'']">
+                <i class="fas fa-columns text-yellow-400"></i> Pipeline Commercial
+                <span v-if="affairesRelanceOverdue.length > 0"
+                      class="ml-auto bg-orange-500 text-white px-2 rounded-full text-[10px] animate-pulse font-bold">
+                    {{ affairesRelanceOverdue.length }}
+                </span>
+            </div>
+            <div @click="tab='planning'" data-tooltip="Agenda et planning des dates" :class="['nav-item', tab==='planning'?'active':'']"><i class="fas fa-calendar-alt"></i> Agendas partagés</div>
+            <div @click="tab='geo'" data-tooltip="Carte géographique des structures" :class="['nav-item', tab==='geo'?'active':'']"><i class="fas fa-map-marked-alt text-emerald-400"></i> Carte & Invitations</div>
+            <div @click="tab='mailing'" data-tooltip="Campagnes email et mailings" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
             <div @click="tab='settings'" :class="['nav-item', tab==='settings'?'active':'']"><i class="fas fa-cog text-slate-400"></i> Paramètres</div>
             <div v-if="isAdmin" @click="tab='admin'; loadAdminUsers()" :class="['nav-item', tab==='admin'?'active':'']"><i class="fas fa-shield-alt text-red-400"></i> Administration</div>
         </nav>
@@ -105,7 +276,14 @@
                        'fa-check-circle':            saveStatus === 'saved',
                        'fa-exclamation-triangle':   saveStatus === 'error'
                    }"></i>
-                <span v-if="saveStatus === 'idle'" class="text-slate-600 text-[10px]">Firebase</span>
+                <span v-if="saveStatus === 'idle'" class="text-slate-600 text-[10px] flex items-center gap-1.5">
+                    Firebase
+                    <span class="flex items-center gap-1 font-bold"
+                          :class="isOnline ? 'text-emerald-500' : 'text-orange-400'">
+                        <i :class="isOnline ? 'fas fa-circle' : 'fas fa-exclamation-circle'" style="font-size:7px"></i>
+                        {{ isOnline ? 'En ligne' : 'Hors ligne' }}
+                    </span>
+                </span>
                 <span v-if="saveStatus === 'saving'" class="text-[10px]">Sauvegarde…</span>
                 <span v-if="saveStatus === 'saved'" class="text-[10px] truncate">{{ saveStatusMessage }}</span>
                 <span v-if="saveStatus === 'error'" class="text-[10px] flex items-center gap-1">
@@ -146,14 +324,14 @@
             <div class="flex items-center gap-4">
                 <div class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded border border-indigo-100 text-xs font-bold">CA Confirmé: {{ formatMoney(totalCA) }}</div>
                 
-                <button v-if="tab==='pipeline' || tab==='planning'" @click="handleCalendarClick(new Date())" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Nouveau</button>
-                <button v-if="tab==='tasks'" @click="openTaskModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Tâche</button>
+                <button v-if="(tab==='pipeline' || tab==='planning') && canEdit" @click="handleCalendarClick(new Date())" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Nouveau</button>
+                <button v-if="tab==='tasks' && canEdit" @click="openTaskModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Tâche</button>
                 
-                <button v-if="tab==='contacts'" @click="addGlobalContact" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold">
+                <button v-if="tab==='contacts' && canEdit" @click="addGlobalContact" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold">
                     <i class="fas fa-user-plus mr-2"></i>Contact
                 </button>
                 
-                <div v-if="tab==='contacts'" class="flex ml-2">
+                <div v-if="tab==='contacts' && canEdit" class="flex ml-2">
                     <label class="bg-blue-600 text-white px-4 py-2 rounded-l shadow hover:bg-blue-700 text-sm font-bold cursor-pointer border-r border-blue-700">
                         <i class="fas fa-file-import mr-2"></i>Importer Excel
                         <input type="file" @change="importContactsExcel" class="hidden" accept=".xlsx, .xls">
@@ -162,12 +340,16 @@
                         <i class="fas fa-file-export mr-2"></i>Exporter Excel
                     </button>
                 </div>
-                <button v-if="tab==='contacts'" @click="openExportMapping('contacts')" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold ml-1">
+                <button v-if="tab==='contacts' && canExport" @click="openExportMapping('contacts')" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold ml-1">
                     <i class="fas fa-sliders-h mr-2"></i>Export personnalisé
                 </button>
-                <button v-if="tab==='projects'" @click="openProjectModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Projet</button>
-                <button v-if="tab==='structures'" @click="openCrmView(null)" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-building mr-2"></i>Structure</button>
-                <button v-if="tab==='structures'" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
+                <button v-if="tab==='projects' && canEdit" @click="openProjectModal()" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-plus mr-2"></i>Projet</button>
+                <button v-if="tab==='structures' && canEdit" @click="openCrmView(null)" class="bg-slate-800 text-white px-4 py-2 rounded shadow hover:bg-slate-700 text-sm font-bold"><i class="fas fa-building mr-2"></i>Structure</button>
+                <button v-if="tab==='structures' && canEdit" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
+                <label v-if="tab==='structures'" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold cursor-pointer flex items-center gap-2">
+                    <i class="fas fa-file-import"></i>Import Bob Booking
+                    <input type="file" @change="previewBobImport" class="hidden" accept=".xlsx,.xls">
+                </label>
             </div>
         </header>
 
@@ -347,7 +529,257 @@
                             </div>
                         </div>
 
-                        <!-- ═══ SECTION 5 : GESTION ADMINS ═══ -->
+                        <!-- ═══ SECTION 5 : LISTE BLANCHE INSCRIPTIONS ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 text-lg mb-1">
+                                <i class="fas fa-lock text-emerald-500 mr-2"></i>
+                                Inscriptions autorisées
+                            </h3>
+                            <p class="text-xs text-slate-400 mb-4">
+                                Si cette liste contient des emails, <strong>seuls ces emails peuvent créer un compte</strong>.<br>
+                                <span class="text-amber-600 font-bold">⚠ Liste vide = inscriptions ouvertes à tous.</span>
+                            </p>
+
+                            <!-- Statut visuel -->
+                            <div class="mb-4 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2"
+                                 :class="allowedEmails.length > 0
+                                     ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                                     : 'bg-amber-50 border border-amber-200 text-amber-700'">
+                                <i class="fas fa-fw" :class="allowedEmails.length > 0 ? 'fa-shield-alt' : 'fa-exclamation-triangle'"></i>
+                                <span v-if="allowedEmails.length > 0">
+                                    Protégé — {{ allowedEmails.length }} email(s) autorisé(s)
+                                </span>
+                                <span v-else>
+                                    Ouvert — n'importe qui peut créer un compte
+                                </span>
+                            </div>
+
+                            <!-- Ajout d'un email -->
+                            <div class="flex gap-2 mb-4">
+                                <input v-model="newAllowedEmail"
+                                       @keyup.enter="addAllowedEmail"
+                                       class="input-field text-sm flex-1"
+                                       placeholder="email@exemple.com">
+                                <button @click="addAllowedEmail"
+                                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition">
+                                    <i class="fas fa-plus"></i> Autoriser
+                                </button>
+                            </div>
+
+                            <!-- Liste des emails autorisés -->
+                            <div v-if="!allowedEmails.length" class="text-center text-slate-400 py-4 border-2 border-dashed rounded-xl text-sm">
+                                <i class="fas fa-envelope-open text-2xl opacity-30 block mb-1"></i>
+                                Aucun email restreint — inscriptions ouvertes
+                            </div>
+                            <div class="space-y-2">
+                                <div v-for="email in allowedEmails" :key="email"
+                                     class="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-check-circle text-emerald-500 text-sm"></i>
+                                        <span class="font-bold text-slate-700 text-sm">{{ email }}</span>
+                                    </div>
+                                    <button @click="removeAllowedEmail(email)"
+                                            class="text-slate-300 hover:text-red-500 transition text-sm"
+                                            title="Retirer cet email">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Réinitialisation mot de passe -->
+                            <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-600">Mot de passe oublié ?</p>
+                                    <p class="text-xs text-slate-400">Envoyez un lien de réinitialisation à un utilisateur.</p>
+                                </div>
+                                <button @click="sendPasswordReset()"
+                                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                                    <i class="fas fa-key"></i> Envoyer un lien
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 6 : HISTORIQUE DES MODIFICATIONS ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">
+                                        <i class="fas fa-history text-blue-500 mr-2"></i>Historique des modifications
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Les 50 dernières actions dans l'annuaire.</p>
+                                </div>
+                                <button @click="loadActivityLog()"
+                                        class="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition">
+                                    <i class="fas fa-sync-alt"></i> Actualiser
+                                </button>
+                            </div>
+
+                            <!-- Vide -->
+                            <div v-if="!activityLog.length" class="text-center py-8 border-2 border-dashed rounded-xl text-slate-400">
+                                <i class="fas fa-history text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Aucune activité enregistrée.</p>
+                                <button @click="loadActivityLog()" class="mt-2 text-xs text-indigo-500 hover:underline">
+                                    Charger l'historique
+                                </button>
+                            </div>
+
+                            <!-- Liste -->
+                            <div v-else class="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                                <div v-for="(log, i) in activityLog" :key="i"
+                                     class="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 transition">
+                                    <!-- Icône action -->
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                         :class="{
+                                             'bg-emerald-100': log.action.includes('créée') || log.action.includes('créé'),
+                                             'bg-blue-100':    log.action.includes('modifi'),
+                                             'bg-red-100':     log.action.includes('supprim'),
+                                             'bg-indigo-100':  log.action.includes('Commentaire'),
+                                             'bg-slate-100':   !log.action.includes('créée') && !log.action.includes('créé') && !log.action.includes('modifi') && !log.action.includes('supprim') && !log.action.includes('Commentaire'),
+                                         }">
+                                        <i class="text-xs fas"
+                                           :class="{
+                                               'fa-plus text-emerald-600':      log.action.includes('créée') || log.action.includes('créé'),
+                                               'fa-pen text-blue-600':          log.action.includes('modifi'),
+                                               'fa-trash text-red-600':         log.action.includes('supprim'),
+                                               'fa-comment text-indigo-600':    log.action.includes('Commentaire'),
+                                               'fa-circle-notch text-slate-400': !log.action.includes('créée') && !log.action.includes('créé') && !log.action.includes('modifi') && !log.action.includes('supprim') && !log.action.includes('Commentaire'),
+                                           }"></i>
+                                    </div>
+                                    <!-- Contenu -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-bold text-slate-800 text-sm">{{ log.action }}</span>
+                                            <span v-if="log.details" class="text-xs text-slate-500 truncate">— {{ log.details }}</span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-2">
+                                            <span><i class="fas fa-user mr-1"></i>{{ log.user || 'Inconnu' }}</span>
+                                            <span>·</span>
+                                            <span><i class="fas fa-clock mr-1"></i>{{ log.date ? new Date(log.date).toLocaleString('fr-FR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 7 : GESTION COLLABORATEURS ═══ -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">
+                                        <i class="fas fa-users text-indigo-500 mr-2"></i>Collaborateurs
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Gérez les accès et les rôles de votre équipe.</p>
+                                </div>
+                                <button @click="createCollaborator()"
+                                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                                    <i class="fas fa-user-plus"></i> Nouveau
+                                </button>
+                            </div>
+
+                            <!-- Chargement -->
+                            <div v-if="collaboratorsLoading" class="text-center py-8 text-slate-400">
+                                <i class="fas fa-circle-notch fa-spin text-2xl"></i>
+                                <p class="text-sm mt-2">Chargement…</p>
+                            </div>
+
+                            <!-- Liste vide -->
+                            <div v-else-if="!collaboratorsList.length"
+                                 class="text-center py-8 border-2 border-dashed rounded-xl text-slate-400">
+                                <i class="fas fa-users text-3xl opacity-30 block mb-2"></i>
+                                <p class="text-sm">Aucun collaborateur.</p>
+                                <button @click="loadCollaborators()"
+                                        class="mt-3 text-xs text-indigo-500 hover:underline">
+                                    <i class="fas fa-sync-alt mr-1"></i>Charger la liste
+                                </button>
+                            </div>
+
+                            <!-- Table collaborateurs -->
+                            <div v-else class="space-y-2">
+                                <div v-for="collab in collaboratorsList" :key="collab.uid"
+                                     class="flex items-center justify-between p-3 rounded-xl border"
+                                     :class="collab.isActive ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-100 opacity-60'">
+
+                                    <!-- Infos -->
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                                             :class="collab.isActive ? 'bg-indigo-500' : 'bg-slate-400'">
+                                            {{ (collab.displayName || '?').substring(0,2).toUpperCase() }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-slate-800 text-sm truncate">
+                                                {{ collab.displayName }}
+                                                <span v-if="!collab.isActive"
+                                                      class="ml-1 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black">
+                                                    Désactivé
+                                                </span>
+                                            </div>
+                                            <div class="text-xs text-slate-400 truncate">{{ collab.email }}</div>
+                                            <div class="text-[10px] text-slate-400">
+                                                Dernière connexion :
+                                                {{ collab.lastSignIn ? new Date(collab.lastSignIn).toLocaleDateString('fr-FR') : 'jamais' }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rôle + Actions -->
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <!-- Sélecteur de rôle -->
+                                        <select :value="collab.role"
+                                                @change="setCollaboratorRole(collab, $event.target.value)"
+                                                class="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white font-bold text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                            <option value="admin">Admin</option>
+                                            <option value="editeur">Éditeur</option>
+                                            <option value="lecteur">Lecteur</option>
+                                        </select>
+
+                                        <!-- Lien reset mdp -->
+                                        <button @click="sendCollaboratorPasswordReset(collab)"
+                                                data-tooltip="Envoyer un lien de réinitialisation du mot de passe"
+                                                class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+
+                                        <!-- Activer / Désactiver -->
+                                        <button v-if="collab.isActive"
+                                                @click="disableCollaborator(collab)"
+                                                data-tooltip="Désactiver l'accès de ce collaborateur"
+                                                class="text-slate-400 hover:text-red-500 transition text-sm px-1">
+                                            <i class="fas fa-user-slash"></i>
+                                        </button>
+                                        <button v-else
+                                                @click="enableCollaborator(collab)"
+                                                data-tooltip="Réactiver l'accès de ce collaborateur"
+                                                class="text-slate-400 hover:text-emerald-500 transition text-sm px-1">
+                                            <i class="fas fa-user-check"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Bouton actualiser -->
+                                <button @click="loadCollaborators()"
+                                        class="w-full mt-2 text-xs text-slate-400 hover:text-slate-600 transition flex items-center justify-center gap-1 py-2">
+                                    <i class="fas fa-sync-alt"></i> Actualiser la liste
+                                </button>
+                            </div>
+
+                            <!-- Légende des rôles -->
+                            <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+                                <div class="bg-red-50 rounded-lg p-2">
+                                    <div class="text-xs font-black text-red-700">Admin</div>
+                                    <div class="text-[10px] text-slate-500">Accès complet</div>
+                                </div>
+                                <div class="bg-indigo-50 rounded-lg p-2">
+                                    <div class="text-xs font-black text-indigo-700">Éditeur</div>
+                                    <div class="text-[10px] text-slate-500">Peut modifier</div>
+                                </div>
+                                <div class="bg-slate-50 rounded-lg p-2">
+                                    <div class="text-xs font-black text-slate-700">Lecteur</div>
+                                    <div class="text-[10px] text-slate-500">Consultation seule</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ═══ SECTION 7 : GESTION ADMINS ═══ -->
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                             <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
                             <div class="flex gap-2 mb-4">
@@ -403,65 +835,42 @@
                         </div>
                     </div>
 
-                    <!-- ═══ SECTION 7 : IMPORT BOB BOOKING ═══ -->
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                                    <i class="fas fa-file-import text-indigo-600"></i>
-                                </div>
-                                <div>
-                                    <h3 class="font-bold text-slate-800 text-lg">Import Bob Booking</h3>
-                                    <p class="text-xs text-slate-400">Importez directement un export Excel de Bob Booking.</p>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div class="bg-slate-50 rounded-xl p-4 text-sm space-y-1.5">
-                                    <div class="font-bold text-slate-700 mb-2"><i class="fas fa-check-circle text-emerald-500 mr-1"></i> Ce qui est importé</div>
-                                    <div class="text-slate-500"><i class="fas fa-building text-indigo-400 w-4 mr-1"></i> Nom, adresse, ville, CP, pays</div>
-                                    <div class="text-slate-500"><i class="fas fa-phone text-indigo-400 w-4 mr-1"></i> Téléphones (normalisés automatiquement)</div>
-                                    <div class="text-slate-500"><i class="fas fa-envelope text-indigo-400 w-4 mr-1"></i> Email, site web</div>
-                                    <div class="text-slate-500"><i class="fas fa-users text-indigo-400 w-4 mr-1"></i> Jusqu'à 3 contacts par structure</div>
-                                    <div class="text-slate-500"><i class="fas fa-tags text-indigo-400 w-4 mr-1"></i> Catégories, genres, réseaux, mots-clef</div>
-                                </div>
-                                <div class="bg-orange-50 rounded-xl p-4 text-sm space-y-1.5">
-                                    <div class="font-bold text-orange-700 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i> Gestion des doublons</div>
-                                    <div class="text-orange-600"><strong>Ignorer</strong> — garde votre fiche existante</div>
-                                    <div class="text-orange-600"><strong>Fusionner</strong> — complète les champs vides</div>
-                                    <div class="text-orange-600"><strong>Remplacer</strong> — écrase avec Bob Booking</div>
-                                    <div class="text-[10px] text-orange-400 mt-2">Détection sur le nom exact de la structure.</div>
-                                </div>
-                            </div>
-                            <label class="w-full flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow transition cursor-pointer text-sm">
-                                <i class="fas fa-file-excel text-xl"></i>
-                                Charger un export Bob Booking (.xlsx)
-                                <input type="file" @change="previewBobImport" class="hidden" accept=".xlsx,.xls">
-                            </label>
-                            <p class="text-[10px] text-slate-400 text-center mt-2">Bob Booking → Structures → Export Excel</p>
-                        </div>
-
-                    <!-- ═══ SECTION 8 : GESTION BDD ═══ -->
+                    <!-- ═══ SECTION 7 : GESTION BDD ═══ -->
                     <div class="bg-white rounded-2xl shadow-sm border border-red-100 p-6">
                         <h3 class="font-bold text-slate-800 text-lg mb-1"><i class="fas fa-database text-red-500 mr-2"></i> Gestion de la Base de Données</h3>
                         <p class="text-xs text-slate-400 mb-6">Sauvegardez, restaurez ou réinitialisez les données de l'application.</p>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Export JSON -->
                             <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
                                 <div class="flex items-center gap-2 mb-2">
-                                    <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><i class="fas fa-download text-emerald-600"></i></div>
-                                    <h4 class="font-bold text-slate-800">Exporter</h4>
+                                    <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-code text-emerald-600"></i></div>
+                                    <h4 class="font-bold text-slate-800 text-sm">JSON complet</h4>
                                 </div>
-                                <p class="text-xs text-slate-500 mb-4">Télécharge un fichier <code class="bg-white px-1 rounded">.json</code> complet de toute la base.</p>
-                                <button @click="exportFullDB" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
-                                    <i class="fas fa-file-download"></i> Télécharger la sauvegarde
+                                <p class="text-xs text-slate-500 mb-4">Sauvegarde complète — structures, contacts, affaires, projets, tâches.</p>
+                                <button @click="exportFullDB" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-download"></i> Télécharger .json
                                 </button>
                             </div>
+                            <!-- Export Excel -->
+                            <div class="bg-teal-50 border border-teal-100 rounded-xl p-5">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <div class="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-excel text-teal-600"></i></div>
+                                    <h4 class="font-bold text-slate-800 text-sm">Excel multi-feuilles</h4>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4">Structures, contacts et affaires dans 3 feuilles Excel séparées.</p>
+                                <button @click="exportFullExcel" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-file-excel"></i> Télécharger .xlsx
+                                </button>
+                            </div>
+                            <!-- Import JSON -->
                             <div class="bg-blue-50 border border-blue-100 rounded-xl p-5">
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-upload text-blue-600"></i></div>
-                                    <h4 class="font-bold text-slate-800">Restaurer</h4>
+                                    <h4 class="font-bold text-slate-800 text-sm">Restaurer JSON</h4>
                                 </div>
                                 <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> et remplace la base actuelle.</p>
-                                <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2 cursor-pointer">
-                                    <i class="fas fa-file-upload"></i> Charger un fichier
+                                <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2 cursor-pointer">
+                                    <i class="fas fa-file-upload"></i> Charger .json
                                     <input type="file" @change="importFullDB" class="hidden" accept=".json">
                                 </label>
                             </div>
@@ -487,14 +896,36 @@
             </div>
             
             <div v-if="tab==='pipeline'" class="p-6 h-full flex flex-col bg-white">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
                     <h3 class="text-xl font-bold text-slate-800"><i class="fas fa-columns text-indigo-500 mr-2"></i> Suivi des Négociations</h3>
-                    <div class="flex items-center gap-3">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Filtrer par artiste :</label>
-                        <select v-model="pipelineFilterProj" class="input-field w-64 shadow-sm border-slate-200">
-                            <option value="">Tous les artistes / projets</option>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Recherche lieu / contact -->
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input v-model="pipelineSearch"
+                                   class="input-field pl-8 w-52 text-sm shadow-sm border-slate-200"
+                                   placeholder="Lieu, ville, contact...">
+                            <button v-if="pipelineSearch" @click="pipelineSearch=''"
+                                    class="absolute right-2 top-2 text-slate-300 hover:text-slate-500">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        <!-- Filtre projet -->
+                        <select v-model="pipelineFilterProj" class="input-field w-52 shadow-sm border-slate-200 text-sm">
+                            <option value="">Tous les projets</option>
                             <option v-for="p in db.projects" :value="p.id">{{ p.name }}</option>
                         </select>
+                        <!-- Compteur résultats -->
+                        <div v-if="pipelineSearch || pipelineFilterProj"
+                             class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full">
+                            {{ db.events.filter(e=>getPipelineEvents(e.stage||'lead').some(x=>x.id===e.id)).length }} affaire(s)
+                        </div>
+                        <!-- Reset filtres -->
+                        <button v-if="pipelineSearch || pipelineFilterProj"
+                                @click="pipelineSearch=''; pipelineFilterProj=''"
+                                class="text-xs text-slate-400 hover:text-slate-600 font-bold">
+                            <i class="fas fa-times mr-1"></i>Réinitialiser
+                        </button>
                     </div>
                 </div>
                 
@@ -531,41 +962,411 @@
                 </div>
             </div>
 
-            <div v-if="tab==='dashboard'" class="p-8 h-full overflow-y-auto">
-                <h3 class="text-2xl font-bold mb-4">Bienvenue, {{ currentUserName }}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-indigo-500 flex justify-between items-center">
-                        <div><div class="text-slate-500 font-bold uppercase text-xs">Chiffre d'Affaires</div><div class="text-2xl font-bold text-indigo-600">{{ formatMoney(totalCA) }}</div></div>
-                        <i class="fas fa-euro-sign text-3xl text-indigo-100"></i>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-emerald-500 flex justify-between items-center cursor-pointer hover:bg-emerald-50" @click="tab='pipeline'">
-                        <div><div class="text-slate-500 font-bold uppercase text-xs">Dates Confirmées</div><div class="text-2xl font-bold text-emerald-600">{{ db.events.filter(e=>e.status==='conf').length }}</div></div>
-                        <i class="fas fa-calendar-check text-3xl text-emerald-100"></i>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-red-500 flex justify-between items-center cursor-pointer hover:bg-red-50" @click="tab='tasks'">
-                        <div><div class="text-slate-500 font-bold uppercase text-xs">Tâches en retard</div><div class="text-2xl font-bold text-red-600">{{ tasksOverdue.length }}</div></div>
-                        <i class="fas fa-exclamation-circle text-3xl text-red-100"></i>
-                    </div>
-                </div>
+            <div v-if="tab==='dashboard'" class="h-full overflow-y-auto bg-slate-50 custom-scrollbar">
+                <div class="p-8 max-w-7xl mx-auto">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex justify-between items-center mb-4 border-b pb-2">
-                            <h4 class="font-bold text-slate-700"><i class="fas fa-tasks mr-2 text-indigo-500"></i> Tâches Urgentes</h4>
-                            <button @click="tab='tasks'" class="text-indigo-600 text-xs font-bold hover:underline">Voir tout</button>
+                    <!-- En-tête -->
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-black text-slate-800">Tableau de bord</h2>
+                            <p class="text-slate-400 text-sm mt-1">Bonjour <strong>{{ currentUserName }}</strong> — {{ new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) }}</p>
                         </div>
-                        <div class="space-y-3">
-                            <div v-if="tasksOverdue.length === 0 && tasksToday.length === 0" class="text-slate-400 text-center py-4 text-sm">Aucune tâche urgente.</div>
-                            <div v-for="t in tasksOverdue.slice(0,3)" :key="t.id" class="flex gap-3 items-start bg-red-50 p-3 rounded border border-red-100">
-                                <button @click.prevent="toggleTaskDone(t)" class="text-red-400 hover:text-red-600 mt-0.5"><i class="far fa-circle text-lg"></i></button>
-                                <div class="flex-1"><div class="font-bold text-sm text-red-800">{{ t.text }}</div><div class="text-xs text-red-600 mt-1 flex justify-between"><span><i :class="getTypeIcon(t.type)"></i> Échéance dépassée ({{ formatDate(t.dueDate) }})</span><span v-if="t.relType" @click="openRelated(t)" class="cursor-pointer font-bold hover:underline"><i class="fas fa-link"></i> Lié</span></div></div>
+                        <div class="bg-indigo-600 text-white px-5 py-3 rounded-2xl shadow-lg">
+                            <div class="text-xs font-bold uppercase opacity-70">CA Confirmé</div>
+                            <div class="text-2xl font-black">{{ formatMoney(totalCA) }}</div>
+                        </div>
+                    </div>
+
+                    <!-- KPIs -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div @click="tab='pipeline'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-emerald-200 transition group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition">
+                                    <i class="fas fa-calendar-check text-emerald-600"></i>
+                                </div>
+                                <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Confirmé</span>
                             </div>
-                            <div v-for="t in tasksToday.slice(0,4)" :key="t.id" class="flex gap-3 items-start bg-orange-50 p-3 rounded border border-orange-100">
-                                <button @click.prevent="toggleTaskDone(t)" class="text-orange-400 hover:text-orange-600 mt-0.5"><i class="far fa-circle text-lg"></i></button>
-                                <div class="flex-1"><div class="font-bold text-sm text-slate-800">{{ t.text }}</div><div class="text-xs text-slate-500 mt-1 flex justify-between"><span><i :class="[getTypeIcon(t.type), 'text-slate-400']"></i> À faire aujourd'hui</span></div></div>
+                            <div class="text-3xl font-black text-slate-800">{{ db.events.filter(e=>e.status==='conf'||e.stage==='won').length }}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">Dates confirmées</div>
+                        </div>
+
+                        <div @click="tab='pipeline'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-orange-200 transition group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center group-hover:bg-orange-200 transition">
+                                    <i class="fas fa-hourglass-half text-orange-600"></i>
+                                </div>
+                                <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full">Pipeline</span>
+                            </div>
+                            <div class="text-3xl font-black text-slate-800">{{ db.events.filter(e=>e.stage&&e.stage!=='won'&&e.stage!=='ann').length }}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">En négociation</div>
+                        </div>
+
+                        <div @click="tab='contacts'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-indigo-200 transition group">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-200 transition">
+                                    <i class="fas fa-address-book text-indigo-600"></i>
+                                </div>
+                                <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">Annuaire</span>
+                            </div>
+                            <div class="text-3xl font-black text-slate-800">{{ db.structures.reduce((a,s)=>a+(s.contacts||[]).length,0) }}</div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">Contacts</div>
+                        </div>
+
+                        <div @click="tab='tasks'" class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition group"
+                             :class="tasksOverdue.length > 0 ? 'hover:border-red-200' : 'hover:border-slate-200'">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center transition"
+                                     :class="tasksOverdue.length > 0 ? 'bg-red-100 group-hover:bg-red-200' : 'bg-slate-100 group-hover:bg-slate-200'">
+                                    <i class="fas fa-tasks" :class="tasksOverdue.length > 0 ? 'text-red-600' : 'text-slate-500'"></i>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 rounded-full"
+                                      :class="tasksOverdue.length > 0 ? 'text-red-600 bg-red-50' : 'text-slate-500 bg-slate-50'">
+                                    {{ tasksOverdue.length > 0 ? 'En retard' : 'OK' }}
+                                </span>
+                            </div>
+                            <div class="text-3xl font-black" :class="tasksOverdue.length > 0 ? 'text-red-600' : 'text-slate-800'">
+                                {{ tasksOverdue.length + tasksToday.length }}
+                            </div>
+                            <div class="text-xs text-slate-400 font-bold uppercase mt-1">Tâches urgentes</div>
+                        </div>
+                    </div>
+
+                    <!-- Contenu principal -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        <!-- Colonne gauche : Prochaines dates + Pipeline -->
+                        <div class="lg:col-span-2 space-y-6">
+
+                            <!-- Prochaines dates -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-calendar-alt text-indigo-500"></i> Prochaines dates
+                                    </h3>
+                                    <button @click="tab='planning'" class="text-xs text-indigo-600 font-bold hover:underline">Voir le planning →</button>
+                                </div>
+                                <div v-if="dashboardNextDates.length === 0" class="text-center py-6 text-slate-400">
+                                    <i class="fas fa-calendar-times text-3xl opacity-30 block mb-2"></i>
+                                    <p class="text-sm">Aucune date à venir.</p>
+                                    <button @click="tab='pipeline'" class="mt-2 text-xs text-indigo-500 hover:underline">Ajouter une affaire →</button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div v-for="e in dashboardNextDates" :key="e.id"
+                                         class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer"
+                                         @click="tab='planning'; openEventModal(null, e)">
+                                        <!-- Date badge -->
+                                        <div class="w-12 h-12 rounded-xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-sm"
+                                             :style="{ backgroundColor: getProjectColor(e.projectId) }">
+                                            <div class="text-[10px] font-bold uppercase opacity-80">{{ new Date(e.date).toLocaleDateString('fr-FR',{month:'short'}) }}</div>
+                                            <div class="text-lg font-black leading-none">{{ new Date(e.date).getDate() }}</div>
+                                        </div>
+                                        <!-- Infos -->
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-slate-800 text-sm truncate">{{ e.venueName || 'Lieu à définir' }}</div>
+                                            <div class="text-xs text-slate-400 truncate">
+                                                <i class="fas fa-music mr-1"></i>{{ getProjectName(e.projectId) }}
+                                                <span v-if="e.city" class="ml-2"><i class="fas fa-map-marker-alt mr-1"></i>{{ e.city }}</span>
+                                            </div>
+                                        </div>
+                                        <!-- Cachet + statut -->
+                                        <div class="text-right flex-shrink-0">
+                                            <div class="text-sm font-bold text-slate-700">{{ e.fee ? formatMoney(e.fee) : '—' }}</div>
+                                            <div class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full mt-1"
+                                                 :class="{
+                                                     'bg-emerald-100 text-emerald-700': e.status==='conf'||e.stage==='won',
+                                                     'bg-orange-100 text-orange-700':  e.stage==='option',
+                                                     'bg-blue-100 text-blue-700':      e.stage==='nego',
+                                                     'bg-slate-100 text-slate-600':    !e.status&&e.stage==='lead'
+                                                 }">
+                                                {{ e.status==='conf'||e.stage==='won' ? 'Confirmé' : e.stage==='option' ? 'Option' : e.stage==='nego' ? 'Négo' : 'Prospect' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pipeline résumé -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-columns text-yellow-500"></i> Pipeline
+                                    </h3>
+                                    <button @click="tab='pipeline'" class="text-xs text-indigo-600 font-bold hover:underline">Voir tout →</button>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div v-for="col in pipelineCols.filter(c=>c.id!=='won')" :key="col.id"
+                                         @click="tab='pipeline'"
+                                         class="text-center p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition cursor-pointer">
+                                        <div class="text-2xl font-black text-slate-800">
+                                            {{ db.events.filter(e=>e.stage===col.id).length }}
+                                        </div>
+                                        <div class="text-[10px] font-bold text-slate-500 uppercase mt-1">{{ col.name }}</div>
+                                        <div class="w-2 h-2 rounded-full mx-auto mt-2" :class="col.dotColor"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Colonne droite : Tâches + Activité -->
+                        <div class="space-y-6">
+
+                            <!-- Tâches urgentes -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-tasks text-red-500"></i> Tâches
+                                    </h3>
+                                    <button @click="tab='tasks'" class="text-xs text-indigo-600 font-bold hover:underline">Tout voir →</button>
+                                </div>
+                                <div v-if="tasksOverdue.length === 0 && tasksToday.length === 0" class="text-center py-4 text-slate-400">
+                                    <i class="fas fa-check-circle text-3xl text-emerald-300 block mb-2"></i>
+                                    <p class="text-sm">Aucune tâche urgente !</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="t in [...tasksOverdue, ...tasksToday].slice(0,5)" :key="t.id"
+                                         class="flex gap-3 items-start p-3 rounded-xl border transition"
+                                         :class="tasksOverdue.includes(t) ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'">
+                                        <button @click.prevent="toggleTaskDone(t)" class="mt-0.5 flex-shrink-0"
+                                                :class="tasksOverdue.includes(t) ? 'text-red-400 hover:text-red-600' : 'text-orange-400 hover:text-orange-600'">
+                                            <i class="far fa-circle"></i>
+                                        </button>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm text-slate-800 truncate">{{ t.text }}</div>
+                                            <div class="text-[10px] font-bold mt-0.5"
+                                                 :class="tasksOverdue.includes(t) ? 'text-red-500' : 'text-orange-500'">
+                                                {{ tasksOverdue.includes(t) ? '⚠ ' + formatDate(t.dueDate) : "Aujourd'hui" }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Relances à effectuer -->
+                            <div v-if="affairesToRelance.length > 0" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-bell text-orange-500"></i> Relances
+                                    </h3>
+                                    <button @click="tab='pipeline'" class="text-xs text-indigo-600 font-bold hover:underline">Pipeline →</button>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="e in affairesToRelance.slice(0,4)" :key="e.id"
+                                         class="flex items-center gap-3 p-3 rounded-xl border transition"
+                                         :class="e.relanceDate < new Date().toISOString().slice(0,10) ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm text-slate-800 truncate">{{ e.venueName || 'Lieu inconnu' }}</div>
+                                            <div class="text-[10px] font-bold mt-0.5"
+                                                 :class="e.relanceDate < new Date().toISOString().slice(0,10) ? 'text-red-500' : 'text-orange-500'">
+                                                <i class="fas fa-bell mr-1"></i>{{ formatDate(e.relanceDate) }}
+                                                <span v-if="e.relanceNote" class="text-slate-400 ml-1">— {{ e.relanceNote }}</span>
+                                            </div>
+                                        </div>
+                                        <button @click="markRelanceDone(e)"
+                                                class="text-xs font-bold px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition flex-shrink-0">
+                                            ✓
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Projets actifs -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-music text-purple-500"></i> Projets actifs
+                                    </h3>
+                                    <button @click="tab='projects'" class="text-xs text-indigo-600 font-bold hover:underline">Tout voir →</button>
+                                </div>
+                                <div v-if="db.projects.filter(p=>p.isActive!==false).length === 0" class="text-center py-4 text-slate-400 text-sm">
+                                    Aucun projet actif.
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="p in db.projects.filter(p=>p.isActive!==false).slice(0,4)" :key="p.id"
+                                         @click="tab='projects'; openProjectModal(p)"
+                                         class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                                        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-sm"
+                                             :style="{ backgroundColor: p.color || '#6366f1' }">
+                                            <i :class="p.icon || 'fas fa-music'" class="text-xs"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm text-slate-800 truncate">{{ p.name }}</div>
+                                            <div class="text-[10px] text-slate-400">
+                                                {{ db.events.filter(e=>e.projectId===p.id&&(e.status==='conf'||e.stage==='won')).length }} confirmé(s)
+                                            </div>
+                                        </div>
+                                        <i class="fas fa-chevron-right text-slate-300 text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stats annuaire -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <h3 class="font-bold text-slate-800 flex items-center gap-2 mb-4">
+                                    <i class="fas fa-database text-blue-500"></i> Annuaire
+                                </h3>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-500">Structures</span>
+                                        <span class="font-black text-slate-800">{{ db.structures.length }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-500">Contacts</span>
+                                        <span class="font-black text-slate-800">{{ db.structures.reduce((a,s)=>a+(s.contacts||[]).length,0) }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-500">Avec GPS</span>
+                                        <span class="font-black text-slate-800">{{ db.structures.filter(s=>s.lat&&s.lng).length }}</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-2 mt-2">
+                                        <div class="bg-indigo-500 h-2 rounded-full transition-all"
+                                             :style="{ width: db.structures.length ? (db.structures.filter(s=>s.lat&&s.lng).length/db.structures.length*100)+'%' : '0%' }"></div>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 text-right">
+                                        {{ db.structures.length ? Math.round(db.structures.filter(s=>s.lat&&s.lng).length/db.structures.length*100) : 0 }}% géolocalisées
+                                    </div>
+                                </div>
+                                <button @click="tab='structures'" class="w-full mt-3 text-xs text-indigo-600 font-bold hover:underline text-center">
+                                    Gérer l'annuaire →
+                                </button>
                             </div>
                         </div>
                     </div>
+
+                    <!-- ═══ STATISTIQUES ═══ -->
+                    <div class="mt-6 space-y-6">
+                        <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                            <i class="fas fa-chart-bar text-indigo-500"></i> Statistiques
+                        </h3>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                            <!-- CA par projet -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-5">
+                                    <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-music text-indigo-400"></i> CA par projet
+                                    </h4>
+                                    <div class="text-right">
+                                        <div class="text-[10px] text-slate-400 uppercase font-bold">Pipeline estimé</div>
+                                        <div class="text-sm font-black text-orange-500">+ {{ formatMoney(totalCAEstim) }}</div>
+                                    </div>
+                                </div>
+                                <div v-if="!statsByProject.length" class="text-center py-6 text-slate-400 text-sm">
+                                    Aucun projet avec des affaires.
+                                </div>
+                                <div v-else class="space-y-4">
+                                    <div v-for="p in statsByProject" :key="p.id">
+                                        <div class="flex items-center justify-between mb-1.5">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: p.color }"></div>
+                                                <span class="text-sm font-bold text-slate-700 truncate max-w-[140px]">{{ p.name }}</span>
+                                                <span class="text-[10px] text-slate-400">{{ p.confirmed }} date(s)</span>
+                                            </div>
+                                            <span class="text-sm font-black text-slate-800">{{ formatMoney(p.ca) }}</span>
+                                        </div>
+                                        <!-- Barre CA confirmé -->
+                                        <div class="w-full bg-slate-100 rounded-full h-2.5 relative overflow-hidden">
+                                            <div class="h-full rounded-full transition-all duration-500"
+                                                 :style="{
+                                                     width: statsByProject[0].ca > 0 ? (p.ca / statsByProject[0].ca * 100) + '%' : '0%',
+                                                     backgroundColor: p.color
+                                                 }"></div>
+                                            <!-- Barre estimé -->
+                                            <div v-if="p.caEstim > 0"
+                                                 class="absolute top-0 h-full rounded-full opacity-30 transition-all duration-500"
+                                                 :style="{
+                                                     left: statsByProject[0].ca > 0 ? (p.ca / statsByProject[0].ca * 100) + '%' : '0%',
+                                                     width: statsByProject[0].ca > 0 ? (p.caEstim / statsByProject[0].ca * 100) + '%' : '0%',
+                                                     backgroundColor: p.color
+                                                 }"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Entonnoir de conversion -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <div class="flex items-center justify-between mb-5">
+                                    <h4 class="font-bold text-slate-800 flex items-center gap-2">
+                                        <i class="fas fa-filter text-purple-400"></i> Entonnoir pipeline
+                                    </h4>
+                                    <div class="text-right">
+                                        <div class="text-[10px] text-slate-400 uppercase font-bold">Taux global</div>
+                                        <div class="text-sm font-black text-emerald-500">{{ globalConversionRate }}%</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div v-for="s in conversionFunnel" :key="s.id" class="flex items-center gap-3">
+                                        <div class="w-20 text-[10px] font-bold text-slate-500 text-right truncate">{{ s.name }}</div>
+                                        <div class="flex-1 bg-slate-100 rounded-full h-6 relative overflow-hidden">
+                                            <div class="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-700"
+                                                 :class="s.color.replace('bg-', 'bg-')"
+                                                 :style="{ width: Math.max(s.pct, 2) + '%' }">
+                                            </div>
+                                        </div>
+                                        <div class="w-12 text-right">
+                                            <span class="text-xs font-black text-slate-700">{{ s.count }}</span>
+                                            <span class="text-[10px] text-slate-400 ml-1">{{ s.pct }}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Évolution CA mensuel -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <h4 class="font-bold text-slate-800 flex items-center gap-2 mb-5">
+                                    <i class="fas fa-chart-line text-emerald-400"></i> CA mensuel (12 mois)
+                                </h4>
+                                <div class="flex items-end gap-1.5 h-32">
+                                    <div v-for="m in caByMonth" :key="m.key"
+                                         class="flex-1 flex flex-col items-center gap-1 group cursor-default">
+                                        <div class="w-full relative flex items-end" style="height: 96px;">
+                                            <div class="w-full rounded-t-md transition-all duration-500 group-hover:opacity-80"
+                                                 :class="m.ca > 0 ? 'bg-indigo-500' : 'bg-slate-100'"
+                                                 :style="{ height: m.ca > 0 ? Math.max(m.ca / caByMonthMax * 96, 4) + 'px' : '4px' }"
+                                                 :title="formatMoney(m.ca)">
+                                            </div>
+                                        </div>
+                                        <div class="text-[9px] text-slate-400 font-bold">{{ m.label }}</div>
+                                    </div>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
+                                    <span>{{ caByMonth[0].label }}</span>
+                                    <span class="font-bold text-slate-600">Total : {{ formatMoney(caByMonth.reduce((s,m)=>s+m.ca,0)) }}</span>
+                                    <span>{{ caByMonth[11].label }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Top lieux -->
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                                <h4 class="font-bold text-slate-800 flex items-center gap-2 mb-5">
+                                    <i class="fas fa-map-marker-alt text-red-400"></i> Top lieux sollicités
+                                </h4>
+                                <div v-if="!topVenues.length" class="text-center py-6 text-slate-400 text-sm">
+                                    Aucune affaire avec un lieu renseigné.
+                                </div>
+                                <div v-else class="space-y-3">
+                                    <div v-for="(v, i) in topVenues" :key="v.name"
+                                         class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition">
+                                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black flex-shrink-0"
+                                             :class="['bg-indigo-500','bg-purple-500','bg-pink-500','bg-orange-500','bg-slate-400'][i]">
+                                            {{ i + 1 }}
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-slate-800 text-sm truncate">{{ v.name }}</div>
+                                            <div class="text-[10px] text-slate-400">{{ v.city }}</div>
+                                        </div>
+                                        <div class="text-right flex-shrink-0">
+                                            <div class="text-xs font-black text-slate-700">{{ v.count }} affaire(s)</div>
+                                            <div v-if="v.ca > 0" class="text-[10px] text-emerald-600 font-bold">{{ formatMoney(v.ca) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -713,8 +1514,111 @@
                 </div>
             </div>
 
-            <div v-if="tab==='structures'" class="p-8 h-full flex flex-col">
-                <div class="mb-4 flex gap-4"><input v-model="searchStruct" class="input-field max-w-sm" placeholder="Rechercher une structure..."></div>
+            <div v-if="tab==='structures'" class="p-6 h-full flex flex-col">
+
+                <!-- Barre de recherche + filtres -->
+                <div class="mb-4 flex-shrink-0 space-y-3">
+
+                    <!-- Ligne 1 : recherche + bouton filtres + compteur -->
+                    <div class="flex items-center gap-3">
+                        <div class="relative flex-1 max-w-sm">
+                            <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input v-model="searchStruct" class="input-field pl-8 w-full" placeholder="Nom, ville, email, notes...">
+                            <button v-if="searchStruct" @click="searchStruct=''" class="absolute right-3 top-2.5 text-slate-300 hover:text-slate-500">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        <button @click="structFiltersOpen = !structFiltersOpen"
+                                class="flex items-center gap-2 px-4 py-2 rounded-xl border transition font-bold text-sm"
+                                :class="structFiltersOpen || structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'">
+                            <i class="fas fa-sliders-h"></i>
+                            Filtres
+                            <span v-if="structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts"
+                                  class="bg-white text-indigo-600 text-[10px] font-black px-1.5 rounded-full">
+                                {{ [structFilterCat, structFilterGenre, structFilterReseau, structFilterCity, structFilterStatus].filter(Boolean).length
+                                   + (structFilterGPS ? 1 : 0) + (structFilterHasContacts ? 1 : 0) }}
+                            </span>
+                        </button>
+                        <!-- Compteur résultats -->
+                        <div class="text-sm text-slate-500">
+                            <span class="font-black text-slate-800">{{ filteredStructures.length }}</span> / {{ db.structures.length }} structure(s)
+                        </div>
+                        <!-- Reset -->
+                        <button v-if="structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts || searchStruct"
+                                @click="searchStruct=''; structFilterCat=''; structFilterGenre=''; structFilterReseau=''; structFilterCity=''; structFilterStatus=''; structFilterGPS=false; structFilterHasContacts=false;"
+                                class="text-xs text-slate-400 hover:text-red-500 font-bold transition flex items-center gap-1">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </button>
+                        <button v-if="canEdit" @click="findDuplicates()"
+                                data-tooltip="Détecter les structures en double"
+                                class="flex items-center gap-2 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-xl text-xs font-bold transition">
+                            <i class="fas fa-compress-arrows-alt"></i> Doublons
+                        </button>
+                    </div>
+
+                    <!-- Ligne 2 : filtres avancés (dépliables) -->
+                    <div v-if="structFiltersOpen" class="bg-slate-50 rounded-2xl p-4 border border-slate-200 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+
+                        <!-- Ville -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Ville / Région</label>
+                            <input v-model="structFilterCity" class="input-field text-sm w-full" placeholder="Ex: Lyon, Paris...">
+                        </div>
+
+                        <!-- Catégorie -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Catégorie</label>
+                            <select v-model="structFilterCat" class="input-field text-sm w-full">
+                                <option value="">Toutes</option>
+                                <option v-for="t in db.tagCategories" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Genre -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Genre</label>
+                            <select v-model="structFilterGenre" class="input-field text-sm w-full">
+                                <option value="">Tous</option>
+                                <option v-for="t in db.tagGenres" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Réseau -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Réseau</label>
+                            <select v-model="structFilterReseau" class="input-field text-sm w-full">
+                                <option value="">Tous</option>
+                                <option v-for="t in db.tagReseaux" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Statut -->
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Statut</label>
+                            <select v-model="structFilterStatus" class="input-field text-sm w-full">
+                                <option value="">Tous</option>
+                                <option value="active">Actifs</option>
+                                <option value="inactive">Inactifs</option>
+                                <option value="vip">VIP</option>
+                            </select>
+                        </div>
+
+                        <!-- Options -->
+                        <div class="flex flex-col gap-2 justify-center">
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" v-model="structFilterGPS" class="rounded">
+                                <span class="text-sm text-slate-600 font-bold">Géolocalisés uniquement</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" v-model="structFilterHasContacts" class="rounded">
+                                <span class="text-sm text-slate-600 font-bold">Avec contacts</span>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
                 <div class="bg-white rounded-lg shadow overflow-hidden flex-1 overflow-y-auto">
                      <table class="w-full text-left">
                         <thead class="bg-slate-50 border-b text-xs uppercase text-slate-500"><tr><th class="p-4">Nom</th><th class="p-4">Ville</th><th class="p-4">Saison / Horaires</th><th class="p-4">Contacts</th><th class="p-4 text-right">Actions</th></tr></thead>
@@ -732,6 +1636,7 @@
                                 <td class="p-4"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{{ (s.contacts||[]).length }}</span></td>
                                <td class="p-4 text-right whitespace-nowrap">
     <button @click="openCrmView(s)" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-1.5 rounded-lg text-xs font-bold transition mr-2 shadow-sm"><i class="fas fa-folder-open mr-1"></i> Fiche CRM</button>
+    <button @click="exportStructurePDF(s)" class="text-slate-300 hover:text-indigo-500 px-2 transition" data-tooltip="Exporter la fiche en PDF"><i class="fas fa-file-pdf"></i></button>
     <button @click="deleteStructure(s)" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fas fa-trash"></i></button>
 </td> 
                             </tr>
@@ -1136,6 +2041,10 @@
                             <button @click="toggleSelectAll" class="w-full text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded font-bold transition text-left">
                                 <i class="fas fa-check-square mr-1 text-indigo-500"></i> Tout sélectionner / désélectionner
                             </button>
+                            <div class="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                <i class="fas fa-ban text-red-400"></i>
+                                {{ (selectedMailingContacts.filter(c=>c.isUnsubscribed)).length }} désinscrits exclus
+                            </div>
                         </div>
 
                         <!-- Filtres par tags — scrollable -->
@@ -1216,7 +2125,14 @@
                             <div class="mb-4">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="input-label">Corps du message</label>
-                                    <span class="text-xs text-slate-400">Variables : <code class="bg-slate-100 px-1 rounded">&#123;&#123;contactFirstName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;structName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;structCity&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded">&#123;&#123;userName&#125;&#125;</code></span>
+                                    <div class="flex flex-wrap gap-1">
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{contactFirstName}}'">{{contactFirstName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{contactLastName}}'">{{contactLastName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{structName}}'">{{structName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{structCity}}'">{{structCity}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{userName}}'">{{userName}}</code>
+                                        <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-blue-700 cursor-pointer hover:bg-blue-50" @click="mailBody += '\n\n---\nPour ne plus recevoir nos emails : {{unsubscribeLink}}'" title="Ajouter un lien de désinscription">{{unsubscribeLink}}</code>
+                                    </div>
                                 </div>
                                 <textarea v-model="mailBody" rows="12" class="input-field resize-none font-mono text-sm" placeholder="Rédigez votre message..."></textarea>
                             </div>
@@ -1232,11 +2148,22 @@
                                     <i class="fas fa-file-csv"></i> Export Mailchimp
                                 </button>
                             </div>
-                            <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody"
+                            <label class="flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" v-model="mailingAddUnsubscribe" class="rounded">
+                                <span class="text-xs text-slate-600 font-bold">Inclure lien de désinscription</span>
+                            </label>
+                            <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody || mailingInProgress"
                                 class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold shadow transition disabled:opacity-40 disabled:cursor-not-allowed">
-                                <i class="fas fa-paper-plane"></i>
-                                Lancer la campagne ({{ selectedMailingContacts.length }})
+                                <i :class="mailingInProgress ? 'fas fa-circle-notch fa-spin' : 'fas fa-paper-plane'"></i>
+                                {{ mailingInProgress ? mailingProgress + ' / ' + mailingProgressTotal : 'Lancer la campagne (' + selectedMailingContacts.length + ')' }}
                             </button>
+                        </div>
+                        <!-- Barre de progression -->
+                        <div v-if="mailingInProgress" class="border-t border-slate-100 bg-white px-6 py-2">
+                            <div class="w-full bg-slate-100 rounded-full h-1.5">
+                                <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
+                                     :style="{ width: mailingProgressTotal > 0 ? (mailingProgress / mailingProgressTotal * 100) + '%' : '0%' }"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -1263,7 +2190,10 @@
                                         <i v-if="isContactSelected(c)" class="fas fa-check text-white text-[8px]"></i>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="font-bold text-sm text-slate-800 truncate">{{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}</div>
+                                        <div class="font-bold text-sm text-slate-800 truncate flex items-center gap-1">
+                                            {{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}
+                                            <span v-if="c.isUnsubscribed" class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black">DÉSINSCRIT</span>
+                                        </div>
                                         <div class="text-xs text-slate-400 truncate">{{ c.structName }} · {{ c.primaryEmail }}</div>
                                     </div>
                                 </div>
@@ -1360,11 +2290,24 @@
                                     </span>
                                 </div>
                                 <div class="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 mb-3 whitespace-pre-wrap line-clamp-3 leading-relaxed font-mono">{{ campaign.body }}</div>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <button @click="resendCampaign(campaign)"
+                                            class="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition flex items-center gap-1">
+                                        <i class="fas fa-redo"></i> Renvoyer
+                                    </button>
+                                    <span v-if="campaign.hasVars" class="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-bold">
+                                        <i class="fas fa-magic mr-1"></i>Personnalisé
+                                    </span>
+                                    <span v-if="campaign.addUnsub" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">
+                                        <i class="fas fa-user-minus mr-1"></i>Désinscription incluse
+                                    </span>
+                                </div>
                                 <details class="text-xs text-slate-500">
                                     <summary class="cursor-pointer font-bold text-slate-600 hover:text-indigo-600 transition">Voir les destinataires</summary>
                                     <div class="mt-2 flex flex-wrap gap-1">
-                                        <span v-for="r in campaign.recipients" :key="r.email" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                        <span v-for="r in campaign.recipients" :key="r.email" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
                                             {{ r.name }} ({{ r.struct }})
+                                            <button @click.stop="unsubscribeContact(r.email)" :title="'Désinscrire ' + r.email" class="text-slate-300 hover:text-red-400 transition ml-1"><i class="fas fa-times text-[8px]"></i></button>
                                         </span>
                                     </div>
                                 </details>
@@ -1393,7 +2336,16 @@
                         <div>
                             <div class="flex justify-between items-center mb-1">
                                 <label class="input-label">Corps du message</label>
-                                <span class="text-xs text-slate-400">Variables : <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;contactFirstName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;structName&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;structCity&#125;&#125;</code> <code class="bg-slate-100 px-1 rounded text-[10px]">&#123;&#123;userName&#125;&#125;</code></span>
+                                <span class="text-xs text-slate-400 flex flex-wrap gap-1">
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactFirstName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactLastName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactRole}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{structName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{structCity}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{structRegion}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{userName}}</code>
+                                <code class="bg-slate-100 px-1 rounded text-[10px]">{{unsubscribeLink}}</code>
+                            </span>
                             </div>
                             <textarea v-model="editTemplateData.body" rows="10" class="input-field resize-none font-mono text-sm" placeholder="Rédigez le corps de votre template..."></textarea>
                         </div>
@@ -1410,7 +2362,7 @@
                     <h2 class="text-3xl font-black text-slate-800 mb-8"><i class="fas fa-cog text-indigo-500 mr-3"></i>Paramètres du CRM</h2>
 
                     <!-- Bloc activation admin -->
-                    <div v-if="!isAdmin" class="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mb-8 flex items-center justify-between gap-6">
+                    <div v-if="!isAdmin && adminEmails.length === 0" class="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mb-8 flex items-center justify-between gap-6">
                         <div>
                             <h3 class="font-bold text-slate-800 mb-1"><i class="fas fa-shield-alt text-amber-500 mr-2"></i> Accès Administrateur</h3>
                             <p class="text-sm text-slate-500">Vous n'êtes pas encore enregistré comme administrateur. Cliquez pour activer l'accès admin avec votre compte actuel.</p>
@@ -1425,6 +2377,31 @@
                         <div>
                             <span class="font-bold text-emerald-800 text-sm">Vous êtes administrateur.</span>
                             <span class="text-emerald-600 text-sm ml-2">L'onglet "Administration" est disponible dans le menu.</span>
+                        </div>
+                    </div>
+
+                    <!-- Modèles de contrats — accessible à tous -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg">
+                                    <i class="fas fa-file-contract text-indigo-500 mr-2"></i>Modèles de contrats
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">
+                                    {{ (db.contractTemplates||[]).length }} modèle(s) — personnalisez vos contrats PDF avec des variables automatiques.
+                                </p>
+                            </div>
+                            <button @click="showContractEditor=true; editingContractTpl=null"
+                                    class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition">
+                                <i class="fas fa-pen"></i> Gérer les modèles
+                            </button>
+                        </div>
+                        <div v-if="(db.contractTemplates||[]).length" class="flex flex-wrap gap-2 mt-4">
+                            <div v-for="tpl in (db.contractTemplates||[])" :key="tpl.id"
+                                 class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: tpl.color || '#4f46e5' }"></div>
+                                <span class="text-sm font-bold text-slate-700">{{ tpl.name }}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -1900,6 +2877,10 @@
                         <div class="flex gap-4">
                             <button @click.prevent="generateContract(editEventData)" class="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-sm font-bold shadow-sm transition"><i class="fas fa-file-contract mr-2 text-indigo-500"></i> Contrat</button>
                             <button @click.prevent="generateRoadbook(editEventData)" class="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-sm font-bold shadow-sm transition"><i class="fas fa-map-marked-alt mr-2 text-emerald-500"></i> Feuille de Route</button>
+                            <button @click.prevent="setRelanceDate(editEventData)" class="flex-1 bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 py-2 rounded text-sm font-bold shadow-sm transition">
+                                <i class="fas fa-bell mr-2"></i>
+                                {{ editEventData.relanceDate ? 'Relance : ' + formatDate(editEventData.relanceDate) : 'Planifier relance' }}
+                            </button>
                         </div>
                     </div>
 
@@ -1929,7 +2910,7 @@
 
             <!-- Onglets navigation (vue seulement) -->
             <div v-if="!isEditingProject" class="flex border-b border-slate-200 bg-white flex-shrink-0">
-                <button v-for="t in [{k:'resume',i:'fas fa-chart-bar',l:'Résumé'},{k:'affaires',i:'fas fa-calendar-alt',l:'Affaires'},{k:'structures',i:'fas fa-building',l:'Structures'},{k:'contacts',i:'fas fa-address-book',l:'Contacts'},{k:'notes',i:'fas fa-sticky-note',l:'Notes'}]" :key="t.k"
+                <button v-for="t in [{k:'artiste',i:'fas fa-star',l:'Artiste'},{k:'resume',i:'fas fa-chart-bar',l:'Résumé'},{k:'affaires',i:'fas fa-calendar-alt',l:'Affaires'},{k:'structures',i:'fas fa-building',l:'Structures'},{k:'contacts',i:'fas fa-address-book',l:'Contacts'},{k:'notes',i:'fas fa-sticky-note',l:'Notes'}]" :key="t.k"
                     @click="projectTab = t.k"
                     :class="['px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5', projectTab===t.k ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-500 hover:text-slate-700']">
                     <i :class="t.i"></i> {{ t.l }}
@@ -1938,6 +2919,146 @@
                     <span v-if="t.k==='structures'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ getProjectStructures(editProjectData.id).length }}</span>
                     <span v-if="t.k==='notes'" class="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full">{{ (editProjectData.notes||[]).length }}</span>
                 </button>
+            </div>
+
+            <!-- TAB ARTISTE -->
+            <div v-if="!isEditingProject && projectTab==='artiste'" class="p-6 overflow-y-auto bg-slate-50 flex-1 custom-scrollbar">
+                <div class="max-w-2xl mx-auto space-y-5">
+
+                    <!-- En-tête artiste -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-black text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-star text-yellow-400"></i> Fiche Artiste
+                            </h4>
+                            <button v-if="canEdit" @click="isEditingProject=true; projectTab='edit'"
+                                    class="text-xs text-indigo-600 hover:underline font-bold">
+                                <i class="fas fa-pen mr-1"></i>Modifier
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div v-if="editProjectData.genre">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Genre</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.genre }}</div>
+                            </div>
+                            <div v-if="editProjectData.productionYear">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Création</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.productionYear }}</div>
+                            </div>
+                            <div v-if="editProjectData.labelDistrib">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Label / Distribution</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.labelDistrib }}</div>
+                            </div>
+                            <div v-if="editProjectData.duration">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Durée spectacle</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.duration }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div v-if="editProjectData.bio" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-align-left text-indigo-400"></i> Biographie
+                        </h4>
+                        <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{{ editProjectData.bio }}</p>
+                    </div>
+
+                    <!-- Membres -->
+                    <div v-if="editProjectData.members" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-users text-purple-400"></i> Composition
+                        </h4>
+                        <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{{ editProjectData.members }}</p>
+                    </div>
+
+                    <!-- Conditions booking -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-handshake text-emerald-400"></i> Conditions de booking
+                        </h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Cachet catalogue</div>
+                                <div class="font-black text-indigo-600 text-lg">{{ formatMoney(editProjectData.defaultFee) }} {{ editProjectData.feeType||'HT' }}</div>
+                            </div>
+                            <div v-if="editProjectData.minFee">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Cachet minimum</div>
+                                <div class="font-black text-orange-500 text-lg">{{ formatMoney(editProjectData.minFee) }}</div>
+                            </div>
+                            <div v-if="editProjectData.contractTypes">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Types de contrat</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.contractTypes }}</div>
+                            </div>
+                            <div v-if="editProjectData.fraisRoute">
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Frais de route</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.fraisRoute }}</div>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-black text-slate-400 uppercase mb-0.5">Équipe</div>
+                                <div class="font-bold text-slate-700">{{ editProjectData.teamSize || 1 }} personne(s)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Réseaux sociaux -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                        <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fas fa-share-alt text-pink-400"></i> Liens & Réseaux
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <a v-if="editProjectData.linkVideo" :href="editProjectData.linkVideo" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition text-sm font-bold">
+                                <i class="fab fa-youtube w-5 text-center"></i> Vidéo
+                            </a>
+                            <a v-if="editProjectData.linkSpotify" :href="editProjectData.linkSpotify" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition text-sm font-bold">
+                                <i class="fab fa-spotify w-5 text-center"></i> Spotify
+                            </a>
+                            <a v-if="editProjectData.linkInstagram" :href="editProjectData.linkInstagram" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-pink-50 text-pink-700 rounded-xl hover:bg-pink-100 transition text-sm font-bold">
+                                <i class="fab fa-instagram w-5 text-center"></i> Instagram
+                            </a>
+                            <a v-if="editProjectData.linkFacebook" :href="editProjectData.linkFacebook" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition text-sm font-bold">
+                                <i class="fab fa-facebook w-5 text-center"></i> Facebook
+                            </a>
+                            <a v-if="editProjectData.linkAppleMusic" :href="editProjectData.linkAppleMusic" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 transition text-sm font-bold">
+                                <i class="fab fa-apple w-5 text-center"></i> Apple Music
+                            </a>
+                            <a v-if="editProjectData.linkBandcamp" :href="editProjectData.linkBandcamp" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-teal-50 text-teal-700 rounded-xl hover:bg-teal-100 transition text-sm font-bold">
+                                <i class="fab fa-bandcamp w-5 text-center"></i> Bandcamp
+                            </a>
+                            <a v-if="editProjectData.linkPress" :href="editProjectData.linkPress" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition text-sm font-bold">
+                                <i class="fas fa-file-pdf w-5 text-center"></i> Dossier de presse
+                            </a>
+                            <a v-if="editProjectData.linkTech" :href="editProjectData.linkTech" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition text-sm font-bold">
+                                <i class="fas fa-sliders-h w-5 text-center"></i> Fiche technique
+                            </a>
+                            <a v-if="editProjectData.linkTree" :href="editProjectData.linkTree" target="_blank"
+                               class="flex items-center gap-2 p-2.5 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition text-sm font-bold">
+                                <i class="fas fa-globe w-5 text-center"></i> Site / Linktree
+                            </a>
+                            <div v-if="!editProjectData.linkVideo && !editProjectData.linkSpotify && !editProjectData.linkInstagram && !editProjectData.linkFacebook && !editProjectData.linkPress && !editProjectData.linkTech && !editProjectData.linkTree"
+                                 class="col-span-2 text-center text-slate-400 text-sm py-4 border-2 border-dashed rounded-xl">
+                                Aucun lien renseigné
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Note artistique interne -->
+                    <div v-if="editProjectData.artistNote" class="bg-amber-50 rounded-2xl border border-amber-100 p-5">
+                        <h4 class="font-bold text-amber-800 mb-2 flex items-center gap-2">
+                            <i class="fas fa-lock text-amber-400"></i> Note interne
+                        </h4>
+                        <p class="text-sm text-amber-700 leading-relaxed whitespace-pre-wrap">{{ editProjectData.artistNote }}</p>
+                    </div>
+
+                </div>
             </div>
 
             <!-- TAB RÉSUMÉ -->
@@ -2121,7 +3242,29 @@
                     <div class="col-span-2"><label class="input-label"><i class="fas fa-file-pdf text-blue-500 mr-1"></i> Lien Dossier de Presse (Drive, Dropbox...)</label><input v-model="editProjectData.linkPress" type="url" class="input-field" placeholder="https://..."></div>
                     <div class="col-span-2"><label class="input-label"><i class="fas fa-sliders-h text-slate-700 mr-1"></i> Lien Fiche Technique</label><input v-model="editProjectData.linkTech" type="url" class="input-field" placeholder="https://..."></div>
                     <div class="col-span-2"><label class="input-label"><i class="fas fa-globe text-emerald-500 mr-1"></i> Lien Linktree / Réseaux / Site Web</label><input v-model="editProjectData.linkTree" type="url" class="input-field" placeholder="https://linktr.ee/..."></div>
-                    
+
+                    <!-- Réseaux sociaux -->
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-share-alt text-pink-400 mr-2"></i>Réseaux sociaux</h4></div>
+                    <div><label class="input-label"><i class="fab fa-spotify text-green-500 mr-1"></i> Spotify</label><input v-model="editProjectData.linkSpotify" type="url" class="input-field" placeholder="https://open.spotify.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-instagram text-pink-500 mr-1"></i> Instagram</label><input v-model="editProjectData.linkInstagram" type="url" class="input-field" placeholder="https://instagram.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-facebook text-blue-600 mr-1"></i> Facebook</label><input v-model="editProjectData.linkFacebook" type="url" class="input-field" placeholder="https://facebook.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-apple mr-1"></i> Apple Music</label><input v-model="editProjectData.linkAppleMusic" type="url" class="input-field" placeholder="https://music.apple.com/..."></div>
+                    <div><label class="input-label"><i class="fab fa-bandcamp text-teal-600 mr-1"></i> Bandcamp</label><input v-model="editProjectData.linkBandcamp" type="url" class="input-field" placeholder="https://....bandcamp.com"></div>
+
+                    <!-- Fiche artiste -->
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-star text-yellow-400 mr-2"></i>Fiche artiste</h4></div>
+                    <div><label class="input-label">Année de création</label><input v-model="editProjectData.productionYear" class="input-field" placeholder="Ex: 2022"></div>
+                    <div><label class="input-label">Label / Distribution</label><input v-model="editProjectData.labelDistrib" class="input-field" placeholder="Ex: Autoproduit, Sony..."></div>
+                    <div class="col-span-2"><label class="input-label">Biographie artistique</label><textarea v-model="editProjectData.bio" rows="4" class="input-field resize-none" placeholder="Description du projet artistique, histoire, style..."></textarea></div>
+                    <div class="col-span-2"><label class="input-label">Composition (membres)</label><textarea v-model="editProjectData.members" rows="2" class="input-field resize-none" placeholder="Ex: Marie Dupont — Chant / Jean Martin — Guitare..."></textarea></div>
+
+                    <!-- Conditions booking -->
+                    <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-handshake text-emerald-400 mr-2"></i>Conditions de booking</h4></div>
+                    <div><label class="input-label">Cachet minimum (€)</label><input v-model.number="editProjectData.minFee" type="number" class="input-field" placeholder="0"></div>
+                    <div><label class="input-label">Types de contrat acceptés</label><input v-model="editProjectData.contractTypes" class="input-field" placeholder="Ex: Cession, Co-réalisation..."></div>
+                    <div class="col-span-2"><label class="input-label">Frais de route / hébergement</label><input v-model="editProjectData.fraisRoute" class="input-field" placeholder="Ex: 0,40€/km + 2 nuits hotel si > 200km"></div>
+                    <div class="col-span-2"><label class="input-label"><i class="fas fa-lock text-amber-400 mr-1"></i> Note interne (non partagée)</label><textarea v-model="editProjectData.artistNote" rows="2" class="input-field resize-none" placeholder="Notes internes sur les conditions, contacts, stratégie..."></textarea></div>
+
                     <!-- Apparence -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100 flex gap-6">
                         <div class="flex-1">
@@ -2153,6 +3296,65 @@
         </div>
     </div>
     
+    <!-- ═══ MODALE FUSION DOUBLONS ═══ -->
+    <div v-if="showDuplicatesModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between p-6 border-b border-slate-100">
+                <div>
+                    <h2 class="text-xl font-black text-slate-800"><i class="fas fa-compress-arrows-alt text-orange-500 mr-2"></i>Doublons potentiels</h2>
+                    <p class="text-xs text-slate-400 mt-1">{{ duplicatePairs.length }} paire(s) détectée(s)</p>
+                </div>
+                <button @click="showDuplicatesModal=false; duplicateMergeSource=null; duplicateMergeTarget=null;" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                <div v-for="(pair, i) in duplicatePairs" :key="i" class="border border-slate-200 rounded-2xl p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-black px-2 py-1 rounded-full"
+                              :class="pair.score >= 90 ? 'bg-red-100 text-red-700' : pair.score >= 75 ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'">
+                            {{ pair.score }}% similaire
+                        </span>
+                        <span v-if="pair.sameCity" class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full"><i class="fas fa-map-marker-alt mr-1"></i>Même ville</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div v-for="(struct, idx) in [pair.a, pair.b]" :key="struct.id"
+                             class="p-3 rounded-xl border-2 transition"
+                             :class="duplicateMergeTarget?.id === struct.id ? 'border-emerald-400 bg-emerald-50'
+                                   : duplicateMergeSource?.id === struct.id ? 'border-red-300 bg-red-50'
+                                   : 'border-slate-100'">
+                            <div class="font-bold text-slate-800 text-sm truncate">{{ struct.name }}</div>
+                            <div class="text-xs text-slate-500 mt-0.5"><i class="fas fa-map-marker-alt mr-1"></i>{{ struct.city || '—' }}</div>
+                            <div class="text-[10px] text-slate-400 mt-1">{{ (struct.contacts||[]).length }} contact(s) · {{ (struct.comments||[]).length }} commentaire(s)</div>
+                            <div class="text-[10px] text-slate-400">{{ (struct.tags?.categories||[]).join(', ') || 'Pas de catégorie' }}</div>
+                        </div>
+                    </div>
+                    <div v-if="!duplicateMergeSource || (duplicateMergeSource?.id !== pair.a.id && duplicateMergeSource?.id !== pair.b.id)"
+                         class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">Garder :</span>
+                        <button @click="prepareMerge(pair, 0)" class="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition truncate max-w-[160px]">{{ pair.a.name }}</button>
+                        <span class="text-xs text-slate-400">ou</span>
+                        <button @click="prepareMerge(pair, 1)" class="text-xs font-bold px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition truncate max-w-[160px]">{{ pair.b.name }}</button>
+                    </div>
+                    <div v-if="duplicateMergeSource && (duplicateMergeSource.id === pair.a.id || duplicateMergeSource.id === pair.b.id)"
+                         class="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                        <p class="text-xs text-amber-800 font-bold mb-2">
+                            <span class="line-through text-red-500">{{ duplicateMergeSource.name }}</span>
+                            → fusionné dans <span class="text-emerald-600">{{ duplicateMergeTarget.name }}</span>
+                        </p>
+                        <div class="flex gap-2">
+                            <button @click="confirmMerge()" class="text-xs font-black px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition"><i class="fas fa-check mr-1"></i>Confirmer</button>
+                            <button @click="cancelMerge()" class="text-xs font-bold px-3 py-1.5 bg-white text-slate-500 hover:bg-slate-50 rounded-lg border transition">Annuler</button>
+                        </div>
+                    </div>
+                    <button @click="duplicatePairs.splice(i, 1)" class="mt-2 text-[10px] text-slate-400 hover:text-slate-600 transition"><i class="fas fa-eye-slash mr-1"></i>Ignorer</button>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-100 flex justify-between items-center">
+                <p class="text-xs text-slate-400"><i class="fas fa-info-circle mr-1"></i>La fusion est irréversible. Sauvegardez avant de fusionner.</p>
+                <button @click="showDuplicatesModal=false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <div v-if="showCrmModal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-slate-50 w-full h-full max-w-[98vw] max-h-[98vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-300">
             
@@ -2928,7 +4130,155 @@
     </div>
 </div>
 
+    <!-- ═══ MODALE ÉDITEUR DE CONTRATS ═══ -->
+    <div v-if="showContractEditor" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-slate-100">
+                <div>
+                    <h2 class="text-xl font-black text-slate-800"><i class="fas fa-file-contract text-indigo-500 mr-2"></i>Modèles de contrats</h2>
+                    <p class="text-xs text-slate-400 mt-1">Créez des modèles réutilisables avec des variables automatiques.</p>
+                </div>
+                <button @click="showContractEditor=false" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Liste des modèles -->
+            <div v-if="!editingContractTpl" class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-bold text-slate-600">{{ (db.contractTemplates||[]).length }} modèle(s)</span>
+                    <button @click="editingContractTpl = { id: null, name: '', title: '', body: getDefaultContractBody(), color: '#4f46e5' }"
+                            class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition">
+                        <i class="fas fa-plus"></i> Nouveau modèle
+                    </button>
+                </div>
+
+                <!-- Variables disponibles -->
+                <div class="bg-indigo-50 rounded-xl p-4 mb-4 border border-indigo-100">
+                    <div class="text-xs font-black text-indigo-700 uppercase mb-2">Variables disponibles</div>
+                    <div class="flex flex-wrap gap-1.5">
+                        <code v-for="v in ['{{artiste}}','{{lieu}}','{{ville}}','{{date}}','{{heure}}','{{cachet}}','{{cachetType}}','{{producteur}}','{{teamSize}}','{{duree}}','{{fraisRoute}}','{{dateAujourdhui}}','{{contactNom}}','{{notes}}']"
+                              :key="v" class="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">{{ v }}</code>
+                    </div>
+                </div>
+
+                <div v-if="!(db.contractTemplates||[]).length" class="text-center py-12 text-slate-400">
+                    <i class="fas fa-file-contract text-4xl opacity-20 block mb-3"></i>
+                    <p class="font-bold">Aucun modèle de contrat</p>
+                    <p class="text-sm mt-1">Créez votre premier modèle pour personnaliser vos contrats PDF.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <div v-for="(tpl, i) in (db.contractTemplates||[])" :key="tpl.id"
+                         class="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4 hover:border-indigo-200 transition">
+                        <div class="flex items-center gap-3 flex-1 min-w-0">
+                            <div class="w-8 h-8 rounded-lg flex-shrink-0" :style="{ backgroundColor: tpl.color || '#4f46e5' }"></div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-800 truncate">{{ tpl.name }}</div>
+                                <div class="text-xs text-slate-400 truncate">{{ tpl.title }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button @click="editingContractTpl = JSON.parse(JSON.stringify(tpl))"
+                                    class="text-xs font-bold px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition">
+                                <i class="fas fa-pen mr-1"></i>Modifier
+                            </button>
+                            <button @click="db.contractTemplates.splice(i,1); saveDB()"
+                                    class="text-slate-400 hover:text-red-500 transition px-2">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Éditeur de modèle -->
+            <div v-if="editingContractTpl" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+                <div class="flex items-center gap-3 mb-2">
+                    <button @click="editingContractTpl=null" class="text-slate-400 hover:text-slate-600"><i class="fas fa-arrow-left"></i></button>
+                    <h3 class="font-bold text-slate-800">{{ editingContractTpl.id ? 'Modifier le modèle' : 'Nouveau modèle' }}</h3>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="input-label">Nom du modèle</label>
+                        <input v-model="editingContractTpl.name" class="input-field" placeholder="Ex: Contrat Cession Standard">
+                    </div>
+                    <div>
+                        <label class="input-label">Titre dans le PDF</label>
+                        <input v-model="editingContractTpl.title" class="input-field" placeholder="Ex: CONTRAT DE CESSION">
+                    </div>
+                    <div>
+                        <label class="input-label">Couleur d'en-tête</label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" v-model="editingContractTpl.color" class="w-12 h-10 rounded border cursor-pointer p-1">
+                            <span class="text-xs text-slate-400">Couleur de l'en-tête du PDF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="input-label">Corps du contrat</label>
+                        <span class="text-[10px] text-slate-400">Utilisez # pour les titres de sections</span>
+                    </div>
+                    <textarea v-model="editingContractTpl.body"
+                              rows="16"
+                              class="input-field resize-none font-mono text-sm w-full"
+                              placeholder="Rédigez votre contrat avec les variables..."></textarea>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-slate-100 flex justify-between items-center">
+                <div v-if="!editingContractTpl" class="text-xs text-slate-400">
+                    <i class="fas fa-info-circle mr-1"></i>Les modèles sont sauvegardés dans votre base de données.
+                </div>
+                <div v-else class="text-xs text-slate-400"></div>
+                <div class="flex gap-2">
+                    <button v-if="!editingContractTpl" @click="showContractEditor=false"
+                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition">
+                        Fermer
+                    </button>
+                    <template v-if="editingContractTpl">
+                        <button @click="editingContractTpl=null"
+                                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition">
+                            Annuler
+                        </button>
+                        <button @click="saveContractTemplate()"
+                                class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow transition">
+                            <i class="fas fa-save mr-1"></i>Enregistrer
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=9"></script>
+<script type="module" src="./js/app.js?v=10"></script>
+    <script>
+        // Enregistrement du Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => {
+                        // Vérifier les mises à jour
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Nouvelle version disponible
+                                    if (confirm('Une mise à jour est disponible. Recharger ?')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.error('Service Worker:', err));
+            });
+        }
+    </script>
 </body>
 </html>
