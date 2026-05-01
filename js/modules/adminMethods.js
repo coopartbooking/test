@@ -29,6 +29,23 @@ export const adminMethods = {
     // IMPORTEUR BOB BOOKING
     // ══════════════════════════════════════════════════════════════════════
 
+    // Rendre un contact public (retirer isPrivate)
+    makeContactPublic(contact, struct) {
+        if (!struct || !contact) return;
+        const sIdx = this.db.structures.findIndex(s => s.id === struct.id);
+        if (sIdx === -1) return;
+        const cIdx = this.db.structures[sIdx].contacts.findIndex(c => c.id === contact.id);
+        if (cIdx === -1) return;
+        this.db.structures[sIdx].contacts[cIdx].isPrivate = false;
+        delete this.db.structures[sIdx].contacts[cIdx].owner;
+        this.saveDB();
+        Swal.fire({
+            title: 'Contact rendu public ✓',
+            html: `<strong>${contact.firstName || ''} ${contact.lastName || ''}</strong> est maintenant visible par tous.`,
+            icon: 'success', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false,
+        });
+    },
+
     _normalizeBobPhone(p) {
         if (!p) return '';
         const s = String(p).trim();
@@ -140,6 +157,20 @@ export const adminMethods = {
                                 <option value="replace">Remplacer (écraser avec Bob Booking)</option>
                             </select>
                         </div>` : ''}
+                        <div class="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" id="swal-bob-private" checked class="w-4 h-4 rounded accent-indigo-600">
+                                <div>
+                                    <div class="text-sm font-bold text-slate-700">
+                                        <i class="fas fa-lock text-indigo-500 mr-1"></i>
+                                        Importer les contacts en mode privé
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-0.5">
+                                        Visibles uniquement par vous — sauf s'ils existent déjà en public
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
                         <div class="text-xs text-slate-400">Fichier : ${file.name}</div>
                     </div>`,
                     showCancelButton:  true,
@@ -148,12 +179,13 @@ export const adminMethods = {
                     confirmButtonColor: '#4f46e5',
                     focusConfirm: false,
                     preConfirm: () => ({
-                        duplicateMode: document.getElementById('swal-bob-dup')?.value || 'skip',
+                        duplicateMode:    document.getElementById('swal-bob-dup')?.value || 'skip',
+                        privateContacts:  document.getElementById('swal-bob-private')?.checked ?? true,
                     })
                 });
 
                 if (!r.isConfirmed) return;
-                await this.executeBobImport(dataRows, r.value.duplicateMode);
+                await this.executeBobImport(dataRows, r.value.duplicateMode, r.value.privateContacts);
 
             } catch (err) {
                 Swal.fire('Erreur', 'Impossible de lire le fichier : ' + err.message, 'error');
@@ -163,7 +195,7 @@ export const adminMethods = {
         event.target.value = '';
     },
 
-    async executeBobImport(dataRows, duplicateMode = 'skip') {
+    async executeBobImport(dataRows, duplicateMode = 'skip', privateContacts = true) {
         Swal.fire({ title: 'Import en cours…', html: '<b>0</b> / ' + dataRows.length, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
         let imported = 0, skipped = 0, merged = 0, errors = 0;
@@ -182,9 +214,28 @@ export const adminMethods = {
                 genres.forEach(t => newGenres.add(t));
                 reseaux.forEach(t => newReseaux.add(t));
 
+                // Récupérer les emails déjà publics dans toute la base
+                const publicEmails = new Set();
+                this.db.structures.forEach(s => {
+                    (s.contacts || []).forEach(c => {
+                        if (!c.isPrivate && c.emailPro) publicEmails.add(c.emailPro.toLowerCase());
+                        if (!c.isPrivate && c.emailPerso) publicEmails.add(c.emailPerso.toLowerCase());
+                    });
+                });
+
                 const contacts = [17, 39, 61]
                     .map(offset => this._parseBobContact(row, offset))
-                    .filter(Boolean);
+                    .filter(Boolean)
+                    .map(c => {
+                        // Si le contact est déjà public dans la base → rester public
+                        const emailLow = (c.emailPro || c.emailPerso || '').toLowerCase();
+                        const alreadyPublic = emailLow && publicEmails.has(emailLow);
+                        if (privateContacts && !alreadyPublic) {
+                            c.isPrivate = true;
+                            c.owner     = this.currentUser;
+                        }
+                        return c;
+                    });
 
                 const rawEmail = row[9] ? String(row[9]).trim() : '';
                 const email    = rawEmail.includes('@') ? rawEmail : '';

@@ -778,6 +778,12 @@
                                 <i v-if="c.isPrivate" class="fas fa-lock text-orange-500 mr-1" title="Contact Privé"></i>
                                 {{ c.name }}
                                 <span v-if="c.role" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 ml-1 rounded">{{ c.role }}</span>
+                                <button v-if="c.isPrivate && c.owner === currentUser"
+                                        @click.stop="makeContactPublic(c, currentCrmStruct)"
+                                        class="ml-2 text-[10px] font-bold px-2 py-0.5 bg-orange-100 hover:bg-emerald-100 text-orange-600 hover:text-emerald-700 rounded-full transition"
+                                        title="Rendre ce contact public">
+                                    <i class="fas fa-unlock-alt mr-1"></i>Rendre public
+                                </button>
                             </div>
                             <div class="text-xs text-slate-500 font-bold uppercase mb-3"><i class="fas fa-building mr-1"></i> {{ c.structName }} <span class="text-slate-300">|</span> {{ c.structCity }}</div>
                             <div class="space-y-1 mb-3">
