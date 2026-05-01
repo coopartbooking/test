@@ -263,7 +263,10 @@ export const adminMethods = {
         newReseaux.forEach(t => { if (!this.db.tagReseaux.includes(t))    this.db.tagReseaux.push(t); });
 
         this.logActivity('Import Bob Booking', `${imported} importées, ${merged} fusionnées, ${skipped} ignorées`);
-        this.saveDB();
+        // Sauvegarde immédiate (bypass debounce) + fermeture propre du spinner
+        await this._saveDBNow();
+        Swal.close();
+        await new Promise(r => setTimeout(r, 150)); // laisser Swal se fermer proprement
 
         Swal.fire({
             title: 'Import terminé ✓',
