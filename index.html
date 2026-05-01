@@ -176,11 +176,11 @@
             <form @submit.prevent="handleAuth" class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Email</label>
-                    <input type="email" v-model="authEmail" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                    <input type="email" id="auth-email" name="email" autocomplete="email" v-model="authEmail" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Mot de passe (6 caractères min.)</label>
-                    <input type="password" v-model="authPassword" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required minlength="6">
+                    <input type="password" id="auth-password" name="password" autocomplete="current-password" v-model="authPassword" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none" required minlength="6">
                 </div>
                 
                 <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition">
@@ -303,7 +303,7 @@
                 
                 <div class="relative w-96 ml-8">
                     <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
-                    <input v-model="omniSearch" @focus="showOmniDropdown = true" @blur="hideOmni()" class="w-full bg-slate-100 border-none rounded-full pl-10 pr-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 transition shadow-inner" placeholder="Rechercher partout (Contact, Lieu, Artiste...)">
+                    <input id="omni-search" name="omniSearch" autocomplete="off" v-model="omniSearch" @focus="showOmniDropdown = true" @blur="hideOmni()" class="w-full bg-slate-100 border-none rounded-full pl-10 pr-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 transition shadow-inner" placeholder="Rechercher partout (Contact, Lieu, Artiste...)">
                     
                     <div v-if="showOmniDropdown && omniSearch.length >= 2" class="absolute top-12 left-0 w-full bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50 max-h-96 overflow-y-auto">
                         <div v-if="Object.keys(omniResults).length === 0" class="p-4 text-center text-slate-500 text-sm">Aucun résultat trouvé.</div>
@@ -334,7 +334,7 @@
                 <div v-if="tab==='contacts' && canEdit" class="flex ml-2">
                     <label class="bg-blue-600 text-white px-4 py-2 rounded-l shadow hover:bg-blue-700 text-sm font-bold cursor-pointer border-r border-blue-700">
                         <i class="fas fa-file-import mr-2"></i>Importer Excel
-                        <input type="file" @change="importContactsExcel" class="hidden" accept=".xlsx, .xls">
+                        <input type="file" id="import-contacts-excel" name="importContactsExcel" @change="importContactsExcel" class="hidden" accept=".xlsx, .xls">
                     </label>
                     <button @click="exportContactsExcel" class="bg-emerald-600 text-white px-4 py-2 rounded-r shadow hover:bg-emerald-700 text-sm font-bold">
                         <i class="fas fa-file-export mr-2"></i>Exporter Excel
@@ -348,7 +348,7 @@
                 <button v-if="tab==='structures' && canEdit" @click="openGouvImport" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-sm font-bold"><i class="fas fa-cloud-download-alt mr-2"></i>Import Culture.gouv.fr</button>
                 <label v-if="tab==='structures'" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-sm font-bold cursor-pointer flex items-center gap-2">
                     <i class="fas fa-file-import"></i>Import Bob Booking
-                    <input type="file" @change="previewBobImport" class="hidden" accept=".xlsx,.xls">
+                    <input type="file" id="import-bob" name="importBob" @change="previewBobImport" class="hidden" accept=".xlsx,.xls">
                 </label>
             </div>
         </header>
@@ -556,7 +556,7 @@
 
                             <!-- Ajout d'un email -->
                             <div class="flex gap-2 mb-4">
-                                <input v-model="newAllowedEmail"
+                                <input id="new-allowed-email" name="newAllowedEmail" autocomplete="off" v-model="newAllowedEmail"
                                        @keyup.enter="addAllowedEmail"
                                        class="input-field text-sm flex-1"
                                        placeholder="email@exemple.com">
@@ -783,7 +783,7 @@
                         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                             <h3 class="font-bold text-slate-800 text-lg mb-4"><i class="fas fa-user-shield text-amber-500 mr-2"></i> Comptes Administrateurs</h3>
                             <div class="flex gap-2 mb-4">
-                                <input v-model="newAdminEmail" @keyup.enter="addAdminEmail" class="input-field text-sm flex-1" placeholder="email@exemple.com">
+                                <input id="new-admin-email" name="newAdminEmail" autocomplete="off" v-model="newAdminEmail" @keyup.enter="addAdminEmail" class="input-field text-sm flex-1" placeholder="email@exemple.com">
                                 <button @click="addAdminEmail" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -809,7 +809,7 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
                         <h3 class="font-bold text-slate-800 text-lg mb-2"><i class="fas fa-bell text-indigo-500 mr-2"></i> Notes & Améliorations <span class="text-sm text-slate-400 font-normal">(visibles par tous les utilisateurs au démarrage)</span></h3>
                         <div class="flex gap-2 mb-5 mt-4">
-                            <input v-model="newChangelogEntry" @keyup.enter="addChangelogEntry" class="input-field flex-1" placeholder="Ex: Nouvelle fonctionnalité — Commentaires horodatés ajoutés dans les fiches CRM">
+                            <input id="new-changelog" name="newChangelogEntry" autocomplete="off" v-model="newChangelogEntry" @keyup.enter="addChangelogEntry" class="input-field flex-1" placeholder="Ex: Nouvelle fonctionnalité — Commentaires horodatés ajoutés dans les fiches CRM">
                             <button @click="addChangelogEntry" :disabled="!newChangelogEntry.trim()" class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white px-5 py-2 rounded-lg font-bold shadow transition">
                                 <i class="fas fa-paper-plane mr-1"></i> Publier
                             </button>
@@ -871,7 +871,7 @@
                                 <p class="text-xs text-slate-500 mb-4">Importe un fichier <code class="bg-white px-1 rounded">.json</code> et remplace la base actuelle.</p>
                                 <label class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs shadow transition flex items-center justify-center gap-2 cursor-pointer">
                                     <i class="fas fa-file-upload"></i> Charger .json
-                                    <input type="file" @change="importFullDB" class="hidden" accept=".json">
+                                    <input type="file" id="import-db" name="importFullDB" @change="importFullDB" class="hidden" accept=".json">
                                 </label>
                             </div>
                             <div class="bg-red-50 border border-red-100 rounded-xl p-5">
@@ -902,7 +902,7 @@
                         <!-- Recherche lieu / contact -->
                         <div class="relative">
                             <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input v-model="pipelineSearch"
+                            <input id="pipeline-search" name="pipelineSearch" autocomplete="off" v-model="pipelineSearch"
                                    class="input-field pl-8 w-52 text-sm shadow-sm border-slate-200"
                                    placeholder="Lieu, ville, contact...">
                             <button v-if="pipelineSearch" @click="pipelineSearch=''"
@@ -1457,13 +1457,13 @@
                         <h4 class="font-bold text-slate-700 uppercase text-xs mb-4 border-b pb-2">Filtres Artistes</h4>
                         <div class="flex-1 overflow-y-auto space-y-3">
                             <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" :checked="isAllProjectsSelected" @change="toggleAllProjects" class="custom-cb" style="background-color: #64748b; border-color: #64748b;"><span class="text-sm font-bold text-slate-700">Tous les artistes</span></label>
-                            <label v-for="p in db.projects" :key="p.id" class="flex items-center gap-3 cursor-pointer"><input type="checkbox" :value="p.id" v-model="selectedProjectIds" class="custom-cb" :style="{ backgroundColor: selectedProjectIds.includes(p.id) ? p.color : 'white', borderColor: p.color }">
+                            <label v-for="p in db.projects" :key="p.id" class="flex items-center gap-3 cursor-pointer"><input autocomplete="off" type="checkbox" :value="p.id" v-model="selectedProjectIds" class="custom-cb" :style="{ backgroundColor: selectedProjectIds.includes(p.id) ? p.color : 'white', borderColor: p.color }">
                                 <span class="text-sm text-slate-600 truncate"><i :class="getProjectIcon(p.id)" class="mr-1 text-slate-400"></i> {{ p.name }}</span>
                             </label>
                         </div>
                         
                         <label class="flex items-center gap-3 cursor-pointer mt-4 border-t border-slate-100 pt-4">
-                            <input type="checkbox" v-model="showTasksInCalendar" class="custom-cb" style="background-color: #f43f5e; border-color: #f43f5e;">
+                            <input autocomplete="off" type="checkbox" v-model="showTasksInCalendar" class="custom-cb" style="background-color: #f43f5e; border-color: #f43f5e;">
                             <span class="text-sm font-bold text-slate-700"><i class="fas fa-tasks mr-1 text-slate-400"></i> Afficher les tâches</span>
                         </label>
                     </div>
@@ -1523,7 +1523,7 @@
                     <div class="flex items-center gap-3">
                         <div class="relative flex-1 max-w-sm">
                             <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input v-model="searchStruct" class="input-field pl-8 w-full" placeholder="Nom, ville, email, notes...">
+                            <input id="search-struct" name="searchStruct" autocomplete="off" v-model="searchStruct" class="input-field pl-8 w-full" placeholder="Nom, ville, email, notes...">
                             <button v-if="searchStruct" @click="searchStruct=''" class="absolute right-3 top-2.5 text-slate-300 hover:text-slate-500">
                                 <i class="fas fa-times text-xs"></i>
                             </button>
@@ -1564,7 +1564,7 @@
                         <!-- Ville -->
                         <div>
                             <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Ville / Région</label>
-                            <input v-model="structFilterCity" class="input-field text-sm w-full" placeholder="Ex: Lyon, Paris...">
+                            <input id="filter-city" name="structFilterCity" autocomplete="off" v-model="structFilterCity" class="input-field text-sm w-full" placeholder="Ex: Lyon, Paris...">
                         </div>
 
                         <!-- Catégorie -->
@@ -1608,11 +1608,11 @@
                         <!-- Options -->
                         <div class="flex flex-col gap-2 justify-center">
                             <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input type="checkbox" v-model="structFilterGPS" class="rounded">
+                                <input autocomplete="off" type="checkbox" v-model="structFilterGPS" class="rounded">
                                 <span class="text-sm text-slate-600 font-bold">Géolocalisés uniquement</span>
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input type="checkbox" v-model="structFilterHasContacts" class="rounded">
+                                <input autocomplete="off" type="checkbox" v-model="structFilterHasContacts" class="rounded">
                                 <span class="text-sm text-slate-600 font-bold">Avec contacts</span>
                             </label>
                         </div>
@@ -1665,7 +1665,7 @@
                 <!-- ══ SOUS-ONGLET : ANNUAIRE ══ -->
                 <div v-if="contactSubTab==='annuaire'" class="p-8 flex-1 flex flex-col overflow-hidden">
                     <div class="mb-4 flex justify-between items-center gap-4 flex-shrink-0">
-                        <input v-model="searchContact" class="input-field max-w-sm" placeholder="Rechercher un contact...">
+                        <input id="search-contact" name="searchContact" autocomplete="off" v-model="searchContact" class="input-field max-w-sm" placeholder="Rechercher un contact...">
                         <div class="flex bg-slate-200 rounded p-1">
                             <button @click="contactViewMode='grid'" :class="['px-4 py-1.5 rounded text-xs font-bold transition flex items-center', contactViewMode==='grid'?'bg-white shadow text-slate-800':'text-slate-500 hover:text-slate-700']"><i class="fas fa-th-large mr-2"></i> Grille</button>
                             <button @click="contactViewMode='list'" :class="['px-4 py-1.5 rounded text-xs font-bold transition flex items-center', contactViewMode==='list'?'bg-white shadow text-slate-800':'text-slate-500 hover:text-slate-700']"><i class="fas fa-list mr-2"></i> Liste Compacte</button>
@@ -1765,7 +1765,7 @@
                     <div class="flex-1 flex flex-col overflow-hidden bg-slate-50">
                         <div class="p-6 border-b border-slate-200 bg-white flex-shrink-0">
                             <div class="flex items-center gap-3">
-                                <input v-model="currentSearch.name" class="input-field flex-1 max-w-xs font-bold" placeholder="Nom de la recherche...">
+                                <input autocomplete="off" name="currentSearch-name" v-model="currentSearch.name" class="input-field flex-1 max-w-xs font-bold" placeholder="Nom de la recherche...">
                                 <button @click="runSearch" class="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition shadow flex items-center gap-2">
                                     <i class="fas fa-calculator"></i> Calculer ({{ searchResults.length }})
                                 </button>
@@ -1810,7 +1810,7 @@
                                     </div>
                                     <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
                                         <div class="text-[10px] font-black text-slate-400 uppercase mb-2">Ville / Département</div>
-                                        <input v-model="currentSearch.filterCity" @input="runSearch" class="input-field text-sm" placeholder="Ex: Paris, 75...">
+                                        <input autocomplete="off" name="currentSearch-filterCity" v-model="currentSearch.filterCity" @input="runSearch" class="input-field text-sm" placeholder="Ex: Paris, 75...">
                                     </div>
                                     <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
                                         <div class="text-[10px] font-black text-slate-400 uppercase mb-2">Région</div>
@@ -1920,7 +1920,7 @@
                         <div v-else class="flex-1 flex flex-col overflow-hidden">
                             <div class="p-4 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
                                 <div>
-                                    <input v-model="currentSelectionObj.name" @change="saveSelections" class="font-bold text-slate-800 text-lg bg-transparent border-none focus:ring-0 p-0" placeholder="Nom de la sélection...">
+                                    <input autocomplete="off" name="currentSelectionObj-name" v-model="currentSelectionObj.name" @change="saveSelections" class="font-bold text-slate-800 text-lg bg-transparent border-none focus:ring-0 p-0" placeholder="Nom de la sélection...">
                                     <div class="text-xs text-slate-400 mt-0.5">{{ (currentSelectionObj.contactIds||[]).length }} contact(s)</div>
                                 </div>
                                 <button @click="openAddToSelection" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-purple-700 transition shadow flex items-center gap-2">
@@ -2037,7 +2037,7 @@
                                 <span class="font-bold text-slate-700 text-sm">Destinataires</span>
                                 <span class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{{ selectedMailingContacts.length }} sélectionné(s)</span>
                             </div>
-                            <input v-model="mailingSearch" class="input-field text-sm mb-2" placeholder="Rechercher un contact ou lieu...">
+                            <input id="mailing-search" name="mailingSearch" autocomplete="off" v-model="mailingSearch" class="input-field text-sm mb-2" placeholder="Rechercher un contact ou lieu...">
                             <button @click="toggleSelectAll" class="w-full text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded font-bold transition text-left">
                                 <i class="fas fa-check-square mr-1 text-indigo-500"></i> Tout sélectionner / désélectionner
                             </button>
@@ -2117,14 +2117,14 @@
 
                             <!-- Sujet -->
                             <div class="mb-4">
-                                <label class="input-label">Objet de l'email</label>
-                                <input v-model="mailSubject" class="input-field" placeholder="Ex: Proposition artistique - {{structName}}">
+                                <label class="input-label" aria-hidden="true">Objet de l'email</label>
+                                <input autocomplete="off" name="mailSubject" v-model="mailSubject" class="input-field" placeholder="Ex: Proposition artistique - {{structName}}">
                             </div>
 
                             <!-- Corps -->
                             <div class="mb-4">
                                 <div class="flex justify-between items-center mb-1">
-                                    <label class="input-label">Corps du message</label>
+                                    <label class="input-label" aria-hidden="true">Corps du message</label>
                                     <div class="flex flex-wrap gap-1">
                                         <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{contactFirstName}}'">{{contactFirstName}}</code>
                                         <code class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-indigo-700 cursor-pointer hover:bg-indigo-50" @click="mailBody += '{{contactLastName}}'">{{contactLastName}}</code>
@@ -2149,7 +2149,7 @@
                                 </button>
                             </div>
                             <label class="flex items-center gap-2 cursor-pointer select-none">
-                                <input type="checkbox" v-model="mailingAddUnsubscribe" class="rounded">
+                                <input autocomplete="off" type="checkbox" v-model="mailingAddUnsubscribe" class="rounded">
                                 <span class="text-xs text-slate-600 font-bold">Inclure lien de désinscription</span>
                             </label>
                             <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody || mailingInProgress"
@@ -2326,16 +2326,16 @@
                     </div>
                     <div class="p-6 space-y-4">
                         <div>
-                            <label class="input-label">Nom du template</label>
-                            <input v-model="editTemplateData.name" class="input-field" placeholder="Ex: Prise de contact initiale">
+                            <label class="input-label" aria-hidden="true">Nom du template</label>
+                            <input autocomplete="off" name="editTemplateData-name" v-model="editTemplateData.name" class="input-field" placeholder="Ex: Prise de contact initiale">
                         </div>
                         <div>
-                            <label class="input-label">Objet de l'email</label>
-                            <input v-model="editTemplateData.subject" class="input-field" placeholder="Ex: Proposition artistique - {{structName}}">
+                            <label class="input-label" aria-hidden="true">Objet de l'email</label>
+                            <input autocomplete="off" name="editTemplateData-subject" v-model="editTemplateData.subject" class="input-field" placeholder="Ex: Proposition artistique - {{structName}}">
                         </div>
                         <div>
                             <div class="flex justify-between items-center mb-1">
-                                <label class="input-label">Corps du message</label>
+                                <label class="input-label" aria-hidden="true">Corps du message</label>
                                 <span class="text-xs text-slate-400 flex flex-wrap gap-1">
                                 <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactFirstName}}</code>
                                 <code class="bg-slate-100 px-1 rounded text-[10px]">{{contactLastName}}</code>
@@ -2581,7 +2581,7 @@
     <div class="mb-2 flex justify-between">
         <label class="text-xs font-bold text-slate-600">Rayon : <span class="text-indigo-600">{{ searchRadius }} km</span></label>
     </div>
-    <input type="range" v-model="searchRadius" min="5" max="500" class="w-full accent-indigo-600">
+    <input autocomplete="off" type="range" v-model="searchRadius" min="5" max="500" class="w-full accent-indigo-600">
 
     <!-- FILTRES PAR TAGS -->
     <div class="mt-4 pt-4 border-t border-slate-200">
@@ -2677,16 +2677,16 @@
                 <button @click="showTaskModal=false"><i class="fas fa-times text-slate-400 hover:text-slate-800"></i></button>
             </div>
             <div class="p-6 overflow-y-auto space-y-4">
-                <div><label class="input-label">Action à réaliser <span class="text-red-500">*</span></label><input v-model="editTaskData.text" class="input-field" placeholder="Ex: Relancer pour le devis..." autofocus></div>
+                <div><label class="input-label" aria-hidden="true">Action à réaliser <span class="text-red-500">*</span></label><input autocomplete="off" name="editTaskData-text" v-model="editTaskData.text" class="input-field" placeholder="Ex: Relancer pour le devis..." autofocus></div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="input-label">Type d'action</label>
+                        <label class="input-label" aria-hidden="true">Type d'action</label>
                         <select v-model="editTaskData.type" class="input-field">
                             <option value="call">📞 Appel téléphonique</option><option value="email">✉️ Email / Relance</option>
                             <option value="admin">📝 Administratif / Contrat</option><option value="meeting">🤝 Rendez-vous</option><option value="other">📌 Autre</option>
                         </select>
                     </div>
-                    <div><label class="input-label">Date limite (Échéance)</label><input type="date" v-model="editTaskData.dueDate" class="input-field"></div>
+                    <div><label class="input-label" aria-hidden="true">Date limite (Échéance)</label><input type="date" autocomplete="off" name="editTaskData-dueDate" v-model="editTaskData.dueDate" class="input-field"></div>
                 </div>
                 <div class="border-t pt-4 mt-2">
                     <label class="input-label text-indigo-600"><i class="fas fa-link mr-1"></i> Lier cette tâche à...</label>
@@ -2720,10 +2720,10 @@
             </div>
             <div class="p-6 overflow-y-auto space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="input-label">Artiste / Projet <span class="text-red-500">*</span></label><select v-model="editEventData.projectId" class="input-field"><option value="" disabled>Sélectionner...</option><option v-for="p in db.projects" :value="p.id">{{ p.name }}</option></select></div>
+                    <div><label class="input-label" aria-hidden="true">Artiste / Projet <span class="text-red-500">*</span></label><select v-model="editEventData.projectId" class="input-field"><option value="" disabled>Sélectionner...</option><option v-for="p in db.projects" :value="p.id">{{ p.name }}</option></select></div>
                     
                     <div>
-                        <label class="input-label">Stade de négociation <span class="text-indigo-500">*</span></label>
+                        <label class="input-label" aria-hidden="true">Stade de négociation <span class="text-indigo-500">*</span></label>
                         <select v-model="editEventData.stage" class="input-field bg-indigo-50 border-indigo-200 font-bold text-indigo-800">
                             <option value="lead">À contacter</option><option value="contacted">Contact établi</option><option value="nego">En négociation</option>
                             <option value="option">Option posée</option><option value="contract">Contrat envoyé</option><option value="won">Confirmé</option>
@@ -2732,7 +2732,7 @@
 
                     <div class="col-span-2 pt-2 border-t mt-2">
                         <div class="flex justify-between items-center mb-2">
-                            <label class="input-label">Lieu / Structure organisatrice</label>
+                            <label class="input-label" aria-hidden="true">Lieu / Structure organisatrice</label>
                             <button type="button" @click="showVenueBrowser = !showVenueBrowser"
                                 :class="['text-[10px] font-bold px-3 py-1 rounded transition flex items-center gap-1', showVenueBrowser ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100']">
                                 <i class="fas fa-th-list"></i> Parcourir
@@ -2752,7 +2752,7 @@
                             <div v-else>
                                 <div class="relative">
                                     <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                                    <input v-model="venueSearch" @input="searchVenues" @focus="showVenueDropdown = true"
+                                    <input autocomplete="off" name="venueSearch" v-model="venueSearch" @input="searchVenues" @focus="showVenueDropdown = true"
                                         class="input-field pl-9 text-sm" placeholder="Tapez un nom, ville, CP, région, catégorie...">
                                     <button v-if="venueSearch" type="button" @click="venueSearch=''; venueSearchResults=[]" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"><i class="fas fa-times text-xs"></i></button>
                                 </div>
@@ -2819,20 +2819,20 @@
 
                         <!-- Saisie manuelle nom + ville -->
                         <div class="flex gap-2">
-                            <input v-model="editEventData.venueName" class="input-field w-1/2 text-sm" placeholder="Nom de la salle">
-                            <input v-model="editEventData.city" class="input-field w-1/2 text-sm" placeholder="Ville">
+                            <input autocomplete="off" name="editEventData-venueName" v-model="editEventData.venueName" class="input-field w-1/2 text-sm" placeholder="Nom de la salle">
+                            <input autocomplete="off" name="editEventData-city" v-model="editEventData.city" class="input-field w-1/2 text-sm" placeholder="Ville">
                         </div>
                     </div>
                      
                     <div class="col-span-2 pt-2 border-t mt-2 flex gap-4">
-                        <div class="flex-1"><label class="input-label">Date (Optionnelle en prospection)</label><input type="date" v-model="editEventData.date" class="input-field"></div>
-                        <div class="flex-1"><label class="input-label">Heure (ex: 20:30)</label><input type="time" v-model="editEventData.time" class="input-field"></div>
+                        <div class="flex-1"><label class="input-label" aria-hidden="true">Date (Optionnelle en prospection)</label><input type="date" autocomplete="off" name="editEventData-date" v-model="editEventData.date" class="input-field"></div>
+                        <div class="flex-1"><label class="input-label" aria-hidden="true">Heure (ex: 20:30)</label><input type="time" autocomplete="off" name="editEventData-time" v-model="editEventData.time" class="input-field"></div>
                     </div>
                     
                     <div class="col-span-2 pt-4 border-t mt-2">
                         <h4 class="font-bold text-slate-700 mb-3"><i class="fas fa-euro-sign mr-2 text-indigo-500"></i> Conditions Financières</h4>
                         <div class="mb-3">
-                            <label class="input-label">Type de contrat</label>
+                            <label class="input-label" aria-hidden="true">Type de contrat</label>
                             <select v-model="editEventData.contractType" class="input-field">
                                 <option value="cession">Cession (Cachet Fixe)</option>
                                 <option value="coreal">Co-réalisation / Pourcentage (Billetterie)</option>
@@ -2840,19 +2840,19 @@
                         </div>
 
                         <div v-if="editEventData.contractType === 'cession' || !editEventData.contractType">
-                            <label class="input-label">Cachet de cession convenu (€)</label>
-                            <input type="number" v-model="editEventData.fee" class="input-field w-1/3">
+                            <label class="input-label" aria-hidden="true">Cachet de cession convenu (€)</label>
+                            <input type="number" autocomplete="off" name="editEventData-fee" v-model="editEventData.fee" class="input-field w-1/3">
                         </div>
 
                         <div v-if="editEventData.contractType === 'coreal'" class="bg-slate-100 p-4 rounded border border-slate-200">
                             <div class="grid grid-cols-3 gap-4 mb-3">
-                                <div><label class="input-label">Jauge</label><input type="number" v-model="editEventData.capacity" class="input-field"></div>
-                                <div><label class="input-label">Prix Billet (€)</label><input type="number" v-model="editEventData.ticketPrice" class="input-field"></div>
-                                <div><label class="input-label">Part Prod (%)</label><input type="number" v-model="editEventData.corealPercentage" class="input-field" placeholder="Ex: 70"></div>
+                                <div><label class="input-label" aria-hidden="true">Jauge</label><input type="number" autocomplete="off" name="editEventData-capacity" v-model="editEventData.capacity" class="input-field"></div>
+                                <div><label class="input-label" aria-hidden="true">Prix Billet (€)</label><input type="number" autocomplete="off" name="editEventData-ticketPrice" v-model="editEventData.ticketPrice" class="input-field"></div>
+                                <div><label class="input-label" aria-hidden="true">Part Prod (%)</label><input type="number" autocomplete="off" name="editEventData-corealPercentage" v-model="editEventData.corealPercentage" class="input-field" placeholder="Ex: 70"></div>
                             </div>
                             <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div><label class="input-label">Frais de plateau (€)</label><input type="number" v-model="editEventData.tourExpenses" class="input-field"></div>
-                                <div><label class="input-label">Estim. Remplissage (%)</label><input type="number" v-model="editEventData.estFillRate" class="input-field" placeholder="Ex: 80"></div>
+                                <div><label class="input-label" aria-hidden="true">Frais de plateau (€)</label><input type="number" autocomplete="off" name="editEventData-tourExpenses" v-model="editEventData.tourExpenses" class="input-field"></div>
+                                <div><label class="input-label" aria-hidden="true">Estim. Remplissage (%)</label><input type="number" autocomplete="off" name="editEventData-estFillRate" v-model="editEventData.estFillRate" class="input-field" placeholder="Ex: 80"></div>
                             </div>
                             
                             <div class="bg-white p-3 rounded shadow-sm border border-slate-200">
@@ -2866,8 +2866,8 @@
                             </div>
                             
                             <div class="mt-2 border-t border-slate-200 pt-2">
-                                <label class="input-label">Cachet final enregistré (€)</label>
-                                <input type="number" v-model="editEventData.fee" class="input-field w-1/3">
+                                <label class="input-label" aria-hidden="true">Cachet final enregistré (€)</label>
+                                <input type="number" autocomplete="off" name="editEventData-fee" v-model="editEventData.fee" class="input-field w-1/3">
                             </div>
                         </div>
                     </div>
@@ -3164,7 +3164,7 @@
             <!-- TAB NOTES -->
             <div v-if="!isEditingProject && projectTab==='notes'" class="flex-1 flex flex-col overflow-hidden bg-slate-50">
                 <div class="p-4 border-b border-slate-200 bg-white flex-shrink-0 flex gap-3">
-                    <input v-model="projectNoteText" @keyup.enter="addProjectNote" class="input-field flex-1 text-sm" placeholder="Ajouter une note... (Entrée pour valider)">
+                    <input autocomplete="off" name="projectNoteText" v-model="projectNoteText" @keyup.enter="addProjectNote" class="input-field flex-1 text-sm" placeholder="Ajouter une note... (Entrée pour valider)">
                     <button @click="addProjectNote" :disabled="!projectNoteText.trim()" class="bg-indigo-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition"><i class="fas fa-plus mr-1"></i> Ajouter</button>
                 </div>
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
@@ -3182,41 +3182,41 @@
                 <div class="grid grid-cols-2 gap-x-6 gap-y-4">
 
                     <!-- Identité -->
-                    <div class="col-span-2"><label class="input-label">Nom de l'artiste / spectacle <span class="text-red-500">*</span></label><input v-model="editProjectData.name" class="input-field" placeholder="Nom du projet"></div>
-                    <div><label class="input-label">Genre musical / Type</label><input v-model="editProjectData.genre" class="input-field" placeholder="Ex: Rock, Théâtre..."></div>
-                    <div><label class="input-label">Durée du spectacle</label><input v-model="editProjectData.duration" class="input-field" placeholder="Ex: 1h30"></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true">Nom de l'artiste / spectacle <span class="text-red-500">*</span></label><input autocomplete="off" name="editProjectData-name" v-model="editProjectData.name" class="input-field" placeholder="Nom du projet"></div>
+                    <div><label class="input-label" aria-hidden="true">Genre musical / Type</label><input autocomplete="off" name="editProjectData-genre" v-model="editProjectData.genre" class="input-field" placeholder="Ex: Rock, Théâtre..."></div>
+                    <div><label class="input-label" aria-hidden="true">Durée du spectacle</label><input autocomplete="off" name="editProjectData-duration" v-model="editProjectData.duration" class="input-field" placeholder="Ex: 1h30"></div>
 
                     <!-- Codes & analytique -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100">
                         <h4 class="font-bold text-slate-700 mb-3"><i class="fas fa-barcode text-slate-400 mr-2"></i>Codes & Analytique</h4>
                         <div class="grid grid-cols-2 gap-3">
-                            <div><label class="input-label">Code artiste <span class="text-slate-400 text-[10px]">(contrats, factures)</span></label><input v-model="editProjectData.code" class="input-field" placeholder="Ex: ART-001"></div>
-                            <div><label class="input-label">Code admin du projet</label><input v-model="editProjectData.adminCode" class="input-field" placeholder="Ex: PROJ-2024-01"></div>
-                            <div><label class="input-label">Libellé analytique</label><input v-model="editProjectData.analytLabel" class="input-field" placeholder="Ex: Tournée nationale"></div>
-                            <div><label class="input-label">Code analytique</label><input v-model="editProjectData.analytCode" class="input-field" placeholder="Ex: ANA-42"></div>
+                            <div><label class="input-label" aria-hidden="true">Code artiste <span class="text-slate-400 text-[10px]">(contrats, factures)</span></label><input autocomplete="off" name="editProjectData-code" v-model="editProjectData.code" class="input-field" placeholder="Ex: ART-001"></div>
+                            <div><label class="input-label" aria-hidden="true">Code admin du projet</label><input autocomplete="off" name="editProjectData-adminCode" v-model="editProjectData.adminCode" class="input-field" placeholder="Ex: PROJ-2024-01"></div>
+                            <div><label class="input-label" aria-hidden="true">Libellé analytique</label><input autocomplete="off" name="editProjectData-analytLabel" v-model="editProjectData.analytLabel" class="input-field" placeholder="Ex: Tournée nationale"></div>
+                            <div><label class="input-label" aria-hidden="true">Code analytique</label><input autocomplete="off" name="editProjectData-analytCode" v-model="editProjectData.analytCode" class="input-field" placeholder="Ex: ANA-42"></div>
                         </div>
                     </div>
 
                     <!-- Finance & Logistique -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-euro-sign text-slate-400 mr-2"></i>Finance & Logistique</h4></div>
                     <div class="flex gap-2">
-                        <div class="w-2/3"><label class="input-label">Cachet de base (€)</label><input type="number" v-model="editProjectData.defaultFee" class="input-field"></div>
-                        <div class="w-1/3"><label class="input-label">Type</label><select v-model="editProjectData.feeType" class="input-field"><option value="HT">HT</option><option value="TTC">TTC</option><option value="Net">Net</option></select></div>
+                        <div class="w-2/3"><label class="input-label" aria-hidden="true">Cachet de base (€)</label><input type="number" autocomplete="off" name="editProjectData-defaultFee" v-model="editProjectData.defaultFee" class="input-field"></div>
+                        <div class="w-1/3"><label class="input-label" aria-hidden="true">Type</label><select v-model="editProjectData.feeType" class="input-field"><option value="HT">HT</option><option value="TTC">TTC</option><option value="Net">Net</option></select></div>
                     </div>
                     <div class="flex gap-2">
-                        <div class="w-1/2"><label class="input-label">Prix de vente (€)</label><input type="number" v-model="editProjectData.salePrice" class="input-field" placeholder="Ex: 2500"></div>
-                        <div class="w-1/2"><label class="input-label">Prix des places (€)</label><input type="number" v-model="editProjectData.ticketPrice" class="input-field" placeholder="Ex: 18"></div>
+                        <div class="w-1/2"><label class="input-label" aria-hidden="true">Prix de vente (€)</label><input type="number" autocomplete="off" name="editProjectData-salePrice" v-model="editProjectData.salePrice" class="input-field" placeholder="Ex: 2500"></div>
+                        <div class="w-1/2"><label class="input-label" aria-hidden="true">Prix des places (€)</label><input type="number" autocomplete="off" name="editProjectData-ticketPrice" v-model="editProjectData.ticketPrice" class="input-field" placeholder="Ex: 18"></div>
                     </div>
-                    <div><label class="input-label">Taille de l'équipe (Sur la route)</label><div class="flex items-center gap-2"><input type="number" v-model="editProjectData.teamSize" class="input-field"><span class="text-slate-500 text-sm">personnes</span></div></div>
+                    <div><label class="input-label" aria-hidden="true">Taille de l'équipe (Sur la route)</label><div class="flex items-center gap-2"><input type="number" autocomplete="off" name="editProjectData-teamSize" v-model="editProjectData.teamSize" class="input-field"><span class="text-slate-500 text-sm">personnes</span></div></div>
                     <div class="flex flex-col justify-end">
                         <label class="flex items-center gap-2 text-sm font-bold cursor-pointer mb-2">
-                            <input type="checkbox" v-model="editProjectData.isActive" class="rounded text-emerald-500"> Artiste actif
+                            <input autocomplete="off" type="checkbox" v-model="editProjectData.isActive" class="rounded text-emerald-500"> Artiste actif
                         </label>
                         <label class="flex items-center gap-2 text-sm font-bold cursor-pointer">
-                            <input type="checkbox" v-model="editProjectData.isPrivate" class="rounded text-orange-500"> <i class="fas fa-lock text-orange-400 mr-1"></i> Visible par moi uniquement
+                            <input autocomplete="off" type="checkbox" v-model="editProjectData.isPrivate" class="rounded text-orange-500"> <i class="fas fa-lock text-orange-400 mr-1"></i> Visible par moi uniquement
                         </label>
                     </div>
-                    <div class="col-span-2"><label class="input-label">Défraiements / Conditions d'accueil</label><input v-model="editProjectData.expenses" class="input-field" placeholder="Ex: VHR à la charge de l'organisateur (4 single + Catering)"></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true">Défraiements / Conditions d'accueil</label><input autocomplete="off" name="editProjectData-expenses" v-model="editProjectData.expenses" class="input-field" placeholder="Ex: VHR à la charge de l'organisateur (4 single + Catering)"></div>
 
                     <!-- Sous-projets -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100">
@@ -3227,10 +3227,10 @@
                         <div v-if="!(editProjectData.subProjects||[]).length" class="text-xs text-slate-400 italic text-center py-3 border-2 border-dashed rounded-lg">Aucun sous-projet — cliquez sur Ajouter</div>
                         <div class="space-y-2">
                             <div v-for="(sp, idx) in (editProjectData.subProjects||[])" :key="sp.id" class="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                <input v-model="sp.name" class="input-field text-sm col-span-2" placeholder="Intitulé du sous-projet *">
-                                <input v-model="sp.code" class="input-field text-sm" placeholder="Code admin">
-                                <input v-model="sp.fee" type="number" class="input-field text-sm" placeholder="Cachet (€)">
-                                <input v-model="sp.ticketPrice" type="number" class="input-field text-sm" placeholder="Prix place (€)">
+                                <input autocomplete="off" name="sp-name" v-model="sp.name" class="input-field text-sm col-span-2" placeholder="Intitulé du sous-projet *">
+                                <input autocomplete="off" name="sp-code" v-model="sp.code" class="input-field text-sm" placeholder="Code admin">
+                                <input autocomplete="off" name="sp-fee" v-model="sp.fee" type="number" class="input-field text-sm" placeholder="Cachet (€)">
+                                <input autocomplete="off" name="sp-ticketPrice" v-model="sp.ticketPrice" type="number" class="input-field text-sm" placeholder="Prix place (€)">
                                 <button type="button" @click="editProjectData.subProjects.splice(idx,1)" class="text-slate-300 hover:text-red-500 transition flex items-center justify-center"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
@@ -3238,32 +3238,32 @@
 
                     <!-- Matériel -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-link text-slate-400 mr-2"></i>Matériel (Liens URL)</h4></div>
-                    <div class="col-span-2"><label class="input-label"><i class="fab fa-youtube text-red-500 mr-1"></i> Lien Vidéo (YouTube, Vimeo...)</label><input v-model="editProjectData.linkVideo" type="url" class="input-field" placeholder="https://..."></div>
-                    <div class="col-span-2"><label class="input-label"><i class="fas fa-file-pdf text-blue-500 mr-1"></i> Lien Dossier de Presse (Drive, Dropbox...)</label><input v-model="editProjectData.linkPress" type="url" class="input-field" placeholder="https://..."></div>
-                    <div class="col-span-2"><label class="input-label"><i class="fas fa-sliders-h text-slate-700 mr-1"></i> Lien Fiche Technique</label><input v-model="editProjectData.linkTech" type="url" class="input-field" placeholder="https://..."></div>
-                    <div class="col-span-2"><label class="input-label"><i class="fas fa-globe text-emerald-500 mr-1"></i> Lien Linktree / Réseaux / Site Web</label><input v-model="editProjectData.linkTree" type="url" class="input-field" placeholder="https://linktr.ee/..."></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true"><i class="fab fa-youtube text-red-500 mr-1"></i> Lien Vidéo (YouTube, Vimeo...)</label><input autocomplete="off" name="editProjectData-linkVideo" v-model="editProjectData.linkVideo" type="url" class="input-field" placeholder="https://..."></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true"><i class="fas fa-file-pdf text-blue-500 mr-1"></i> Lien Dossier de Presse (Drive, Dropbox...)</label><input autocomplete="off" name="editProjectData-linkPress" v-model="editProjectData.linkPress" type="url" class="input-field" placeholder="https://..."></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true"><i class="fas fa-sliders-h text-slate-700 mr-1"></i> Lien Fiche Technique</label><input autocomplete="off" name="editProjectData-linkTech" v-model="editProjectData.linkTech" type="url" class="input-field" placeholder="https://..."></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true"><i class="fas fa-globe text-emerald-500 mr-1"></i> Lien Linktree / Réseaux / Site Web</label><input autocomplete="off" name="editProjectData-linkTree" v-model="editProjectData.linkTree" type="url" class="input-field" placeholder="https://linktr.ee/..."></div>
 
                     <!-- Réseaux sociaux -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-share-alt text-pink-400 mr-2"></i>Réseaux sociaux</h4></div>
-                    <div><label class="input-label"><i class="fab fa-spotify text-green-500 mr-1"></i> Spotify</label><input v-model="editProjectData.linkSpotify" type="url" class="input-field" placeholder="https://open.spotify.com/..."></div>
-                    <div><label class="input-label"><i class="fab fa-instagram text-pink-500 mr-1"></i> Instagram</label><input v-model="editProjectData.linkInstagram" type="url" class="input-field" placeholder="https://instagram.com/..."></div>
-                    <div><label class="input-label"><i class="fab fa-facebook text-blue-600 mr-1"></i> Facebook</label><input v-model="editProjectData.linkFacebook" type="url" class="input-field" placeholder="https://facebook.com/..."></div>
-                    <div><label class="input-label"><i class="fab fa-apple mr-1"></i> Apple Music</label><input v-model="editProjectData.linkAppleMusic" type="url" class="input-field" placeholder="https://music.apple.com/..."></div>
-                    <div><label class="input-label"><i class="fab fa-bandcamp text-teal-600 mr-1"></i> Bandcamp</label><input v-model="editProjectData.linkBandcamp" type="url" class="input-field" placeholder="https://....bandcamp.com"></div>
+                    <div><label class="input-label" aria-hidden="true"><i class="fab fa-spotify text-green-500 mr-1"></i> Spotify</label><input autocomplete="off" name="editProjectData-linkSpotify" v-model="editProjectData.linkSpotify" type="url" class="input-field" placeholder="https://open.spotify.com/..."></div>
+                    <div><label class="input-label" aria-hidden="true"><i class="fab fa-instagram text-pink-500 mr-1"></i> Instagram</label><input autocomplete="off" name="editProjectData-linkInstagram" v-model="editProjectData.linkInstagram" type="url" class="input-field" placeholder="https://instagram.com/..."></div>
+                    <div><label class="input-label" aria-hidden="true"><i class="fab fa-facebook text-blue-600 mr-1"></i> Facebook</label><input autocomplete="off" name="editProjectData-linkFacebook" v-model="editProjectData.linkFacebook" type="url" class="input-field" placeholder="https://facebook.com/..."></div>
+                    <div><label class="input-label" aria-hidden="true"><i class="fab fa-apple mr-1"></i> Apple Music</label><input autocomplete="off" name="editProjectData-linkAppleMusic" v-model="editProjectData.linkAppleMusic" type="url" class="input-field" placeholder="https://music.apple.com/..."></div>
+                    <div><label class="input-label" aria-hidden="true"><i class="fab fa-bandcamp text-teal-600 mr-1"></i> Bandcamp</label><input autocomplete="off" name="editProjectData-linkBandcamp" v-model="editProjectData.linkBandcamp" type="url" class="input-field" placeholder="https://....bandcamp.com"></div>
 
                     <!-- Fiche artiste -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-star text-yellow-400 mr-2"></i>Fiche artiste</h4></div>
-                    <div><label class="input-label">Année de création</label><input v-model="editProjectData.productionYear" class="input-field" placeholder="Ex: 2022"></div>
-                    <div><label class="input-label">Label / Distribution</label><input v-model="editProjectData.labelDistrib" class="input-field" placeholder="Ex: Autoproduit, Sony..."></div>
-                    <div class="col-span-2"><label class="input-label">Biographie artistique</label><textarea v-model="editProjectData.bio" rows="4" class="input-field resize-none" placeholder="Description du projet artistique, histoire, style..."></textarea></div>
-                    <div class="col-span-2"><label class="input-label">Composition (membres)</label><textarea v-model="editProjectData.members" rows="2" class="input-field resize-none" placeholder="Ex: Marie Dupont — Chant / Jean Martin — Guitare..."></textarea></div>
+                    <div><label class="input-label" aria-hidden="true">Année de création</label><input autocomplete="off" name="editProjectData-productionYear" v-model="editProjectData.productionYear" class="input-field" placeholder="Ex: 2022"></div>
+                    <div><label class="input-label" aria-hidden="true">Label / Distribution</label><input autocomplete="off" name="editProjectData-labelDistrib" v-model="editProjectData.labelDistrib" class="input-field" placeholder="Ex: Autoproduit, Sony..."></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true">Biographie artistique</label><textarea v-model="editProjectData.bio" rows="4" class="input-field resize-none" placeholder="Description du projet artistique, histoire, style..."></textarea></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true">Composition (membres)</label><textarea v-model="editProjectData.members" rows="2" class="input-field resize-none" placeholder="Ex: Marie Dupont — Chant / Jean Martin — Guitare..."></textarea></div>
 
                     <!-- Conditions booking -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100"><h4 class="font-bold text-slate-700 mb-2"><i class="fas fa-handshake text-emerald-400 mr-2"></i>Conditions de booking</h4></div>
-                    <div><label class="input-label">Cachet minimum (€)</label><input v-model.number="editProjectData.minFee" type="number" class="input-field" placeholder="0"></div>
-                    <div><label class="input-label">Types de contrat acceptés</label><input v-model="editProjectData.contractTypes" class="input-field" placeholder="Ex: Cession, Co-réalisation..."></div>
-                    <div class="col-span-2"><label class="input-label">Frais de route / hébergement</label><input v-model="editProjectData.fraisRoute" class="input-field" placeholder="Ex: 0,40€/km + 2 nuits hotel si > 200km"></div>
-                    <div class="col-span-2"><label class="input-label"><i class="fas fa-lock text-amber-400 mr-1"></i> Note interne (non partagée)</label><textarea v-model="editProjectData.artistNote" rows="2" class="input-field resize-none" placeholder="Notes internes sur les conditions, contacts, stratégie..."></textarea></div>
+                    <div><label class="input-label" aria-hidden="true">Cachet minimum (€)</label><input autocomplete="off" name="minFee" v-model.number="editProjectData.minFee" type="number" class="input-field" placeholder="0"></div>
+                    <div><label class="input-label" aria-hidden="true">Types de contrat acceptés</label><input autocomplete="off" name="editProjectData-contractTypes" v-model="editProjectData.contractTypes" class="input-field" placeholder="Ex: Cession, Co-réalisation..."></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true">Frais de route / hébergement</label><input autocomplete="off" name="editProjectData-fraisRoute" v-model="editProjectData.fraisRoute" class="input-field" placeholder="Ex: 0,40€/km + 2 nuits hotel si > 200km"></div>
+                    <div class="col-span-2"><label class="input-label" aria-hidden="true"><i class="fas fa-lock text-amber-400 mr-1"></i> Note interne (non partagée)</label><textarea v-model="editProjectData.artistNote" rows="2" class="input-field resize-none" placeholder="Notes internes sur les conditions, contacts, stratégie..."></textarea></div>
 
                     <!-- Apparence -->
                     <div class="col-span-2 mt-2 pt-4 border-t border-slate-100 flex gap-6">
@@ -3277,7 +3277,7 @@
                         </div>
                         <div>
                             <label class="input-label mb-2">Couleur (Planning)</label>
-                            <div class="flex gap-3 items-center"><input type="color" v-model="editProjectData.color" class="w-12 h-12 rounded border cursor-pointer p-1 bg-white"></div>
+                            <div class="flex gap-3 items-center"><input autocomplete="off" type="color" v-model="editProjectData.color" class="w-12 h-12 rounded border cursor-pointer p-1 bg-white"></div>
                         </div>
                     </div>
                 </div>
@@ -3362,10 +3362,10 @@
                 <div class="flex items-center gap-4 flex-1">
                     <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center text-2xl shadow-inner border border-indigo-200"><i class="fas fa-building"></i></div>
                     <div class="flex-1 max-w-2xl">
-                        <input v-model="currentCrmStruct.name" class="text-2xl font-black text-slate-800 bg-transparent border-none focus:ring-0 p-0 w-full placeholder-slate-300" placeholder="Nom de la structure / Organisateur...">
+                        <input autocomplete="off" autocomplete="off" name="currentCrmStruct-name" v-model="currentCrmStruct.name" class="text-2xl font-black text-slate-800 bg-transparent border-none focus:ring-0 p-0 w-full placeholder-slate-300" placeholder="Nom de la structure / Organisateur...">
                         <div class="flex items-center gap-6 mt-1">
-                            <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-indigo-600 transition"><input type="checkbox" v-model="currentCrmStruct.isClient" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"> Est Client (A déjà acheté)</label>
-                            <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-emerald-600 transition"><input type="checkbox" v-model="currentCrmStruct.isActive" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"> Fiche Active</label>
+                            <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-indigo-600 transition"><input autocomplete="off" type="checkbox" v-model="currentCrmStruct.isClient" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"> Est Client (A déjà acheté)</label>
+                            <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-emerald-600 transition"><input autocomplete="off" type="checkbox" v-model="currentCrmStruct.isActive" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"> Fiche Active</label>
                             <span class="text-xs text-slate-400 font-medium ml-4">Créé le {{ formatDate(currentCrmStruct.createdDate) }}</span>
                         </div>
                     </div>
@@ -3391,18 +3391,18 @@
                                     <button @click="geocodeAddress" class="text-[10px] bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-2 py-1 rounded font-bold transition shadow-sm"><i class="fas fa-satellite-dish mr-1"></i> Localiser GPS</button>
                                 </div>
                                 <div class="space-y-3">
-                                    <input v-model="currentCrmStruct.address" class="input-field text-sm font-medium" placeholder="N°, Rue, Boulevard...">
-                                    <input v-model="currentCrmStruct.suite" class="input-field text-sm" placeholder="Bâtiment, Étage, BP (Optionnel)">
+                                    <input autocomplete="off" autocomplete="off" name="currentCrmStruct-address" v-model="currentCrmStruct.address" class="input-field text-sm font-medium" placeholder="N°, Rue, Boulevard...">
+                                    <input autocomplete="off" name="currentCrmStruct-suite" v-model="currentCrmStruct.suite" class="input-field text-sm" placeholder="Bâtiment, Étage, BP (Optionnel)">
                                     <div class="flex gap-3">
-                                        <input v-model="currentCrmStruct.zip" class="input-field text-sm w-1/3" placeholder="Code Postal">
-                                        <input v-model="currentCrmStruct.city" class="input-field text-sm w-2/3 font-bold" placeholder="Ville">
+                                        <input autocomplete="off" name="currentCrmStruct-zip" v-model="currentCrmStruct.zip" class="input-field text-sm w-1/3" placeholder="Code Postal">
+                                        <input autocomplete="off" autocomplete="off" name="currentCrmStruct-city" v-model="currentCrmStruct.city" class="input-field text-sm w-2/3 font-bold" placeholder="Ville">
                                     </div>
                                     <div class="flex gap-3">
                                         <select v-model="currentCrmStruct.region" class="input-field text-sm flex-1">
                                             <option value="">-- Région --</option>
                                             <option v-for="r in frenchRegions" :key="r" :value="r">{{ r }}</option>
                                         </select>
-                                        <input v-model="currentCrmStruct.country" class="input-field text-sm text-slate-500 flex-1" placeholder="Pays">
+                                        <input autocomplete="off" name="currentCrmStruct-country" v-model="currentCrmStruct.country" class="input-field text-sm text-slate-500 flex-1" placeholder="Pays">
                                     </div>
                                 </div>
                                 
@@ -3414,10 +3414,10 @@
                                 <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
                                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4"><i class="fas fa-info-circle text-indigo-400 mr-2"></i> Général & Technique</h4>
                                     <div class="grid grid-cols-2 gap-3">
-                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Code Client</label><input v-model="currentCrmStruct.clientCode" class="input-field text-sm"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Source / Origine</label><input v-model="currentCrmStruct.source" class="input-field text-sm"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Capacité / Jauge</label><input v-model="currentCrmStruct.capacity" class="input-field text-sm"></div>
-                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Saison (ex: Oct-Mai)</label><input v-model="currentCrmStruct.season" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Code Client</label><input autocomplete="off" name="currentCrmStruct-clientCode" v-model="currentCrmStruct.clientCode" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Source / Origine</label><input autocomplete="off" name="currentCrmStruct-source" v-model="currentCrmStruct.source" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Capacité / Jauge</label><input autocomplete="off" name="currentCrmStruct-capacity" v-model="currentCrmStruct.capacity" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Saison (ex: Oct-Mai)</label><input autocomplete="off" name="currentCrmStruct-season" v-model="currentCrmStruct.season" class="input-field text-sm"></div>
                                         <div class="col-span-2">
                                             <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1"><i class="fas fa-calendar-check text-indigo-400 mr-1"></i> Période de Programmation</label>
                                             <div class="flex items-center gap-2">
@@ -3447,9 +3447,9 @@
                                 <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
                                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4"><i class="fas fa-phone text-indigo-400 mr-2"></i> Contact Standard (Lieu)</h4>
                                     <div class="grid grid-cols-2 gap-3">
-                                        <input v-model="currentCrmStruct.phone1" class="input-field text-sm" placeholder="Tél Standard">
-                                        <input v-model="currentCrmStruct.email" class="input-field text-sm" placeholder="Email Générique">
-                                        <div class="col-span-2"><input v-model="currentCrmStruct.website" class="input-field text-sm" placeholder="Site Web (https://...)"></div>
+                                        <input autocomplete="off" autocomplete="off" name="currentCrmStruct-phone1" v-model="currentCrmStruct.phone1" class="input-field text-sm" placeholder="Tél Standard">
+                                        <input autocomplete="off" autocomplete="off" name="currentCrmStruct-email" v-model="currentCrmStruct.email" class="input-field text-sm" placeholder="Email Générique">
+                                        <div class="col-span-2"><input autocomplete="off" autocomplete="off" name="currentCrmStruct-website" v-model="currentCrmStruct.website" class="input-field text-sm" placeholder="Site Web (https://...)"></div>
                                     </div>
                                 </div>
                                 <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
@@ -3475,7 +3475,7 @@
                         <div class="mb-8 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm p-5">
                             <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4"><i class="fas fa-comments text-amber-400 mr-2"></i> Journal & Commentaires</h4>
                             <div class="flex gap-2 mb-4">
-                                <input v-model="newCrmComment" @keyup.enter="addCrmComment" class="input-field text-sm flex-1" placeholder="Ajouter une note, un suivi, une relance...">
+                                <input autocomplete="off" name="newCrmComment" v-model="newCrmComment" @keyup.enter="addCrmComment" class="input-field text-sm flex-1" placeholder="Ajouter une note, un suivi, une relance...">
                                 <button @click="addCrmComment" :disabled="!newCrmComment.trim()" class="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
                                     <i class="fas fa-plus"></i> Ajouter
                                 </button>
@@ -3537,32 +3537,32 @@
                         </div>
                         <div class="p-6 flex-1 overflow-y-auto space-y-6">
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label class="input-label">Prénom</label><input v-model="currentCrmContact.firstName" class="input-field font-bold"></div>
-                                <div><label class="input-label">Nom</label><input v-model="currentCrmContact.lastName" class="input-field font-bold uppercase"></div>
-                                <div class="col-span-2"><label class="input-label">Fonction / Rôle exact</label><input v-model="currentCrmContact.role" class="input-field"></div>
+                                <div><label class="input-label" aria-hidden="true">Prénom</label><input autocomplete="off" autocomplete="off" name="currentCrmContact-firstName" v-model="currentCrmContact.firstName" class="input-field font-bold"></div>
+                                <div><label class="input-label" aria-hidden="true">Nom</label><input autocomplete="off" autocomplete="off" name="currentCrmContact-lastName" v-model="currentCrmContact.lastName" class="input-field font-bold uppercase"></div>
+                                <div class="col-span-2"><label class="input-label" aria-hidden="true">Fonction / Rôle exact</label><input autocomplete="off" name="currentCrmContact-role" v-model="currentCrmContact.role" class="input-field"></div>
                             </div>
                             <div class="grid grid-cols-2 gap-6 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
                                 <div>
                                     <h5 class="text-[10px] font-black text-slate-400 uppercase mb-3"><i class="fas fa-briefcase mr-1"></i> Pro</h5>
                                     <div class="space-y-2">
-                                        <input v-model="currentCrmContact.emailPro" class="input-field text-sm" placeholder="Email direct pro">
-                                        <input v-model="currentCrmContact.phoneDirect" class="input-field text-sm" placeholder="Ligne directe">
-                                        <input v-model="currentCrmContact.mobilePro" class="input-field text-sm" placeholder="Mobile Pro">
+                                        <input autocomplete="off" autocomplete="off" name="currentCrmContact-emailPro" v-model="currentCrmContact.emailPro" class="input-field text-sm" placeholder="Email direct pro">
+                                        <input autocomplete="off" name="currentCrmContact-phoneDirect" v-model="currentCrmContact.phoneDirect" class="input-field text-sm" placeholder="Ligne directe">
+                                        <input autocomplete="off" name="currentCrmContact-mobilePro" v-model="currentCrmContact.mobilePro" class="input-field text-sm" placeholder="Mobile Pro">
                                     </div>
                                 </div>
                                 <div>
                                     <h5 class="text-[10px] font-black text-slate-400 uppercase mb-3"><i class="fas fa-home mr-1"></i> Perso / Autre</h5>
                                     <div class="space-y-2">
-                                        <input v-model="currentCrmContact.emailPerso" class="input-field text-sm" placeholder="Email perso">
-                                        <input v-model="currentCrmContact.phonePerso" class="input-field text-sm" placeholder="Tél perso">
-                                        <input v-model="currentCrmContact.mobilePerso" class="input-field text-sm" placeholder="Mobile perso">
+                                        <input autocomplete="off" name="currentCrmContact-emailPerso" v-model="currentCrmContact.emailPerso" class="input-field text-sm" placeholder="Email perso">
+                                        <input autocomplete="off" name="currentCrmContact-phonePerso" v-model="currentCrmContact.phonePerso" class="input-field text-sm" placeholder="Tél perso">
+                                        <input autocomplete="off" name="currentCrmContact-mobilePerso" v-model="currentCrmContact.mobilePerso" class="input-field text-sm" placeholder="Mobile perso">
                                     </div>
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label class="input-label">Suivi Commercial par</label><input v-model="currentCrmContact.suiviPar" class="input-field text-sm" placeholder="Nom du commercial"></div>
+                                <div><label class="input-label" aria-hidden="true">Suivi Commercial par</label><input autocomplete="off" name="currentCrmContact-suiviPar" v-model="currentCrmContact.suiviPar" class="input-field text-sm" placeholder="Nom du commercial"></div>
                                 <div>
-                                    <label class="input-label">Région</label>
+                                    <label class="input-label" aria-hidden="true">Région</label>
                                     <select v-model="currentCrmContact.region" class="input-field text-sm">
                                         <option value="">-- Région --</option>
                                         <option v-for="r in frenchRegions" :key="r" :value="r">{{ r }}</option>
@@ -3570,8 +3570,8 @@
                                 </div>
                             </div>
                             <div class="flex flex-col gap-2">
-                                    <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input type="checkbox" v-model="currentCrmContact.isVip" class="rounded text-orange-500"> Contact Prioritaire (VIP)</label>
-                                    <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input type="checkbox" v-model="currentCrmContact.isActive" class="rounded text-emerald-500"> Toujours en poste (Actif)</label>
+                                    <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input autocomplete="off" type="checkbox" v-model="currentCrmContact.isVip" class="rounded text-orange-500"> Contact Prioritaire (VIP)</label>
+                                    <label class="flex items-center gap-2 text-sm font-bold cursor-pointer"><input autocomplete="off" type="checkbox" v-model="currentCrmContact.isActive" class="rounded text-emerald-500"> Toujours en poste (Actif)</label>
                                     <div class="flex items-center justify-between mt-1 p-2.5 rounded-xl border-2 cursor-pointer transition"
                                         :class="currentCrmContact.isPrivate ? 'bg-orange-50 border-orange-300' : 'bg-slate-50 border-slate-200 hover:border-slate-300'"
                                         @click="currentCrmContact.isPrivate = !currentCrmContact.isPrivate">
@@ -3595,7 +3595,7 @@
                             <div class="bg-amber-50 rounded-xl border border-amber-100 p-4 shadow-sm">
                                 <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3"><i class="fas fa-comments text-amber-400 mr-1"></i> Journal & Notes horodatées</h5>
                                 <div class="flex gap-2 mb-3">
-                                    <input v-model="newContactComment" @keyup.enter="addContactComment" class="input-field text-sm flex-1" placeholder="Appel, relance, compte-rendu...">
+                                    <input autocomplete="off" name="newContactComment" v-model="newContactComment" @keyup.enter="addContactComment" class="input-field text-sm flex-1" placeholder="Appel, relance, compte-rendu...">
                                     <button @click="addContactComment" :disabled="!newContactComment.trim()" class="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg font-bold text-sm shadow transition">
                                         <i class="fas fa-plus"></i>
                                     </button>
@@ -3703,7 +3703,7 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Recherche par nom</label>
-                    <input v-model="gouvImport.searchName" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: Théâtre, Zénith...">
+                    <input autocomplete="off" name="gouvImport-searchName" v-model="gouvImport.searchName" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: Théâtre, Zénith...">
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Type de lieu</label>
@@ -3724,7 +3724,7 @@
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Département (ex: 75)</label>
-                    <input v-model="gouvImport.filterDept" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: 63, 75, 13...">
+                    <input autocomplete="off" name="gouvImport-filterDept" v-model="gouvImport.filterDept" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: 63, 75, 13...">
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Région</label>
@@ -3991,7 +3991,7 @@
                     <label v-for="col in exportMapping.availableCols" :key="col.key"
                            class="flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition"
                            :class="exportMapping.cols.includes(col.key) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:border-slate-300'">
-                        <input type="checkbox" :value="col.key" v-model="exportMapping.cols" class="rounded text-indigo-600">
+                        <input autocomplete="off" type="checkbox" :value="col.key" v-model="exportMapping.cols" class="rounded text-indigo-600">
                         <div>
                             <div class="text-xs font-bold text-slate-700">{{ col.label }}</div>
                             <div class="text-[10px] text-slate-400">{{ col.example }}</div>
@@ -4006,12 +4006,12 @@
                 <div class="flex gap-3">
                     <label class="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition"
                            :class="exportMapping.format === 'xlsx' ? 'bg-emerald-50 border-emerald-400' : 'bg-white border-slate-200'">
-                        <input type="radio" v-model="exportMapping.format" value="xlsx" class="text-emerald-600">
+                        <input autocomplete="off" type="radio" v-model="exportMapping.format" value="xlsx" class="text-emerald-600">
                         <span class="font-bold text-sm"><i class="fas fa-file-excel text-emerald-600 mr-1"></i> Excel (.xlsx)</span>
                     </label>
                     <label class="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition"
                            :class="exportMapping.format === 'csv' ? 'bg-blue-50 border-blue-400' : 'bg-white border-slate-200'">
-                        <input type="radio" v-model="exportMapping.format" value="csv" class="text-blue-600">
+                        <input autocomplete="off" type="radio" v-model="exportMapping.format" value="csv" class="text-blue-600">
                         <span class="font-bold text-sm"><i class="fas fa-file-csv text-blue-600 mr-1"></i> CSV (.csv)</span>
                     </label>
                 </div>
@@ -4076,7 +4076,7 @@
 
         <!-- Filtres -->
         <div class="bg-purple-50 border-b border-purple-100 px-6 py-3 flex-shrink-0 flex flex-wrap gap-3 items-center">
-            <input v-model="addToSelectionSearch" class="input-field max-w-xs text-sm" placeholder="Rechercher par nom, structure, ville...">
+            <input autocomplete="off" name="addToSelectionSearch" v-model="addToSelectionSearch" class="input-field max-w-xs text-sm" placeholder="Rechercher par nom, structure, ville...">
             <select v-model="addToSelectionCat" class="input-field text-sm w-44">
                 <option value="">Toutes catégories</option>
                 <option v-for="t in db.tagCategories" :key="t" :value="t">{{ t }}</option>
@@ -4201,17 +4201,17 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="input-label">Nom du modèle</label>
-                        <input v-model="editingContractTpl.name" class="input-field" placeholder="Ex: Contrat Cession Standard">
+                        <label class="input-label" aria-hidden="true">Nom du modèle</label>
+                        <input autocomplete="off" name="editingContractTpl-name" v-model="editingContractTpl.name" class="input-field" placeholder="Ex: Contrat Cession Standard">
                     </div>
                     <div>
-                        <label class="input-label">Titre dans le PDF</label>
-                        <input v-model="editingContractTpl.title" class="input-field" placeholder="Ex: CONTRAT DE CESSION">
+                        <label class="input-label" aria-hidden="true">Titre dans le PDF</label>
+                        <input autocomplete="off" name="editingContractTpl-title" v-model="editingContractTpl.title" class="input-field" placeholder="Ex: CONTRAT DE CESSION">
                     </div>
                     <div>
-                        <label class="input-label">Couleur d'en-tête</label>
+                        <label class="input-label" aria-hidden="true">Couleur d'en-tête</label>
                         <div class="flex items-center gap-3">
-                            <input type="color" v-model="editingContractTpl.color" class="w-12 h-10 rounded border cursor-pointer p-1">
+                            <input autocomplete="off" type="color" v-model="editingContractTpl.color" class="w-12 h-10 rounded border cursor-pointer p-1">
                             <span class="text-xs text-slate-400">Couleur de l'en-tête du PDF</span>
                         </div>
                     </div>
@@ -4219,7 +4219,7 @@
 
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <label class="input-label">Corps du contrat</label>
+                        <label class="input-label" aria-hidden="true">Corps du contrat</label>
                         <span class="text-[10px] text-slate-400">Utilisez # pour les titres de sections</span>
                     </div>
                     <textarea v-model="editingContractTpl.body"
