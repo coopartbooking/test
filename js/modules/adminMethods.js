@@ -214,22 +214,44 @@ export const adminMethods = {
                 genres.forEach(t => newGenres.add(t));
                 reseaux.forEach(t => newReseaux.add(t));
 
-                // Récupérer les emails déjà publics dans toute la base
+                // Emails déjà dans la base :
+                // - contacts publics (tous les utilisateurs)
+                // - mes contacts privés (éviter auto-doublons)
+                const knownEmails = new Set();
+                this.db.structures.forEach(s => {
+                    (s.contacts || []).forEach(c => {
+                        const isVisible = !c.isPrivate || c.owner === this.currentUser;
+                        if (!isVisible) return; // contact privé d'un autre → ignorer
+                        if (c.emailPro)   knownEmails.add(c.emailPro.toLowerCase().trim());
+                        if (c.emailPerso) knownEmails.add(c.emailPerso.toLowerCase().trim());
+                    });
+                });
+                // Emails publics seulement (pour décider si on force isPrivate)
                 const publicEmails = new Set();
                 this.db.structures.forEach(s => {
                     (s.contacts || []).forEach(c => {
-                        if (!c.isPrivate && c.emailPro) publicEmails.add(c.emailPro.toLowerCase());
-                        if (!c.isPrivate && c.emailPerso) publicEmails.add(c.emailPerso.toLowerCase());
+                        if (c.isPrivate) return;
+                        if (c.emailPro)   publicEmails.add(c.emailPro.toLowerCase().trim());
+                        if (c.emailPerso) publicEmails.add(c.emailPerso.toLowerCase().trim());
                     });
                 });
 
                 const contacts = [17, 39, 61]
                     .map(offset => this._parseBobContact(row, offset))
                     .filter(Boolean)
+                    .filter(c => {
+                        // Ignorer le contact si son email est déjà connu (public ou mes privés)
+                        const ep = (c.emailPro   || '').toLowerCase().trim();
+                        const ev = (c.emailPerso || '').toLowerCase().trim();
+                        if (ep && knownEmails.has(ep)) return false;
+                        if (ev && knownEmails.has(ev)) return false;
+                        return true;
+                    })
                     .map(c => {
-                        // Si le contact est déjà public dans la base → rester public
-                        const emailLow = (c.emailPro || c.emailPerso || '').toLowerCase();
-                        const alreadyPublic = emailLow && publicEmails.has(emailLow);
+                        // Déterminer la visibilité du contact importé
+                        const ep = (c.emailPro   || '').toLowerCase().trim();
+                        const ev = (c.emailPerso || '').toLowerCase().trim();
+                        const alreadyPublic = (ep && publicEmails.has(ep)) || (ev && publicEmails.has(ev));
                         if (privateContacts && !alreadyPublic) {
                             c.isPrivate = true;
                             c.owner     = this.currentUser;
@@ -277,9 +299,20 @@ export const adminMethods = {
                         if (!ex.website && struct.website) ex.website = struct.website;
                         if (!ex.notes   && struct.notes)   ex.notes   = struct.notes;
                         if (!ex.zip     && struct.zip)     ex.zip     = struct.zip;
-                        const existEmails = new Set((ex.contacts || []).map(c => c.emailPro || '').filter(Boolean));
+                        // Emails déjà présents (publics + mes privés) pour éviter les doublons
+                        const existEmails = new Set();
+                        (ex.contacts || []).forEach(c => {
+                            const visible = !c.isPrivate || c.owner === this.currentUser;
+                            if (!visible) return;
+                            if (c.emailPro)   existEmails.add(c.emailPro.toLowerCase().trim());
+                            if (c.emailPerso) existEmails.add(c.emailPerso.toLowerCase().trim());
+                        });
                         struct.contacts.forEach(c => {
-                            if (!c.emailPro || !existEmails.has(c.emailPro)) (ex.contacts = ex.contacts || []).push(c);
+                            const ep = (c.emailPro   || '').toLowerCase().trim();
+                            const ev = (c.emailPerso || '').toLowerCase().trim();
+                            // N'ajouter que si email inconnu (ou pas d'email du tout)
+                            const known = (ep && existEmails.has(ep)) || (ev && existEmails.has(ev));
+                            if (!known) (ex.contacts = ex.contacts || []).push(c);
                         });
                         ['categories', 'genres', 'reseaux'].forEach(k => {
                             const s = new Set(ex.tags?.[k] || []);
