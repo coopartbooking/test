@@ -129,6 +129,121 @@ export const mapMethods = {
         }
     },
 
+    // --- GEOCODAGE DE MASSE ---
+    // Parcourt toutes les structures sans GPS, leur attribue lat/lng via Nominatim
+    // Respecte la limite OSM de 1 requête/seconde
+    async geocodeAllStructures() {
+        const toGeocode = this.db.structures.filter(s =>
+            (!s.lat || !s.lng) && (s.city || s.zip)
+        );
+
+        if (toGeocode.length === 0) {
+            return Swal.fire({
+                title: 'Rien à faire !',
+                text: 'Toutes vos structures avec adresse ont déjà des coordonnées GPS.',
+                icon: 'info'
+            });
+        }
+
+        const confirm = await Swal.fire({
+            title: `Géocoder ${toGeocode.length} structure(s) ?`,
+            html: `Le traitement prendra environ <b>${Math.ceil(toGeocode.length * 1.1)} secondes</b> (limite OpenStreetMap : 1 requête/seconde).<br><br>Vous pourrez fermer la fenêtre, le traitement continuera en arrière-plan.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Lancer le géocodage',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#4f46e5'
+        });
+        if (!confirm.isConfirmed) return;
+
+        let success = 0, failed = 0, errors = 0;
+        const total = toGeocode.length;
+
+        Swal.fire({
+            title: 'Géocodage en cours...',
+            html: `<div class="text-sm">Traitement de la structure <b id="geo-current">1</b> / <b>${total}</b></div>
+                   <div class="text-xs text-slate-500 mt-2" id="geo-name">—</div>
+                   <div class="w-full bg-slate-200 rounded-full h-2 mt-3">
+                       <div id="geo-bar" class="bg-indigo-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                   </div>
+                   <div class="text-xs mt-3 flex justify-around">
+                       <span class="text-emerald-600">✓ <b id="geo-ok">0</b> trouvées</span>
+                       <span class="text-amber-600">⚠ <b id="geo-ko">0</b> introuvables</span>
+                       <span class="text-rose-600">✗ <b id="geo-err">0</b> erreurs</span>
+                   </div>`,
+            allowOutsideClick: true,
+            allowEscapeKey: true,
+            showConfirmButton: false
+        });
+
+        for (let i = 0; i < toGeocode.length; i++) {
+            const s = toGeocode[i];
+
+            // Mise à jour de l'UI (si la modale est encore ouverte)
+            const elCurrent = document.getElementById('geo-current');
+            const elName    = document.getElementById('geo-name');
+            const elBar     = document.getElementById('geo-bar');
+            if (elCurrent) elCurrent.textContent = (i + 1);
+            if (elName)    elName.textContent    = s.name || '(sans nom)';
+            if (elBar)     elBar.style.width     = `${((i + 1) / total * 100).toFixed(1)}%`;
+
+            // Construction de la requête : adresse complète puis fallback ville+CP
+            const buildQuery = (full) => full
+                ? `${s.address || ''} ${s.zip || ''} ${s.city || ''} ${s.country || 'France'}`.trim().replace(/\s+/g, ' ')
+                : `${s.zip || ''} ${s.city || ''} ${s.country || 'France'}`.trim().replace(/\s+/g, ' ');
+
+            try {
+                let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(buildQuery(true))}`);
+                let data = await response.json();
+
+                // Fallback sans le numéro de rue si pas de résultat
+                if ((!data || data.length === 0) && s.address) {
+                    await new Promise(r => setTimeout(r, 1100));
+                    response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(buildQuery(false))}`);
+                    data = await response.json();
+                }
+
+                if (data && data.length > 0) {
+                    const idx = this.db.structures.findIndex(x => x.id === s.id);
+                    if (idx > -1) {
+                        this.db.structures[idx].lat = parseFloat(data[0].lat);
+                        this.db.structures[idx].lng = parseFloat(data[0].lon);
+                        success++;
+                        const elOk = document.getElementById('geo-ok');
+                        if (elOk) elOk.textContent = success;
+                    }
+                } else {
+                    failed++;
+                    const elKo = document.getElementById('geo-ko');
+                    if (elKo) elKo.textContent = failed;
+                }
+            } catch (err) {
+                console.warn('Erreur géocodage', s.name, err);
+                errors++;
+                const elErr = document.getElementById('geo-err');
+                if (elErr) elErr.textContent = errors;
+            }
+
+            // Délai obligatoire pour respecter la limite OSM
+            if (i < toGeocode.length - 1) await new Promise(r => setTimeout(r, 1100));
+        }
+
+        // Sauvegarde finale
+        this.saveDB();
+        this.updateMap();
+
+        Swal.fire({
+            title: 'Géocodage terminé',
+            html: `<div class="text-left space-y-1">
+                       <div class="text-emerald-600"><b>${success}</b> structure(s) géocodée(s) avec succès</div>
+                       <div class="text-amber-600"><b>${failed}</b> structure(s) introuvable(s)</div>
+                       <div class="text-rose-600"><b>${errors}</b> erreur(s) réseau</div>
+                   </div>
+                   ${failed > 0 ? '<div class="text-xs text-slate-500 mt-3">💡 Pour les structures introuvables : ouvrez la fiche, vérifiez l\'adresse, et cliquez sur le bouton GPS manuel.</div>' : ''}`,
+            icon: success > 0 ? 'success' : 'warning'
+        });
+    },
+
     // --- CARTOGRAPHIE GRANDE CARTE ---
     async initMap() {
         await this.requireLeaflet();

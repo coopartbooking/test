@@ -34,7 +34,7 @@ export const crmMethods = {
         this.$nextTick(() => { setTimeout(() => { this.initMiniMap(); }, 400); });
     },
 
-    saveCrmStruct(silent = false) {
+    async saveCrmStruct(silent = false) {
         // Sanitiser les champs texte libres avant sauvegarde
         this.currentCrmStruct.name    = this.sanitizeText(this.currentCrmStruct.name, 200);
         this.currentCrmStruct.address = this.sanitizeText(this.currentCrmStruct.address, 300);
@@ -42,7 +42,27 @@ export const crmMethods = {
         this.currentCrmStruct.website = this.sanitizeUrl(this.currentCrmStruct.website);
         this.currentCrmStruct.email   = this.sanitizeEmail(this.currentCrmStruct.email);
         if (!this.currentCrmStruct.name.trim()) return Swal.fire('Erreur', 'Le nom de la structure est obligatoire.', 'error');
-        const idx = this.db.structures.findIndex(s => s.id === this.currentCrmStruct.id);
+
+        // Auto-géocodage silencieux : si une adresse est renseignée mais pas de GPS, on tente de récupérer les coordonnées
+        const s = this.currentCrmStruct;
+        const hasAddress = (s.address || s.zip || s.city) && (s.city || s.zip);
+        const hasGps     = s.lat && s.lng;
+        if (hasAddress && !hasGps) {
+            try {
+                const query = `${s.address || ''} ${s.zip || ''} ${s.city || ''} ${s.country || 'France'}`.trim().replace(/\s+/g, ' ');
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    this.currentCrmStruct.lat = parseFloat(data[0].lat);
+                    this.currentCrmStruct.lng = parseFloat(data[0].lon);
+                }
+            } catch (err) {
+                // Échec silencieux : on sauvegarde quand même la fiche sans GPS
+                console.warn('Géocodage auto échoué pour', s.name, err);
+            }
+        }
+
+        const idx = this.db.structures.findIndex(x => x.id === this.currentCrmStruct.id);
         if (idx > -1) this.db.structures[idx] = this.currentCrmStruct;
         else          this.db.structures.push(this.currentCrmStruct);
         this.saveDB();
