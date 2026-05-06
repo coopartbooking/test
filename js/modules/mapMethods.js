@@ -130,14 +130,14 @@ export const mapMethods = {
     },
 
     // --- GEOCODAGE DE MASSE ---
-    // Parcourt toutes les structures sans GPS, leur attribue lat/lng via Nominatim
-    // Respecte la limite OSM de 1 requête/seconde
+    // Traite par lots avec : choix de taille, sauvegarde tous les 25, bouton stop,
+    // détection rate-limit, Wake Lock, avertissement utilisateur
     async geocodeAllStructures() {
-        const toGeocode = this.db.structures.filter(s =>
+        const candidates = this.db.structures.filter(s =>
             (!s.lat || !s.lng) && (s.city || s.zip)
         );
 
-        if (toGeocode.length === 0) {
+        if (candidates.length === 0) {
             return Swal.fire({
                 title: 'Rien à faire !',
                 text: 'Toutes vos structures avec adresse ont déjà des coordonnées GPS.',
@@ -145,60 +145,141 @@ export const mapMethods = {
             });
         }
 
-        const confirm = await Swal.fire({
-            title: `Géocoder ${toGeocode.length} structure(s) ?`,
-            html: `Le traitement prendra environ <b>${Math.ceil(toGeocode.length * 1.1)} secondes</b> (limite OpenStreetMap : 1 requête/seconde).<br><br>Vous pourrez fermer la fenêtre, le traitement continuera en arrière-plan.`,
-            icon: 'question',
+        // ÉTAPE 1 : Choix de la taille du lot
+        const totalRemaining = candidates.length;
+        const sizes = [100, 250, 500].filter(v => v < totalRemaining);
+        sizes.push(totalRemaining);
+        const uniqueSizes = [...new Set(sizes)].sort((a, b) => a - b);
+
+        const inputOptions = {};
+        uniqueSizes.forEach(v => {
+            const mins = Math.ceil(v * 1.1 / 60);
+            inputOptions[v] = v === totalRemaining
+                ? `Tout (${v} structures, ~${mins} min)`
+                : `${v} structures (~${mins} min)`;
+        });
+
+        const choice = await Swal.fire({
+            title: `${totalRemaining} structure(s) à géocoder`,
+            html: `<div class="text-sm text-slate-600 mb-2">Combien voulez-vous traiter cette session ?</div>
+                   <div class="text-xs text-slate-500">La progression est sauvegardée tous les 25 — vous pourrez relancer pour les autres sans rien perdre.</div>`,
+            input: 'radio',
+            inputOptions,
+            inputValue: uniqueSizes[0],
             showCancelButton: true,
-            confirmButtonText: 'Lancer le géocodage',
+            confirmButtonText: 'Lancer',
             cancelButtonText: 'Annuler',
             confirmButtonColor: '#4f46e5'
         });
-        if (!confirm.isConfirmed) return;
+        if (!choice.isConfirmed || !choice.value) return;
 
-        let success = 0, failed = 0, errors = 0;
+        const batchSize = parseInt(choice.value);
+        const toGeocode = candidates.slice(0, batchSize);
         const total = toGeocode.length;
+
+        // ÉTAPE 2 : Wake Lock (empêche la mise en veille de l'écran)
+        let wakeLock = null;
+        const requestWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (e) {
+                console.warn('Wake Lock non disponible', e);
+            }
+        };
+        await requestWakeLock();
+        // Réacquérir le wake lock si l'onglet redevient visible (le navigateur le libère
+        // automatiquement quand on change d'onglet)
+        const visibilityHandler = async () => {
+            if (document.visibilityState === 'visible' && !window._geoStopRequested) {
+                await requestWakeLock();
+            }
+        };
+        document.addEventListener('visibilitychange', visibilityHandler);
+
+        // Reset flag d'arrêt global
+        window._geoStopRequested = false;
+
+        // État dynamique
+        let success = 0, failed = 0, errors = 0, processed = 0;
+        let currentDelay = 1100;       // ms — passe à 2100 si rate-limit détecté
+        let rateLimitWarned = false;
+        let lastSavedAt = 0;
 
         Swal.fire({
             title: 'Géocodage en cours...',
-            html: `<div class="text-sm">Traitement de la structure <b id="geo-current">1</b> / <b>${total}</b></div>
-                   <div class="text-xs text-slate-500 mt-2" id="geo-name">—</div>
-                   <div class="w-full bg-slate-200 rounded-full h-2 mt-3">
-                       <div id="geo-bar" class="bg-indigo-600 h-2 rounded-full transition-all" style="width: 0%"></div>
-                   </div>
-                   <div class="text-xs mt-3 flex justify-around">
-                       <span class="text-emerald-600">✓ <b id="geo-ok">0</b> trouvées</span>
-                       <span class="text-amber-600">⚠ <b id="geo-ko">0</b> introuvables</span>
-                       <span class="text-rose-600">✗ <b id="geo-err">0</b> erreurs</span>
-                   </div>`,
-            allowOutsideClick: true,
-            allowEscapeKey: true,
+            html: `
+                <div class="text-amber-700 text-xs mb-3 bg-amber-50 border border-amber-200 p-2 rounded text-left">
+                    ⚠ <b>Gardez cet onglet visible</b> et ne mettez pas l'ordinateur en veille.
+                </div>
+                <div class="text-sm">Traitement <b id="geo-current">0</b> / <b>${total}</b></div>
+                <div class="text-xs text-slate-500 mt-2 truncate" id="geo-name">—</div>
+                <div class="w-full bg-slate-200 rounded-full h-2 mt-3 overflow-hidden">
+                    <div id="geo-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="text-xs mt-3 flex justify-around">
+                    <span class="text-emerald-600">✓ <b id="geo-ok">0</b> trouvées</span>
+                    <span class="text-amber-600">⚠ <b id="geo-ko">0</b> introuvables</span>
+                    <span class="text-rose-600">✗ <b id="geo-err">0</b> erreurs</span>
+                </div>
+                <div id="geo-warning" class="hidden text-xs text-orange-700 mt-2 bg-orange-50 border border-orange-200 p-2 rounded">
+                    ⏱ Limite OpenStreetMap atteinte — délai augmenté à 2 secondes
+                </div>
+                <div id="geo-saved" class="text-xs text-emerald-600 mt-2 font-medium"></div>
+                <button id="geo-stop-btn" type="button"
+                        onclick="window._geoStopRequested=true;this.disabled=true;this.textContent='⏸ Arrêt après la requête en cours...';this.classList.add('opacity-60','cursor-not-allowed');"
+                        class="mt-4 w-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-2 rounded transition">
+                    <i class="fas fa-stop mr-1"></i> Arrêter et sauvegarder
+                </button>
+            `,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
             showConfirmButton: false
         });
 
+        // Helper : MAJ UI
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        const updUI = () => {
+            setText('geo-current', processed);
+            setText('geo-ok', success);
+            setText('geo-ko', failed);
+            setText('geo-err', errors);
+            const bar = document.getElementById('geo-bar');
+            if (bar) bar.style.width = `${(processed / total * 100).toFixed(1)}%`;
+        };
+
         for (let i = 0; i < toGeocode.length; i++) {
+            // Vérification de la demande d'arrêt
+            if (window._geoStopRequested) break;
+
             const s = toGeocode[i];
+            setText('geo-name', s.name || '(sans nom)');
 
-            // Mise à jour de l'UI (si la modale est encore ouverte)
-            const elCurrent = document.getElementById('geo-current');
-            const elName    = document.getElementById('geo-name');
-            const elBar     = document.getElementById('geo-bar');
-            if (elCurrent) elCurrent.textContent = (i + 1);
-            if (elName)    elName.textContent    = s.name || '(sans nom)';
-            if (elBar)     elBar.style.width     = `${((i + 1) / total * 100).toFixed(1)}%`;
-
-            // Construction de la requête : adresse complète puis fallback ville+CP
             const buildQuery = (full) => full
                 ? `${s.address || ''} ${s.zip || ''} ${s.city || ''} ${s.country || 'France'}`.trim().replace(/\s+/g, ' ')
                 : `${s.zip || ''} ${s.city || ''} ${s.country || 'France'}`.trim().replace(/\s+/g, ' ');
 
             try {
                 let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(buildQuery(true))}`);
+
+                // Détection rate-limit (HTTP 429)
+                if (response.status === 429) {
+                    if (!rateLimitWarned) {
+                        rateLimitWarned = true;
+                        currentDelay = 2100;
+                        const w = document.getElementById('geo-warning');
+                        if (w) w.classList.remove('hidden');
+                    }
+                    await new Promise(r => setTimeout(r, 3000));
+                    response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(buildQuery(true))}`);
+                }
+
                 let data = await response.json();
 
-                // Fallback sans le numéro de rue si pas de résultat
+                // Fallback : retenter avec ville+CP seulement
                 if ((!data || data.length === 0) && s.address) {
-                    await new Promise(r => setTimeout(r, 1100));
+                    await new Promise(r => setTimeout(r, currentDelay));
                     response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(buildQuery(false))}`);
                     data = await response.json();
                 }
@@ -209,38 +290,65 @@ export const mapMethods = {
                         this.db.structures[idx].lat = parseFloat(data[0].lat);
                         this.db.structures[idx].lng = parseFloat(data[0].lon);
                         success++;
-                        const elOk = document.getElementById('geo-ok');
-                        if (elOk) elOk.textContent = success;
                     }
                 } else {
                     failed++;
-                    const elKo = document.getElementById('geo-ko');
-                    if (elKo) elKo.textContent = failed;
                 }
             } catch (err) {
                 console.warn('Erreur géocodage', s.name, err);
                 errors++;
-                const elErr = document.getElementById('geo-err');
-                if (elErr) elErr.textContent = errors;
             }
 
-            // Délai obligatoire pour respecter la limite OSM
-            if (i < toGeocode.length - 1) await new Promise(r => setTimeout(r, 1100));
+            processed++;
+            updUI();
+
+            // SAUVEGARDE INCRÉMENTALE tous les 25 traités
+            if (processed % 25 === 0 && processed !== lastSavedAt) {
+                lastSavedAt = processed;
+                try {
+                    this.saveDB();
+                    setText('geo-saved', `💾 ${processed} sauvegardées en base — sécurisées`);
+                } catch (e) {
+                    console.warn('Erreur saveDB intermédiaire', e);
+                }
+            }
+
+            // Délai obligatoire entre 2 requêtes (limite Nominatim)
+            if (i < toGeocode.length - 1 && !window._geoStopRequested) {
+                await new Promise(r => setTimeout(r, currentDelay));
+            }
         }
 
         // Sauvegarde finale
         this.saveDB();
         this.updateMap();
 
+        // Libération du Wake Lock + listener
+        document.removeEventListener('visibilitychange', visibilityHandler);
+        if (wakeLock) {
+            try { await wakeLock.release(); } catch (e) { /* silencieux */ }
+        }
+
+        const wasStopped = window._geoStopRequested;
+        window._geoStopRequested = false;
+
+        // Recompte les structures encore sans GPS
+        const stillRemaining = this.db.structures.filter(s =>
+            (!s.lat || !s.lng) && (s.city || s.zip)
+        ).length;
+
         Swal.fire({
-            title: 'Géocodage terminé',
-            html: `<div class="text-left space-y-1">
-                       <div class="text-emerald-600"><b>${success}</b> structure(s) géocodée(s) avec succès</div>
-                       <div class="text-amber-600"><b>${failed}</b> structure(s) introuvable(s)</div>
-                       <div class="text-rose-600"><b>${errors}</b> erreur(s) réseau</div>
-                   </div>
-                   ${failed > 0 ? '<div class="text-xs text-slate-500 mt-3">💡 Pour les structures introuvables : ouvrez la fiche, vérifiez l\'adresse, et cliquez sur le bouton GPS manuel.</div>' : ''}`,
-            icon: success > 0 ? 'success' : 'warning'
+            title: wasStopped ? 'Géocodage interrompu' : 'Lot terminé',
+            html: `<div class="text-left space-y-1 text-sm">
+                       <div class="text-emerald-600">✓ <b>${success}</b> structure(s) géocodée(s) avec succès</div>
+                       <div class="text-amber-600">⚠ <b>${failed}</b> structure(s) introuvable(s)</div>
+                       <div class="text-rose-600">✗ <b>${errors}</b> erreur(s) réseau</div>
+                       ${stillRemaining > 0
+                            ? `<div class="text-slate-700 mt-3 pt-3 border-t border-slate-200">📍 Il reste <b>${stillRemaining}</b> structure(s) à traiter — relancez le géocodage pour continuer.</div>`
+                            : '<div class="text-emerald-600 mt-3 pt-3 border-t border-slate-200 font-bold">🎉 Toutes les structures ont été traitées !</div>'}
+                       ${failed > 0 ? '<div class="text-xs text-slate-500 mt-3">💡 Pour les introuvables : ouvrez la fiche, corrigez l\'adresse, puis utilisez le bouton GPS manuel.</div>' : ''}
+                   </div>`,
+            icon: wasStopped ? 'warning' : (success > 0 ? 'success' : 'warning')
         });
     },
 
