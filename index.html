@@ -2590,6 +2590,19 @@
         <span v-if="db.structures.filter(s => (!s.lat || !s.lng) && (s.city || s.zip)).length > 0" class="bg-white/25 px-2 py-0.5 rounded-full">{{ db.structures.filter(s => (!s.lat || !s.lng) && (s.city || s.zip)).length }}</span>
     </button>
 
+    <!-- TOGGLE FILTRAGE PAR ZONE VISIBLE -->
+    <label class="mt-3 flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800">
+        <input type="checkbox" v-model="filterByViewport" @change="updateMap" class="accent-indigo-600">
+        <i class="fas fa-crop-alt text-indigo-400"></i>
+        <span>Filtrer la liste par zone visible</span>
+    </label>
+
+    <!-- BOUTON NETTOYAGE BASE -->
+    <button @click="cleanEmptyFields" class="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold py-1.5 px-3 rounded transition flex items-center justify-center gap-1.5">
+        <i class="fas fa-broom text-slate-500"></i>
+        <span>Nettoyer les champs vides</span>
+    </button>
+
     <!-- FILTRES PAR TAGS -->
     <div class="mt-4 pt-4 border-t border-slate-200">
         <div class="flex justify-between items-center mb-2">

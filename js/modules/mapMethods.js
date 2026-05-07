@@ -353,8 +353,34 @@ export const mapMethods = {
     },
 
     // --- CARTOGRAPHIE GRANDE CARTE ---
+    // --- CHARGEMENT DU PLUGIN CLUSTERING (à la demande) ---
+    async requireLeafletCluster() {
+        if (window.L && window.L.markerClusterGroup) return;
+        // CSS principal
+        if (!document.getElementById('leaflet-cluster-css')) {
+            const link1 = document.createElement('link');
+            link1.id   = 'leaflet-cluster-css';
+            link1.rel  = 'stylesheet';
+            link1.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
+            document.head.appendChild(link1);
+            const link2 = document.createElement('link');
+            link2.rel  = 'stylesheet';
+            link2.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
+            document.head.appendChild(link2);
+        }
+        // Script
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
+            script.onload  = () => resolve();
+            script.onerror = (e) => reject(e);
+            document.head.appendChild(script);
+        });
+    },
+
     async initMap() {
         await this.requireLeaflet();
+        await this.requireLeafletCluster();
         const mapEl = document.getElementById('map') || document.getElementById('main-map');
         if (!mapEl) return;
         if (window.myGlobalMap) { window.myGlobalMap.off(); window.myGlobalMap.remove(); }
@@ -364,12 +390,21 @@ export const mapMethods = {
             this.searchCenter = e.latlng;
             this.updateMap();
         });
+        // Mise à jour de la liste des contacts si filtre viewport actif
+        window.myGlobalMap.on('moveend', () => {
+            if (this.filterByViewport) this.updateMap();
+        });
         this.updateMap();
     },
 
     updateMap() {
         if (!window.myGlobalMap) return;
-        if (this.mapMarkers) this.mapMarkers.forEach(m => window.myGlobalMap.removeLayer(m));
+
+        // Nettoyage : ancien cluster group + cercle de recherche
+        if (window.myMarkerCluster) {
+            window.myMarkerCluster.clearLayers();
+            window.myGlobalMap.removeLayer(window.myMarkerCluster);
+        }
         if (this.searchCircle) window.myGlobalMap.removeLayer(this.searchCircle);
         this.mapMarkers = [];
         this.selectedMailingContacts = [];
@@ -402,18 +437,44 @@ export const mapMethods = {
         });
         this.geoResults = geoStructures;
 
-        // Marqueurs sur la carte
-        geoStructures.forEach(s => {
-            const marker = L.marker([s.lat, s.lng]).addTo(window.myGlobalMap);
-            marker.bindPopup(`<b>${s.name}</b><br>${s.city || ''}`);
-            marker.on('click', () => { this.openCrmView(s); });
-            this.mapMarkers.push(marker);
-        });
+        // CLUSTERING : créer un groupe et y ajouter tous les marqueurs
+        if (window.L && window.L.markerClusterGroup) {
+            window.myMarkerCluster = L.markerClusterGroup({
+                showCoverageOnHover: false,    // pas de polygone au survol (plus propre)
+                maxClusterRadius: 50,           // rayon d'agrégation en pixels
+                spiderfyOnMaxZoom: true,        // étalement quand on zoome à fond
+                disableClusteringAtZoom: 14     // affichage individuel à partir du zoom 14
+            });
+            geoStructures.forEach(s => {
+                const marker = L.marker([s.lat, s.lng]);
+                marker.bindPopup(`<b>${s.name}</b><br>${s.city || ''}`);
+                marker.on('click', () => { this.openCrmView(s); });
+                window.myMarkerCluster.addLayer(marker);
+                this.mapMarkers.push(marker);
+            });
+            window.myGlobalMap.addLayer(window.myMarkerCluster);
+        } else {
+            // Fallback (cluster non chargé) : ajout individuel
+            geoStructures.forEach(s => {
+                const marker = L.marker([s.lat, s.lng]).addTo(window.myGlobalMap);
+                marker.bindPopup(`<b>${s.name}</b><br>${s.city || ''}`);
+                marker.on('click', () => { this.openCrmView(s); });
+                this.mapMarkers.push(marker);
+            });
+        }
 
-        // Liste de contacts dans le panneau latéral
-        const contactSources = this.searchCenter
-            ? geoStructures
-            : this.db.structures.filter(s => matchesGeoTags(s));
+        // FILTRAGE VIEWPORT : si actif, restreindre la liste des contacts
+        // aux structures visibles dans la zone affichée de la carte
+        let contactSources;
+        if (this.filterByViewport && window.myGlobalMap.getBounds) {
+            const bounds = window.myGlobalMap.getBounds();
+            contactSources = (this.searchCenter ? geoStructures : this.db.structures.filter(s => matchesGeoTags(s)))
+                .filter(s => s.lat && s.lng && bounds.contains([s.lat, s.lng]));
+        } else {
+            contactSources = this.searchCenter
+                ? geoStructures
+                : this.db.structures.filter(s => matchesGeoTags(s));
+        }
 
         contactSources.forEach(s => {
             const structInfo = {
@@ -431,6 +492,104 @@ export const mapMethods = {
                     emailPro: s.email || '', ...structInfo
                 });
             }
+        });
+    },
+
+    // --- NETTOYAGE DES CHAMPS VIDES ---
+    // Parcourt toutes les structures et leurs sous-éléments pour supprimer
+    // les chaînes vides, null, undefined, tableaux/objets vides
+    async cleanEmptyFields() {
+        const sizeBefore = new Blob([JSON.stringify(this.db.structures)]).size;
+        const sizeBeforeKB = (sizeBefore / 1024).toFixed(1);
+
+        const confirm = await Swal.fire({
+            title: 'Nettoyer la base ?',
+            html: `<div class="text-sm text-left">
+                       <p class="mb-2">Cette opération supprime de toutes les structures :</p>
+                       <ul class="text-xs text-slate-600 list-disc pl-5 space-y-0.5">
+                           <li>Les chaînes vides <code>""</code></li>
+                           <li>Les valeurs <code>null</code> et <code>undefined</code></li>
+                           <li>Les tableaux <code>[]</code> et objets <code>{}</code> vides</li>
+                       </ul>
+                       <p class="text-xs text-slate-500 mt-3">Taille actuelle : <b>${sizeBeforeKB} KB</b></p>
+                       <p class="text-xs text-amber-600 mt-2">⚠ Faites un export de sauvegarde avant si vous voulez être prudent.</p>
+                   </div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Lancer le nettoyage',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#4f46e5'
+        });
+        if (!confirm.isConfirmed) return;
+
+        // Champs à JAMAIS supprimer (structurels, requis par le code)
+        const protectedFields = new Set(['id', 'name', 'tags', 'contacts', 'comments', 'venues',
+            'createdDate', 'modifiedDate', 'isActive', 'isClient', 'isVip']);
+
+        const isEmpty = (val) => {
+            if (val === null || val === undefined) return true;
+            if (typeof val === 'string' && val.trim() === '') return true;
+            if (Array.isArray(val) && val.length === 0) return true;
+            if (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0) return true;
+            return false;
+        };
+
+        const cleanObject = (obj) => {
+            if (!obj || typeof obj !== 'object') return obj;
+            Object.keys(obj).forEach(key => {
+                if (protectedFields.has(key)) return; // on ne touche pas
+                if (isEmpty(obj[key])) {
+                    delete obj[key];
+                }
+            });
+            return obj;
+        };
+
+        let fieldsRemoved = 0;
+        const countBefore = (o) => Object.keys(o).length;
+
+        this.db.structures.forEach(s => {
+            const before = countBefore(s);
+            cleanObject(s);
+            fieldsRemoved += (before - Object.keys(s).length);
+
+            // Nettoyer aussi les contacts imbriqués
+            if (Array.isArray(s.contacts)) {
+                s.contacts.forEach(c => {
+                    const cBefore = countBefore(c);
+                    cleanObject(c);
+                    fieldsRemoved += (cBefore - Object.keys(c).length);
+                });
+            }
+            // Nettoyer aussi les venues imbriqués
+            if (Array.isArray(s.venues)) {
+                s.venues.forEach(v => {
+                    const vBefore = countBefore(v);
+                    cleanObject(v);
+                    fieldsRemoved += (vBefore - Object.keys(v).length);
+                });
+            }
+        });
+
+        const sizeAfter = new Blob([JSON.stringify(this.db.structures)]).size;
+        const sizeAfterKB = (sizeAfter / 1024).toFixed(1);
+        const gainKB      = ((sizeBefore - sizeAfter) / 1024).toFixed(1);
+        const gainPercent = sizeBefore > 0 ? (((sizeBefore - sizeAfter) / sizeBefore) * 100).toFixed(1) : 0;
+
+        this.saveDB();
+        this.updateMap();
+
+        Swal.fire({
+            title: 'Nettoyage terminé',
+            html: `<div class="text-left text-sm space-y-2">
+                       <div><b>${fieldsRemoved}</b> champs vides supprimés</div>
+                       <div class="bg-slate-50 rounded p-3 text-xs">
+                           <div class="flex justify-between"><span>Avant :</span><b>${sizeBeforeKB} KB</b></div>
+                           <div class="flex justify-between"><span>Après :</span><b class="text-emerald-600">${sizeAfterKB} KB</b></div>
+                           <div class="flex justify-between border-t border-slate-200 pt-1 mt-1"><span>Gain :</span><b class="text-emerald-600">${gainKB} KB (${gainPercent}%)</b></div>
+                       </div>
+                   </div>`,
+            icon: 'success'
         });
     },
 };

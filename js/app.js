@@ -155,6 +155,7 @@ createApp({
             searchRadius: 50, searchCenter: null,
             geoResults: [], mapMarkers: [], searchCircle: null,
             geoTagFilter: {},
+            filterByViewport: false,  // Si true, la liste des contacts ne montre que les structures dans la zone visible
 
             // Recherche globale (omnibox)
             omniSearch: '', showOmniDropdown: false,
