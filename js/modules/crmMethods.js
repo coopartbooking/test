@@ -450,4 +450,86 @@ export const crmMethods = {
         this.newContactComment = '';
         this.saveDB();
     },
+
+    // --- FICHE TECHNIQUE SALLE ---
+
+    async uploadVenueTechFile(venueId, file) {
+        if (!file || !this.currentCrmStruct) return;
+
+        // Types autorisés : PDF, Word, Excel, PowerPoint
+        const allowed = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ];
+        if (!allowed.includes(file.type)) {
+            return Swal.fire('Format non supporté', 'Formats acceptés : PDF, Word, Excel, PowerPoint.', 'warning');
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            return Swal.fire('Fichier trop lourd', 'La taille maximale est de 10 Mo.', 'warning');
+        }
+
+        const venue = (this.currentCrmStruct.venues || []).find(v => v.id === venueId);
+        if (!venue) return;
+
+        // Indicateur de chargement
+        venue._uploading = true;
+
+        try {
+            const { dbStorage } = await import('./firebase.js');
+            const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js');
+
+            const path     = `fiches-techniques/${this.currentCrmStruct.id}/${venueId}/${file.name}`;
+            const storageRef = ref(dbStorage, path);
+            await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(storageRef);
+
+            venue.techFileUrl  = url;
+            venue.techFileName = file.name;
+            venue.techFilePath = path;
+            delete venue._uploading;
+
+            this.saveDB();
+            Swal.fire({ title: 'Fiche technique uploadée ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        } catch (err) {
+            delete venue._uploading;
+            console.error('Upload fiche technique', err);
+            Swal.fire('Erreur upload', err.message || 'Impossible d\'uploader le fichier.', 'error');
+        }
+    },
+
+    async removeVenueTechFile(venueId) {
+        const venue = (this.currentCrmStruct.venues || []).find(v => v.id === venueId);
+        if (!venue || !venue.techFileUrl) return;
+
+        const r = await Swal.fire({
+            title: 'Supprimer la fiche technique ?',
+            text: venue.techFileName || 'Ce fichier sera supprimé définitivement.',
+            icon: 'warning', showCancelButton: true,
+            confirmButtonColor: '#ef4444', confirmButtonText: 'Supprimer', cancelButtonText: 'Annuler',
+        });
+        if (!r.isConfirmed) return;
+
+        try {
+            if (venue.techFilePath) {
+                const { dbStorage } = await import('./firebase.js');
+                const { ref, deleteObject } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js');
+                await deleteObject(ref(dbStorage, venue.techFilePath));
+            }
+        } catch (err) {
+            // Fichier déjà supprimé ou introuvable — on nettoie quand même Firestore
+            console.warn('Suppression Storage silencieuse', err);
+        }
+
+        delete venue.techFileUrl;
+        delete venue.techFileName;
+        delete venue.techFilePath;
+        this.saveDB();
+        Swal.fire({ title: 'Fiche technique supprimée', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+    },
+
 };
