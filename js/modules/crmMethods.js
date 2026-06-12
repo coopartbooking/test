@@ -7,15 +7,18 @@ export const crmMethods = {
     // --- MOTEUR CRM ---
     openCrmView(struct = null) {
         if (!struct) {
+            const now = new Date().toISOString();
             struct = {
                 id: Date.now().toString(), name: 'Nouvelle Structure', isClient: false, isActive: true,
-                clientCode: '', source: '', createdDate: new Date().toISOString(),
+                clientCode: '', source: '', createdDate: now,
                 address: '', suite: '', zip: '', city: '', region: '', country: 'France',
                 phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
                 capacity: '', season: '', hours: '', lat: null, lng: null,
                 progMonthStart: '', progMonthEnd: '',
                 tags: { categories: [], genres: [], reseaux: [], keywords: [] },
-                contacts: [], comments: [], venues: []
+                contacts: [], comments: [], venues: [],
+                createdAt: now, createdBy: this.currentUserName,
+                updatedAt: now, updatedBy: this.currentUserName,
             };
         } else {
             if (!struct.tags || Array.isArray(struct.tags)) struct.tags = { categories: [], genres: [], reseaux: [], keywords: [] };
@@ -63,6 +66,14 @@ export const crmMethods = {
         }
 
         const idx = this.db.structures.findIndex(x => x.id === this.currentCrmStruct.id);
+        const now = new Date().toISOString();
+        this.currentCrmStruct.updatedAt = now;
+        this.currentCrmStruct.updatedBy = this.currentUserName;
+        if (idx === -1) {
+            // Nouvelle structure : initialiser createdAt/createdBy si absents
+            if (!this.currentCrmStruct.createdAt) this.currentCrmStruct.createdAt = now;
+            if (!this.currentCrmStruct.createdBy) this.currentCrmStruct.createdBy = this.currentUserName;
+        }
         if (idx > -1) this.db.structures[idx] = this.currentCrmStruct;
         else          this.db.structures.push(this.currentCrmStruct);
         this.saveDB();

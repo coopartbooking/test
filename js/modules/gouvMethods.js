@@ -80,13 +80,14 @@ export const gouvMethods = {
             if (exists) { skipped++; return; }
             const catTag   = m.category && row[m.category] ? this.gouvTypeToTag(String(row[m.category])) || String(row[m.category]).trim() : '';
             const genreTag = m.genre    && row[m.genre]    ? String(row[m.genre]).trim() : '';
+            const now = new Date().toISOString();
             this.db.structures.push({
                 id:           Date.now().toString() + Math.random().toString(36).slice(2),
                 name,
                 isClient:     false, isActive: true,
                 clientCode:   '',
                 source:       m.source && row[m.source] ? String(row[m.source]).trim() : (this.csvImport.fileName || 'Import CSV'),
-                createdDate:  new Date().toISOString(),
+                createdDate:  now,
                 address:      m.address  ? String(row[m.address]  || '').trim() : '',
                 suite:        '',
                 zip:          m.zip      ? String(row[m.zip]      || '').trim() : '',
@@ -104,7 +105,10 @@ export const gouvMethods = {
                     genres:     genreTag ? [genreTag] : [],
                     reseaux:    [], keywords: []
                 },
-                contacts: [], comments: [], venues: []
+                contacts: [], comments: [], venues: [],
+                createdAt:  now, createdBy:  this.currentUserName,
+                updatedAt:  now, updatedBy:  this.currentUserName,
+                importedAt: now, importedBy: this.currentUserName,
             });
             imported++;
         });
@@ -284,6 +288,7 @@ export const gouvMethods = {
         this.gouvImport.selected.forEach(lieu => {
             if (this.gouvAlreadyExists(lieu)) { skipped++; return; }
             const catTag = this.gouvTypeToTag(lieu.type);
+            const now = new Date().toISOString();
             const newStruct = {
                 id:             Date.now().toString() + Math.random().toString(36).slice(2),
                 name:           lieu.nom,
@@ -291,7 +296,7 @@ export const gouvMethods = {
                 isActive:       true,
                 clientCode:     '',
                 source:         'data.culture.gouv.fr',
-                createdDate:    new Date().toISOString(),
+                createdDate:    now,
                 address:        lieu.adresse,
                 suite:          '',
                 zip:            lieu.cp,
@@ -318,7 +323,10 @@ export const gouvMethods = {
                 },
                 contacts:  [],
                 comments:  [],
-                venues:    []
+                venues:    [],
+                createdAt:  now, createdBy:  this.currentUserName,
+                updatedAt:  now, updatedBy:  this.currentUserName,
+                importedAt: now, importedBy: this.currentUserName,
             };
             this.db.structures.push(newStruct);
             imported++;

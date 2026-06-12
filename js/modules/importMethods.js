@@ -38,16 +38,20 @@ export const importMethods = {
                         (x.city || '').toLowerCase() === city.toLowerCase()
                     );
                     if (!s) {
+                        const now = new Date().toISOString();
                         s = {
                             id: Date.now() + Math.random(),
                             name, city,
-                            clientCode: '', source: '', createdDate: new Date().toISOString(),
+                            clientCode: '', source: '', createdDate: now,
                             address: '', suite: '', zip: '', country: 'France',
                             phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
                             capacity: '', season: '', hours: '', lat: null, lng: null,
                             isClient: false, isActive: true,
                             contacts: [], comments: [], venues: [],
-                            tags: { categories: [], genres: [], reseaux: [], keywords: [] }
+                            tags: { categories: [], genres: [], reseaux: [], keywords: [] },
+                            createdAt:  now, createdBy:  this.currentUserName,
+                            updatedAt:  now, updatedBy:  this.currentUserName,
+                            importedAt: now, importedBy: this.currentUserName,
                         };
                         this.db.structures.push(s);
                         countStructs++;
@@ -151,6 +155,10 @@ export const importMethods = {
                             );
                             if (!exists) { struct.contacts.push(c); countContacts++; }
                         });
+
+                        // Métadonnées de modification
+                        struct.updatedAt = new Date().toISOString();
+                        struct.updatedBy = this.currentUserName;
                     });
 
                 // ── Format export appli (flat, 1 contact par ligne) ──────
