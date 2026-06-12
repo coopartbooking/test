@@ -556,83 +556,70 @@ export const planningMethods = {
         const total = recipients.length;
         let current = 0;
 
+        // Stocker l'email courant accessible depuis les boutons onclick
+        window._bobMailQueue = recipients;
+
         const showEmail = (idx) => {
             const r = recipients[idx];
             const isLast = idx === total - 1;
-            const progress = `${idx + 1} / ${total}`;
+            const pct = Math.round((idx + 1) / total * 100);
+            const bodyEscaped = r.body.split('<').join('&lt;').split('>').join('&gt;');
 
             Swal.fire({
-                title: `Email ${progress}`,
-                html: `
-                    <div style="text-align:left">
-                        <!-- Destinataire -->
-                        <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px">
-                            <div><b>À :</b> ${r.name} &lt;${r.email}&gt;</div>
-                            <div style="color:#64748b;font-size:11px">${r.struct || ''}</div>
+                title: `Email ${idx + 1} / ${total}`,
+                html: `<div style="text-align:left">
+                    <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px">
+                        <div><b>A :</b> ${r.name} &lt;${r.email}&gt;</div>
+                        <div style="color:#64748b;font-size:11px">${r.struct || ''}</div>
+                    </div>
+                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Objet :</div>
+                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:10px">${r.subject}</div>
+                    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Message :</div>
+                    <div id="swal-mail-body" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;font-size:12px;white-space:pre-wrap;max-height:160px;overflow-y:auto;line-height:1.6;color:#374151">${bodyEscaped}</div>
+                    <div style="display:flex;gap:8px;margin-top:12px">
+                        <button id="btn-copy-all" onclick="var r=window._bobMailQueue[${idx}];navigator.clipboard.writeText('A : '+r.email+'\nObjet : '+r.subject+'\n\n'+r.body).then(function(){var b=document.getElementById('btn-copy-all');b.textContent='Copie!';b.style.background='#10b981';b.style.color='white';setTimeout(function(){b.textContent='Tout copier';b.style.background='';b.style.color='';},2000);});" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Tout copier</button>
+                        <button id="btn-copy-body" onclick="var r=window._bobMailQueue[${idx}];navigator.clipboard.writeText(r.body).then(function(){var b=document.getElementById('btn-copy-body');b.textContent='Corps copie!';b.style.background='#10b981';b.style.color='white';setTimeout(function(){b.textContent='Corps seul';b.style.background='';b.style.color='';},2000);});" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Corps seul</button>
+                    </div>
+                    <div style="margin-top:12px">
+                        <div style="background:#e2e8f0;border-radius:99px;height:4px;overflow:hidden">
+                            <div style="background:#4f46e5;height:4px;width:${pct}%;border-radius:99px"></div>
                         </div>
-                        <!-- Objet -->
-                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Objet :</div>
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:10px">${r.subject}</div>
-                        <!-- Corps -->
-                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Message :</div>
-                        <div id="mail-body-preview" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;font-size:12px;white-space:pre-wrap;max-height:160px;overflow-y:auto;line-height:1.6;color:#374151">${r.body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-                        <!-- Actions copie -->
-                        <div style="display:flex;gap:8px;margin-top:12px">
-                            <button id="btn-copy-all" onclick="
-                                navigator.clipboard.writeText('À : ' + '${r.email.replace(/'/g,"\'")}' + '\nObjet : ' + '${r.subject.replace(/'/g,"\'").replace(/
-/g,' ')}' + '\n\n' + document.getElementById('mail-body-preview').innerText);
-                                this.textContent='✓ Copié !'; this.style.background='#10b981'; setTimeout(()=>{this.textContent='📋 Tout copier';this.style.background='';},2000);
-                            " style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📋 Tout copier</button>
-                            <button id="btn-copy-body" onclick="
-                                navigator.clipboard.writeText(document.getElementById('mail-body-preview').innerText);
-                                this.textContent='✓ Corps copié !'; this.style.background='#10b981'; this.style.color='white'; setTimeout(()=>{this.textContent='📝 Corps seul';this.style.background='';this.style.color='';},2000);
-                            " style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📝 Corps seul</button>
-                        </div>
-                        <!-- Barre progression -->
-                        <div style="margin-top:12px">
-                            <div style="background:#e2e8f0;border-radius:99px;height:4px;overflow:hidden">
-                                <div style="background:#4f46e5;height:4px;width:${Math.round((idx+1)/total*100)}%;border-radius:99px"></div>
-                            </div>
-                            <div style="font-size:10px;color:#94a3b8;margin-top:4px;text-align:right">${idx + 1} traité(s) sur ${total}</div>
-                        </div>
-                    </div>`,
+                        <div style="font-size:10px;color:#94a3b8;margin-top:4px;text-align:right">${idx + 1} / ${total}</div>
+                    </div>
+                </div>`,
                 showCancelButton: true,
                 showDenyButton: true,
-                confirmButtonText: isLast ? '✓ Terminer' : 'Suivant →',
-                denyButtonText: '✉ Ouvrir messagerie',
-                cancelButtonText: 'Arrêter',
+                confirmButtonText: isLast ? 'Terminer' : 'Suivant',
+                denyButtonText: 'Ouvrir messagerie',
+                cancelButtonText: 'Arreter',
                 confirmButtonColor: isLast ? '#10b981' : '#4f46e5',
                 denyButtonColor: '#64748b',
                 allowOutsideClick: false,
                 width: 560,
             }).then(result => {
                 if (result.isConfirmed) {
-                    current = idx + 1;
-                    if (current < total) {
-                        showEmail(current);
+                    const next = idx + 1;
+                    if (next < total) {
+                        showEmail(next);
                     } else {
-                        // Fin de la file
                         this._saveCampaignHistory(recipients, true, addUnsub);
                         Swal.fire({
-                            title: 'Campagne terminée ✓',
-                            html: `<b>${total}</b> email(s) traités et enregistrés dans l'historique.`,
+                            title: 'Campagne terminee',
+                            html: `<b>${total}</b> email(s) traites et enregistres dans l'historique.`,
                             icon: 'success', confirmButtonColor: '#4f46e5',
                         });
                         this.selectedMailingContacts = [];
                     }
                 } else if (result.isDenied) {
-                    // Ouvrir messagerie pour cet email
-                    window.open(`mailto:${r.email}?subject=${encodeURIComponent(r.subject)}&body=${encodeURIComponent(r.body)}`, '_blank');
-                    // Réafficher la même fiche pour continuer
+                    window.open('mailto:' + r.email + '?subject=' + encodeURIComponent(r.subject) + '&body=' + encodeURIComponent(r.body), '_blank');
                     showEmail(idx);
                 } else {
-                    // Arrêt anticipé — sauvegarder les traités jusqu'ici
                     const done = recipients.slice(0, idx);
                     if (done.length) {
                         this._saveCampaignHistory(done, true, addUnsub);
                         Swal.fire({
                             title: 'Envoi interrompu',
-                            html: `<b>${done.length}</b> email(s) traités sur ${total}.<br><span class="text-sm text-slate-500">Enregistrés dans l'historique.</span>`,
+                            html: '<b>' + done.length + '</b> email(s) traites sur ' + total + '.',
                             icon: 'info', confirmButtonColor: '#f59e0b',
                         });
                     }
@@ -642,6 +629,7 @@ export const planningMethods = {
 
         showEmail(0);
     },
+
 
     // Enregistre la campagne dans l'historique
     _saveCampaignHistory(recipients, hasVars, addUnsub) {
