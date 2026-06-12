@@ -3514,7 +3514,7 @@
                                                 </div>
                                                 <label v-else class="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-indigo-600 cursor-pointer transition font-bold">
                                                     <i class="fas fa-file-upload"></i> Attacher une fiche technique
-                                                    <input type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" @change="uploadVenueTechFile(v.id, .target.files[0]); .target.value=''">
+                                                    <input type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" @change="uploadVenueTechFile(v.id, $event.target.files[0]); $event.target.value=''">
                                                 </label>
                                             </div>
                                         </div>
