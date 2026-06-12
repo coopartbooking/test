@@ -3387,17 +3387,17 @@
                             <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-indigo-600 transition"><input autocomplete="off" type="checkbox" v-model="currentCrmStruct.isClient" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"> Est Client (A déjà acheté)</label>
                             <label class="flex items-center gap-2 text-xs font-bold cursor-pointer text-slate-600 hover:text-emerald-600 transition"><input autocomplete="off" type="checkbox" v-model="currentCrmStruct.isActive" class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"> Fiche Active</label>
                             <span class="text-xs text-slate-400 font-medium ml-4 flex flex-wrap gap-x-4 gap-y-1">
-                                <span v-if="currentCrmStruct.createdAt" :title="'Par : ' + (currentCrmStruct.createdBy || '?')" >
-                                    <i class="fas fa-plus-circle mr-1 text-slate-300"></i>Créé le {{ new Date(currentCrmStruct.createdAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) }} par {{ currentCrmStruct.createdBy || '?' }}
+                                <span v-if="currentCrmStruct.createdAt">
+                                    <i class="fas fa-plus-circle mr-1 text-slate-300"></i>Créé le {{ formatDate(currentCrmStruct.createdAt) }} par {{ currentCrmStruct.createdBy || '?' }}
                                 </span>
                                 <span v-else-if="currentCrmStruct.createdDate">
                                     <i class="fas fa-plus-circle mr-1 text-slate-300"></i>Créé le {{ formatDate(currentCrmStruct.createdDate) }}
                                 </span>
-                                <span v-if="currentCrmStruct.updatedAt && currentCrmStruct.updatedAt !== currentCrmStruct.createdAt" :title="'Par : ' + (currentCrmStruct.updatedBy || '?')" >
-                                    <i class="fas fa-pencil-alt mr-1 text-slate-300"></i>Modifié le {{ new Date(currentCrmStruct.updatedAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) }} par {{ currentCrmStruct.updatedBy || '?' }}
+                                <span v-if="currentCrmStruct.updatedAt && currentCrmStruct.updatedAt !== currentCrmStruct.createdAt">
+                                    <i class="fas fa-pencil-alt mr-1 text-slate-300"></i>Modifié le {{ formatDate(currentCrmStruct.updatedAt) }} par {{ currentCrmStruct.updatedBy || '?' }}
                                 </span>
-                                <span v-if="currentCrmStruct.importedAt" :title="'Par : ' + (currentCrmStruct.importedBy || '?')" >
-                                    <i class="fas fa-file-import mr-1 text-slate-300"></i>Importé le {{ new Date(currentCrmStruct.importedAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) }} par {{ currentCrmStruct.importedBy || '?' }}
+                                <span v-if="currentCrmStruct.importedAt">
+                                    <i class="fas fa-file-import mr-1 text-slate-300"></i>Importé le {{ formatDate(currentCrmStruct.importedAt) }} par {{ currentCrmStruct.importedBy || '?' }}
                                 </span>
                             </span>
                         </div>
@@ -3514,7 +3514,7 @@
                                                 </div>
                                                 <label v-else class="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-indigo-600 cursor-pointer transition font-bold">
                                                     <i class="fas fa-file-upload"></i> Attacher une fiche technique
-                                                    <input type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" @change="uploadVenueTechFile(v.id, $event.target.files[0]); $event.target.value=''">
+                                                    <input type="file" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" @change="uploadVenueTechFile(v.id, $event.target.files[0])">
                                                 </label>
                                             </div>
                                         </div>
