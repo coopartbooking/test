@@ -2142,11 +2142,7 @@
                                         <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{structName}}'">{{structName}}</code>
                                         <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{structCity}}'">{{structCity}}</code>
                                         <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{userName}}'">{{userName}}</code>
-                                        <code class="bg-blue-50 px-1.5 py-0.5 rounded text-[10px] text-blue-600 cursor-pointer hover:bg-blue-100 font-bold border border-blue-100" @click="mailBody += '
-
----
-Pour ne plus recevoir nos emails : {{unsubscribeLink}}'" title="Ajouter un lien de desinscription">{{unsubscribeLink}}</code>
-                                    </div>
+                                        <code class="bg-blue-50 px-1.5 py-0.5 rounded text-[10px] text-blue-600 cursor-pointer hover:bg-blue-100 font-bold border border-blue-100" @click="mailBody += '\n\n---\nPour ne plus recevoir nos emails : {{unsubscribeLink}}'" title="Lien desinscription">{{unsubscribeLink}}</code>
                                 </div>
                                 <textarea v-model="mailBody" rows="12" class="w-full text-sm text-slate-700 border-0 outline-none bg-transparent resize-none font-mono leading-relaxed placeholder-slate-300" placeholder="Redigez votre message..."></textarea>
                             </div>
