@@ -495,46 +495,26 @@ export const planningMethods = {
             return Swal.fire('Erreur', 'Le sujet et le corps du message sont obligatoires.', 'warning');
 
         const total    = this.selectedMailingContacts.length;
-        const hasVars  = /{{contact|{{struct/.test(this.mailBody);
+        const hasVars  = /{{contact|{{struct/.test(this.mailBody + this.mailSubject);
         const addUnsub = this.mailingAddUnsubscribe;
 
         // Confirmation avant envoi
-        const confirm = await Swal.fire({
+        const confirmation = await Swal.fire({
             title: `Envoyer à ${total} contact(s) ?`,
             html: `<div class="text-left text-sm space-y-1 mt-2">
                 <div><b>Objet :</b> ${this.sanitizeText(this.mailSubject, 100)}</div>
-                <div><b>Personnalisation :</b> ${hasVars ? '✓ Variables activées' : '— Aucune variable'}</div>
+                <div><b>Personnalisation :</b> ${hasVars ? '✓ Variables activées — file d'envoi individuelle' : '— Aucune variable — envoi groupé BCC'}</div>
                 <div><b>Lien désinscription :</b> ${addUnsub ? '✓ Inclus' : '— Non inclus'}</div>
             </div>`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#4f46e5',
-            confirmButtonText: `Envoyer à ${total} contact(s)`,
+            confirmButtonText: `Préparer ${total} email(s)`,
             cancelButtonText: 'Annuler',
         });
-        if (!confirm.isConfirmed) return;
+        if (!confirmation.isConfirmed) return;
 
-        // Afficher la barre de progression
-        Swal.fire({
-            title: 'Envoi en cours…',
-            html: `<div class="text-sm text-slate-500 mb-3">Préparation des emails…</div>
-                   <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                       <div id="swal-progress" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width:0%"></div>
-                   </div>
-                   <div id="swal-count" class="text-xs text-slate-400 mt-2">0 / ${total}</div>`,
-            allowOutsideClick: false,
-            showConfirmButton: false,
-        });
-
-        const updateProgress = (n) => {
-            const pct = Math.round(n / total * 100);
-            const bar = document.getElementById('swal-progress');
-            const cnt = document.getElementById('swal-count');
-            if (bar) bar.style.width = pct + '%';
-            if (cnt) cnt.textContent = `${n} / ${total} — ${pct}%`;
-        };
-
-        // Préparer les emails
+        // Préparer tous les emails
         const recipients = [];
         for (let i = 0; i < total; i++) {
             const c = this.selectedMailingContacts[i];
@@ -542,26 +522,129 @@ export const planningMethods = {
             if (!email) continue;
             const body    = this.parseMailVars(this.mailBody,    c, addUnsub);
             const subject = this.parseMailVars(this.mailSubject, c, false);
-            recipients.push({ name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(), email, struct: c.structName, body, subject });
-            updateProgress(i + 1);
-            await new Promise(r => setTimeout(r, 50)); // micro-délai pour animation
+            recipients.push({
+                name:    c.name || (`${c.firstName || ''} ${c.lastName || ''}`).trim(),
+                email,
+                struct:  c.structName,
+                body,
+                subject,
+            });
         }
 
-        // Ouvrir le client mail avec le premier contact (ou BCC pour envoi groupé)
+        if (!recipients.length) return Swal.fire('Erreur', 'Aucun email valide dans la sélection.', 'warning');
+
         if (hasVars) {
-            // Envoi personnalisé : ouvrir le premier, les autres sont dans l'historique
-            const first = recipients[0];
-            if (first) {
-                window.location.href = `mailto:${first.email}?subject=${encodeURIComponent(first.subject)}&body=${encodeURIComponent(first.body)}`;
-            }
+            // ── Mode personnalisé : file d'envoi individuelle ──────────────────
+            await this._runMailQueue(recipients, addUnsub);
         } else {
-            // Envoi groupé en BCC
+            // ── Mode groupé : BCC classique ────────────────────────────────────
             const bccList   = recipients.map(r => r.email).join(',');
             const bodyFinal = this.parseMailVars(this.mailBody, { userName: this.currentUserName }, addUnsub);
-            window.location.href = `mailto:?bcc=${bccList}&subject=${encodeURIComponent(this.mailSubject)}&body=${encodeURIComponent(bodyFinal)}`;
+            window.open(`mailto:?bcc=${bccList}&subject=${encodeURIComponent(this.mailSubject)}&body=${encodeURIComponent(bodyFinal)}`, '_blank');
+            this._saveCampaignHistory(recipients, hasVars, addUnsub);
+            Swal.fire({
+                title: 'Campagne lancée ✓',
+                html: `<b>${recipients.length}</b> destinataire(s) en BCC.<br><span class="text-sm text-slate-500">Votre client de messagerie a été ouvert.</span>`,
+                icon: 'success', confirmButtonColor: '#4f46e5',
+            });
+            this.selectedMailingContacts = [];
         }
+    },
 
-        // Enregistrer dans l'historique
+    // File d'envoi individuelle pour les emails personnalisés
+    async _runMailQueue(recipients, addUnsub) {
+        const total = recipients.length;
+        let current = 0;
+
+        const showEmail = (idx) => {
+            const r = recipients[idx];
+            const isLast = idx === total - 1;
+            const progress = `${idx + 1} / ${total}`;
+
+            Swal.fire({
+                title: `Email ${progress}`,
+                html: `
+                    <div style="text-align:left">
+                        <!-- Destinataire -->
+                        <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px">
+                            <div><b>À :</b> ${r.name} &lt;${r.email}&gt;</div>
+                            <div style="color:#64748b;font-size:11px">${r.struct || ''}</div>
+                        </div>
+                        <!-- Objet -->
+                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Objet :</div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:10px">${r.subject}</div>
+                        <!-- Corps -->
+                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Message :</div>
+                        <div id="mail-body-preview" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;font-size:12px;white-space:pre-wrap;max-height:160px;overflow-y:auto;line-height:1.6;color:#374151">${r.body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+                        <!-- Actions copie -->
+                        <div style="display:flex;gap:8px;margin-top:12px">
+                            <button id="btn-copy-all" onclick="
+                                navigator.clipboard.writeText('À : ' + '${r.email.replace(/'/g,"\'")}' + '\nObjet : ' + '${r.subject.replace(/'/g,"\'").replace(/
+/g,' ')}' + '\n\n' + document.getElementById('mail-body-preview').innerText);
+                                this.textContent='✓ Copié !'; this.style.background='#10b981'; setTimeout(()=>{this.textContent='📋 Tout copier';this.style.background='';},2000);
+                            " style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📋 Tout copier</button>
+                            <button id="btn-copy-body" onclick="
+                                navigator.clipboard.writeText(document.getElementById('mail-body-preview').innerText);
+                                this.textContent='✓ Corps copié !'; this.style.background='#10b981'; this.style.color='white'; setTimeout(()=>{this.textContent='📝 Corps seul';this.style.background='';this.style.color='';},2000);
+                            " style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📝 Corps seul</button>
+                        </div>
+                        <!-- Barre progression -->
+                        <div style="margin-top:12px">
+                            <div style="background:#e2e8f0;border-radius:99px;height:4px;overflow:hidden">
+                                <div style="background:#4f46e5;height:4px;width:${Math.round((idx+1)/total*100)}%;border-radius:99px"></div>
+                            </div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:4px;text-align:right">${idx + 1} traité(s) sur ${total}</div>
+                        </div>
+                    </div>`,
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: isLast ? '✓ Terminer' : 'Suivant →',
+                denyButtonText: '✉ Ouvrir messagerie',
+                cancelButtonText: 'Arrêter',
+                confirmButtonColor: isLast ? '#10b981' : '#4f46e5',
+                denyButtonColor: '#64748b',
+                allowOutsideClick: false,
+                width: 560,
+            }).then(result => {
+                if (result.isConfirmed) {
+                    current = idx + 1;
+                    if (current < total) {
+                        showEmail(current);
+                    } else {
+                        // Fin de la file
+                        this._saveCampaignHistory(recipients, true, addUnsub);
+                        Swal.fire({
+                            title: 'Campagne terminée ✓',
+                            html: `<b>${total}</b> email(s) traités et enregistrés dans l'historique.`,
+                            icon: 'success', confirmButtonColor: '#4f46e5',
+                        });
+                        this.selectedMailingContacts = [];
+                    }
+                } else if (result.isDenied) {
+                    // Ouvrir messagerie pour cet email
+                    window.open(`mailto:${r.email}?subject=${encodeURIComponent(r.subject)}&body=${encodeURIComponent(r.body)}`, '_blank');
+                    // Réafficher la même fiche pour continuer
+                    showEmail(idx);
+                } else {
+                    // Arrêt anticipé — sauvegarder les traités jusqu'ici
+                    const done = recipients.slice(0, idx);
+                    if (done.length) {
+                        this._saveCampaignHistory(done, true, addUnsub);
+                        Swal.fire({
+                            title: 'Envoi interrompu',
+                            html: `<b>${done.length}</b> email(s) traités sur ${total}.<br><span class="text-sm text-slate-500">Enregistrés dans l'historique.</span>`,
+                            icon: 'info', confirmButtonColor: '#f59e0b',
+                        });
+                    }
+                }
+            });
+        };
+
+        showEmail(0);
+    },
+
+    // Enregistre la campagne dans l'historique
+    _saveCampaignHistory(recipients, hasVars, addUnsub) {
         if (!this.db.campaignHistory) this.db.campaignHistory = [];
         this.db.campaignHistory.unshift({
             id:             Date.now(),
@@ -575,15 +658,6 @@ export const planningMethods = {
             recipients:     recipients.map(r => ({ name: r.name, email: r.email, struct: r.struct })),
         });
         this.saveDB();
-
-        Swal.fire({
-            title: 'Campagne lancée ✓',
-            html: `<b>${recipients.length}</b> email(s) préparés.<br>
-                   <span class="text-sm text-slate-500">Votre client de messagerie a été ouvert.</span>`,
-            icon: 'success',
-            confirmButtonColor: '#4f46e5',
-        });
-        this.selectedMailingContacts = [];
     },
 
     // Renvoyer une campagne depuis l'historique
