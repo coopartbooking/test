@@ -2030,27 +2030,23 @@
                 <!-- === TAB COMPOSER === -->
                 <div v-if="mailingActiveTab==='compose'" class="flex-1 flex overflow-hidden">
 
-                    <!-- Colonne gauche : Filtres & Destinataires -->
-                    <div class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+                    <!-- Colonne gauche : Filtres -->
+                    <div class="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
 
                         <!-- Header destinataires -->
-                        <div class="p-4 border-b border-slate-100 space-y-2">
+                        <div class="p-3 border-b border-slate-100 space-y-2">
                             <div class="flex items-center justify-between">
-                                <span class="font-black text-slate-700 text-sm tracking-tight">Destinataires</span>
-                                <span class="text-xs font-bold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">{{ selectedMailingContacts.length }} sel.</span>
+                                <span class="font-black text-slate-700 text-sm">Destinataires</span>
+                                <span class="text-xs font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">{{ selectedMailingContacts.length }} sel.</span>
                             </div>
-                            <input id="mailing-search" name="mailingSearch" autocomplete="off" v-model="mailingSearch" class="input-field text-sm" placeholder="Rechercher un contact ou lieu...">
-                            <div class="flex gap-2">
-                                <button @click="toggleSelectAll" class="flex-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 px-3 py-1.5 rounded-lg font-bold transition text-slate-600 border border-slate-200">
-                                    <i class="fas fa-check-square mr-1"></i> Tout sel. / desel.
+                            <input id="mailing-search" name="mailingSearch" autocomplete="off" v-model="mailingSearch" class="input-field text-sm" placeholder="Rechercher...">
+                            <div class="flex gap-1.5">
+                                <button @click="toggleSelectAll" class="flex-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 px-2 py-1.5 rounded-lg font-bold transition text-slate-600 border border-slate-200">
+                                    <i class="fas fa-check-square mr-1"></i> Tout sel.
                                 </button>
-                                <button v-if="selectedMailingContacts.length > 0" @click="selectedMailingContacts = []" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-lg font-bold transition" title="Vider la selection">
+                                <button v-if="selectedMailingContacts.length > 0" @click="selectedMailingContacts = []" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2 py-1.5 rounded-lg font-bold transition">
                                     <i class="fas fa-times mr-1"></i> Vider
                                 </button>
-                            </div>
-                            <div v-if="selectedMailingContacts.filter(c=>c.isUnsubscribed).length > 0" class="text-[10px] text-slate-400 flex items-center gap-1">
-                                <i class="fas fa-ban text-red-400"></i>
-                                {{ selectedMailingContacts.filter(c=>c.isUnsubscribed).length }} desinscrits exclus
                             </div>
                         </div>
 
@@ -2059,50 +2055,50 @@
                             <div class="flex justify-between items-center mb-2">
                                 <button @click="mailingTagsOpen = !mailingTagsOpen" class="flex items-center gap-1.5 text-xs font-black text-slate-500 uppercase tracking-widest hover:text-indigo-600 transition">
                                     <i :class="['fas fa-chevron-right text-[9px] transition-transform duration-200', mailingTagsOpen ? 'rotate-90' : '']"></i>
-                                    Filtrer par tags
+                                    Tags
                                     <span v-if="hasActiveMailingFilters" class="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black ml-1">ON</span>
                                 </button>
                                 <button v-if="hasActiveMailingFilters" @click="clearMailingFilters" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold">
                                     <i class="fas fa-times mr-1"></i>Effacer
                                 </button>
                             </div>
-                            <div v-show="mailingTagsOpen !== false" class="space-y-3">
+                            <div v-show="mailingTagsOpen" class="space-y-3">
                                 <div>
-                                    <div class="text-[10px] font-black text-indigo-400 uppercase mb-1.5 tracking-wider">Categories</div>
+                                    <div class="text-[10px] font-black text-indigo-400 uppercase mb-1 tracking-wider">Categories</div>
                                     <div class="flex flex-wrap gap-1">
                                         <button v-for="tag in allTagCategories" :key="tag"
                                             @click="toggleMailingTagFilter('categories', tag)"
-                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('categories', tag) ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-indigo-50']">
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('categories', tag) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-indigo-50']">
                                             {{ tag }}
                                         </button>
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] font-black text-pink-400 uppercase mb-1.5 tracking-wider">Genres</div>
+                                    <div class="text-[10px] font-black text-pink-400 uppercase mb-1 tracking-wider">Genres</div>
                                     <div class="flex flex-wrap gap-1">
                                         <button v-for="tag in allTagGenres" :key="tag"
                                             @click="toggleMailingTagFilter('genres', tag)"
-                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('genres', tag) ? 'bg-pink-600 text-white border-pink-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-pink-50']">
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('genres', tag) ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-pink-50']">
                                             {{ tag }}
                                         </button>
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] font-black text-emerald-400 uppercase mb-1.5 tracking-wider">Reseaux</div>
+                                    <div class="text-[10px] font-black text-emerald-400 uppercase mb-1 tracking-wider">Reseaux</div>
                                     <div class="flex flex-wrap gap-1">
                                         <button v-for="tag in allTagReseaux" :key="tag"
                                             @click="toggleMailingTagFilter('reseaux', tag)"
-                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('reseaux', tag) ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-emerald-50']">
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('reseaux', tag) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-emerald-50']">
                                             {{ tag }}
                                         </button>
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="text-[10px] font-black text-purple-400 uppercase mb-1.5 tracking-wider">Mots-cles</div>
+                                    <div class="text-[10px] font-black text-purple-400 uppercase mb-1 tracking-wider">Mots-cles</div>
                                     <div class="flex flex-wrap gap-1">
                                         <button v-for="tag in allTagKeywords" :key="tag"
                                             @click="toggleMailingTagFilter('keywords', tag)"
-                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('keywords', tag) ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-purple-50']">
+                                            :class="['text-[10px] px-2 py-0.5 rounded-full font-bold border transition', isTagFilterActive('keywords', tag) ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-500 border-slate-200 hover:bg-purple-50']">
                                             {{ tag }}
                                         </button>
                                     </div>
@@ -2111,47 +2107,108 @@
                         </div>
                     </div>
 
-                    <!-- Colonne centre : Redaction -->
+                    <!-- Colonne principale : Redaction + Contacts + Actions -->
                     <div class="flex-1 flex flex-col overflow-hidden bg-slate-50">
-                        <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4">
+                        <div class="flex-1 overflow-y-auto custom-scrollbar">
 
-                            <!-- Selecteur de template -->
-                            <div class="flex items-center gap-3">
-                                <select v-model="selectedTemplateId" @change="applyTemplate" class="input-field flex-1 bg-white">
-                                    <option value="">-- Choisir un template --</option>
-                                    <option v-for="tpl in (db.templates||[])" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
-                                </select>
-                                <button @click="openTemplateModal(null)" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition whitespace-nowrap shadow-sm">
-                                    <i class="fas fa-plus mr-1"></i> Nouveau
-                                </button>
-                            </div>
+                            <!-- Zone rédaction -->
+                            <div class="p-4 space-y-3">
 
-                            <!-- Sujet -->
-                            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Objet de l'email</label>
-                                <input autocomplete="off" name="mailSubject" v-model="mailSubject" class="w-full text-sm font-semibold text-slate-800 border-0 outline-none bg-transparent placeholder-slate-300" placeholder="Ex: Proposition artistique - {{structName}}">
-                            </div>
-
-                            <!-- Corps -->
-                            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                                <div class="flex justify-between items-center mb-2">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Corps du message</label>
-                                    <div class="flex flex-wrap gap-1 justify-end">
-                                        <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{contactFirstName}}'">{{contactFirstName}}</code>
-                                        <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{contactLastName}}'">{{contactLastName}}</code>
-                                        <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{structName}}'">{{structName}}</code>
-                                        <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{structCity}}'">{{structCity}}</code>
-                                        <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{userName}}'">{{userName}}</code>
-                                        <code class="bg-blue-50 px-1.5 py-0.5 rounded text-[10px] text-blue-600 cursor-pointer hover:bg-blue-100 font-bold border border-blue-100" @click="mailBody += '\n\n---\nPour ne plus recevoir nos emails : {{unsubscribeLink}}'" title="Lien desinscription">{{unsubscribeLink}}</code>
+                                <!-- Template -->
+                                <div class="flex items-center gap-3">
+                                    <select v-model="selectedTemplateId" @change="applyTemplate" class="input-field flex-1 bg-white text-sm">
+                                        <option value="">-- Choisir un template --</option>
+                                        <option v-for="tpl in (db.templates||[])" :key="tpl.id" :value="tpl.id">{{ tpl.name }}</option>
+                                    </select>
+                                    <button @click="openTemplateModal(null)" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition whitespace-nowrap shadow-sm">
+                                        <i class="fas fa-plus mr-1"></i> Nouveau
+                                    </button>
                                 </div>
-                                <textarea v-model="mailBody" rows="12" class="w-full text-sm text-slate-700 border-0 outline-none bg-transparent resize-none font-mono leading-relaxed placeholder-slate-300" placeholder="Redigez votre message..."></textarea>
+
+                                <!-- Sujet -->
+                                <div class="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Objet</label>
+                                    <input autocomplete="off" name="mailSubject" v-model="mailSubject" class="w-full text-sm font-semibold text-slate-800 border-0 outline-none bg-transparent placeholder-slate-300" placeholder="Ex: Proposition artistique - {{structName}}">
+                                </div>
+
+                                <!-- Corps -->
+                                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                                    <div class="flex justify-between items-start mb-2 gap-2">
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0 mt-0.5">Message</label>
+                                        <div class="flex flex-wrap gap-1 justify-end">
+                                            <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{contactFirstName}}'">{{contactFirstName}}</code>
+                                            <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{contactLastName}}'">{{contactLastName}}</code>
+                                            <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{structName}}'">{{structName}}</code>
+                                            <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{structCity}}'">{{structCity}}</code>
+                                            <code class="bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] text-indigo-600 cursor-pointer hover:bg-indigo-100 font-bold border border-indigo-100" @click="mailBody += '{{userName}}'">{{userName}}</code>
+                                            <code class="bg-blue-50 px-1.5 py-0.5 rounded text-[10px] text-blue-600 cursor-pointer hover:bg-blue-100 font-bold border border-blue-100" @click="mailBody += '\n\n---\nPour ne plus recevoir nos emails : {{unsubscribeLink}}'">{{unsubscribeLink}}</code>
+                                        </div>
+                                    </div>
+                                    <textarea v-model="mailBody" rows="10" class="w-full text-sm text-slate-700 border-0 outline-none bg-transparent resize-none font-mono leading-relaxed placeholder-slate-300" placeholder="Redigez votre message..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Separateur contacts -->
+                            <div class="px-4 pb-1">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-px flex-1 bg-slate-200"></div>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                        <i class="fas fa-users text-indigo-400"></i>
+                                        Contacts selectionnes
+                                        <span class="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black">{{ selectedMailingContacts.length }}</span>
+                                    </span>
+                                    <div class="h-px flex-1 bg-slate-200"></div>
+                                </div>
+                            </div>
+
+                            <!-- Contacts chips -->
+                            <div class="px-4 pb-4 pt-2">
+                                <div v-if="filteredMailingContacts.length === 0" class="text-xs text-slate-400 text-center py-3">
+                                    <i class="fas fa-filter mr-1 opacity-40"></i> Aucun contact ne correspond aux filtres.
+                                </div>
+                                <div v-else class="flex flex-wrap gap-1.5">
+                                    <button v-for="c in filteredMailingContacts" :key="c.id"
+                                        @click="toggleContactSelection(c)"
+                                        :class="['flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border transition-all', isContactSelected(c) ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:border-indigo-300']">
+                                        <i v-if="isContactSelected(c)" class="fas fa-check text-[9px]"></i>
+                                        {{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}
+                                        <span v-if="c.structName" class="opacity-50 text-[10px]">{{ c.structName }}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Apercu -->
+                            <div v-if="selectedMailingContacts.length" class="px-4 pb-6">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="h-px flex-1 bg-slate-200"></div>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <i class="fas fa-eye text-indigo-400"></i> Apercu
+                                        <div v-if="selectedMailingContacts.length > 1" class="flex items-center gap-1">
+                                            <button @click="previewContactIndex = Math.max(0, previewContactIndex-1)" class="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold flex items-center justify-center"><i class="fas fa-chevron-left"></i></button>
+                                            <span class="text-slate-500">{{ Math.min(previewContactIndex+1, selectedMailingContacts.length) }}/{{ selectedMailingContacts.length }}</span>
+                                            <button @click="previewContactIndex = Math.min(selectedMailingContacts.length-1, previewContactIndex+1)" class="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold flex items-center justify-center"><i class="fas fa-chevron-right"></i></button>
+                                        </div>
+                                    </span>
+                                    <div class="h-px flex-1 bg-slate-200"></div>
+                                </div>
+                                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 text-xs text-slate-500 space-y-0.5">
+                                        <template v-if="previewContact">
+                                            <div><span class="font-bold text-slate-700">A :</span> {{ previewContact.name || ((previewContact.firstName||'') + ' ' + (previewContact.lastName||'')).trim() }} &lt;{{ previewContact.primaryEmail || previewContact.emailPro }}&gt;</div>
+                                            <div><span class="font-bold text-slate-700">Structure :</span> {{ previewContact.structName }}</div>
+                                        </template>
+                                    </div>
+                                    <div class="p-4">
+                                        <div class="font-bold text-slate-700 mb-2 pb-2 border-b border-slate-100 text-sm">{{ previewContact ? parseMailVars(mailSubject, previewContact) : '(Objet vide)' }}</div>
+                                        <div class="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{{ previewContact ? parseMailVars(mailBody, previewContact) : '(Corps vide)' }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Barre d'actions restructuree -->
-                        <div class="border-t border-slate-200 bg-white px-5 py-3">
-                            <!-- Ligne 1 : exports + desinscription -->
-                            <div class="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100">
+                        <!-- Barre d'actions fixe en bas -->
+                        <div class="border-t border-slate-200 bg-white px-4 py-3 shrink-0">
+                            <div class="flex items-center gap-2 mb-2.5 pb-2.5 border-b border-slate-100">
                                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exports :</span>
                                 <button @click="exportToBrevo" :disabled="!selectedMailingContacts.length" class="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed">
                                     <i class="fas fa-file-csv"></i> Brevo
@@ -2164,7 +2221,6 @@
                                     <span class="text-xs text-slate-600 font-bold">Lien desinscription</span>
                                 </label>
                             </div>
-                            <!-- Ligne 2 : bouton principal -->
                             <button @click="executeMailing" :disabled="!selectedMailingContacts.length || !mailSubject || !mailBody || mailingInProgress"
                                 class="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed text-sm">
                                 <i :class="mailingInProgress ? 'fas fa-circle-notch fa-spin' : 'fas fa-paper-plane'"></i>
@@ -2172,65 +2228,10 @@
                             </button>
                         </div>
                         <!-- Barre de progression -->
-                        <div v-if="mailingInProgress" class="border-t border-slate-100 bg-white px-6 py-2">
+                        <div v-if="mailingInProgress" class="border-t border-slate-100 bg-white px-4 py-1.5 shrink-0">
                             <div class="w-full bg-slate-100 rounded-full h-1.5">
                                 <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
                                      :style="{ width: mailingProgressTotal > 0 ? (mailingProgress / mailingProgressTotal * 100) + '%' : '0%' }"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Colonne droite : Contacts chips + Apercu -->
-                    <div class="w-80 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col">
-
-                        <!-- Contacts en chips horizontaux -->
-                        <div class="shrink-0 border-b border-slate-200">
-                            <div class="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                <span class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-users text-indigo-400 mr-1"></i> Contacts</span>
-                                <span class="text-xs font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">{{ filteredMailingContacts.length }} / {{ selectedMailingContacts.length }} sel.</span>
-                            </div>
-                            <div v-if="filteredMailingContacts.length === 0" class="px-4 py-3 text-xs text-slate-400 text-center">
-                                <i class="fas fa-filter mr-1 opacity-40"></i> Aucun contact ne correspond aux filtres.
-                            </div>
-                            <div v-else class="px-3 py-2 flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar">
-                                <button v-for="c in filteredMailingContacts" :key="c.id"
-                                    @click="toggleContactSelection(c)"
-                                    :class="['flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold border transition', isContactSelected(c) ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-indigo-50 hover:border-indigo-300']">
-                                    <i v-if="isContactSelected(c)" class="fas fa-check text-[8px]"></i>
-                                    <span class="max-w-[130px] truncate">{{ c.name || ((c.firstName||'') + ' ' + (c.lastName||'')).trim() }}</span>
-                                    <span v-if="c.isUnsubscribed" class="text-[8px] opacity-70">x</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Apercu -->
-                        <div class="flex flex-col flex-1 overflow-hidden">
-                            <div class="px-4 py-2.5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                                <span class="text-xs font-black text-slate-500 uppercase tracking-widest"><i class="fas fa-eye text-indigo-400 mr-1"></i> Apercu</span>
-                                <div v-if="selectedMailingContacts.length > 1" class="flex items-center gap-1">
-                                    <button @click="previewContactIndex = Math.max(0, previewContactIndex-1)" class="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold flex items-center justify-center"><i class="fas fa-chevron-left"></i></button>
-                                    <span class="text-xs text-slate-500 font-bold">{{ Math.min(previewContactIndex+1, selectedMailingContacts.length) }}/{{ selectedMailingContacts.length }}</span>
-                                    <button @click="previewContactIndex = Math.min(selectedMailingContacts.length-1, previewContactIndex+1)" class="w-5 h-5 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold flex items-center justify-center"><i class="fas fa-chevron-right"></i></button>
-                                </div>
-                            </div>
-                            <div v-if="!selectedMailingContacts.length" class="flex-1 flex items-center justify-center text-slate-400 text-center p-4">
-                                <div>
-                                    <i class="far fa-envelope text-3xl mb-2 opacity-30 block"></i>
-                                    <p class="text-xs">Selectionnez des contacts pour previsualiser.</p>
-                                </div>
-                            </div>
-                            <div v-else class="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                <div class="bg-slate-50 rounded-lg p-2.5 mb-2 border border-slate-100 text-xs text-slate-500 space-y-0.5">
-                                    <template v-if="previewContact">
-                                        <div><span class="font-bold text-slate-700">A :</span> {{ previewContact.name || ((previewContact.firstName||'') + ' ' + (previewContact.lastName||'')).trim() }}</div>
-                                        <div><span class="font-bold text-slate-700">Email :</span> {{ previewContact.primaryEmail || previewContact.emailPro }}</div>
-                                        <div><span class="font-bold text-slate-700">Structure :</span> {{ previewContact.structName }}</div>
-                                    </template>
-                                </div>
-                                <div class="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-                                    <div class="font-bold text-slate-700 mb-2 pb-1.5 border-b border-slate-100 text-xs">{{ previewContact ? parseMailVars(mailSubject, previewContact) : '(Objet vide)' }}</div>
-                                    <div class="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{{ previewContact ? parseMailVars(mailBody, previewContact) : '(Corps vide)' }}</div>
-                                </div>
                             </div>
                         </div>
                     </div>
