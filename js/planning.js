@@ -503,7 +503,7 @@ export const planningMethods = {
             title: `Envoyer à ${total} contact(s) ?`,
             html: `<div class="text-left text-sm space-y-1 mt-2">
                 <div><b>Objet :</b> ${this.sanitizeText(this.mailSubject, 100)}</div>
-                <div><b>Personnalisation :</b> ${hasVars ? '✓ Variables activées — file d'envoi individuelle' : '— Aucune variable — envoi groupé BCC'}</div>
+                <div><b>Personnalisation :</b> ${hasVars ? '✓ Variables activées — file envoi individuelle' : '— Aucune variable — envoi groupé BCC'}</div>
                 <div><b>Lien désinscription :</b> ${addUnsub ? '✓ Inclus' : '— Non inclus'}</div>
             </div>`,
             icon: 'question',
