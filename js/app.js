@@ -147,6 +147,7 @@ createApp({
             mailingProgressTotal: 0,
             mailingInProgress: false,
             mailingTagFilter: {},
+            mailingTagsOpen: true,
             mailingAddUnsubscribe: true,  // Inclure un lien de désinscription
             mailingRightTab: 'contacts',
 
