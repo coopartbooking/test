@@ -11,7 +11,7 @@
 import { auth, dbFirestore }                                              from './firebase.js';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { doc, setDoc, getDoc, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const { createApp, nextTick } = Vue;
 
@@ -147,7 +147,6 @@ createApp({
             mailingProgressTotal: 0,
             mailingInProgress: false,
             mailingTagFilter: {},
-            mailingTagsOpen: true,
             mailingAddUnsubscribe: true,  // Inclure un lien de désinscription
             mailingRightTab: 'contacts',
 
@@ -550,15 +549,8 @@ createApp({
                     selections:      this.db.selections      || [],
                 });
 
-                // 2. Sauvegarde des tags et de l'annuaire (Partagé)
-                await setDoc(doc(dbFirestore, "shared", "annuaire"), {
-                    structures:    this.db.structures,
-                    // Utilisation de this.db.tag... pour être raccord avec le reste
-                    tagCategories: this.db.tagCategories,
-                    tagGenres:     this.db.tagGenres,
-                    tagReseaux:    this.db.tagReseaux,
-                    tagKeywords:   this.db.tagKeywords,
-                });
+                // 2. Sauvegarde différentielle des structures (sous-collection) + meta (tags + index)
+                await this._saveStructuresDiff();
 
                 this.saveStatus = 'saved';
                 this.saveStatusMessage = 'Synchronisé · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -578,12 +570,206 @@ createApp({
                 }).then(r => { if (r.isConfirmed) this.saveDB(); });
             }
         },
+        // ═══════════════════════════════════════════════════════════════════
+        // COUCHE DONNÉES ANNUAIRE — sous-collection structures/{id}
+        //   • cache local IndexedDB (affichage instantané, 0 lecture)
+        //   • shared/meta = { tags + structIndex { id: rev } } (1 lecture/session)
+        //   • sync différentielle : on ne (re)lit/écrit que ce qui a changé
+        //   • shared/annuaire reste GELÉ (filet de rollback, plus lu ni écrit)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── IndexedDB : petit cache clé/valeur ──
+        _idb() {
+            if (this.__idbPromise) return this.__idbPromise;
+            this.__idbPromise = new Promise((resolve, reject) => {
+                const req = indexedDB.open('coopArtCache', 1);
+                req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror   = () => reject(req.error);
+            });
+            return this.__idbPromise;
+        },
+        async _idbGet(key) {
+            try {
+                const db = await this._idb();
+                return await new Promise((resolve, reject) => {
+                    const rq = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+                    rq.onsuccess = () => resolve(rq.result != null ? rq.result : null);
+                    rq.onerror   = () => reject(rq.error);
+                });
+            } catch (e) { return null; }
+        },
+        async _idbSet(key, val) {
+            try {
+                const db = await this._idb();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction('kv', 'readwrite');
+                    tx.objectStore('kv').put(JSON.parse(JSON.stringify(val)), key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror    = () => reject(tx.error);
+                });
+            } catch (e) { /* cache best-effort */ }
+        },
+
+        // ── Hash rapide (djb2) pour détecter les structures modifiées ──
+        _hash(str) {
+            let h = 5381, i = str.length;
+            while (i) h = (h * 33) ^ str.charCodeAt(--i);
+            return (h >>> 0).toString(36);
+        },
+        _structKey(s) { return this._hash(JSON.stringify(s)); },
+
+        // Photo de l'état courant : { id: hash } — sert à détecter les modifs à écrire
+        _takeStructSnapshot() {
+            const snap = {};
+            for (const s of this.db.structures) snap[String(s.id)] = this._structKey(s);
+            this._structSnapshot = snap;
+        },
+
+        // ── Initialisation au login ──
+        async _initAnnuaire() {
+            if (this._revCounter == null) this._revCounter = 0;
+
+            // 1) Affichage instantané depuis le cache local (0 lecture Firestore)
+            const cached = await this._idbGet('structures');
+            if (Array.isArray(cached) && cached.length) this.db.structures = cached;
+            this._takeStructSnapshot();
+            this._lastIndex = (await this._idbGet('metaIndex')) || {};
+
+            // 2) Listener temps réel sur shared/meta (tags + index des révisions)
+            this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "meta"), async (snap) => {
+                if (!snap.exists()) {
+                    // Première bascule : meta pas encore créé → on le construit
+                    await this._buildMeta();
+                    return;
+                }
+                const m = snap.data();
+                this.db.tagCategories = m.tagCategories || this.db.tagCategories;
+                this.db.tagGenres     = m.tagGenres     || this.db.tagGenres;
+                this.db.tagReseaux    = m.tagReseaux    || this.db.tagReseaux;
+                this.db.tagKeywords   = m.tagKeywords   || this.db.tagKeywords;
+                await this._syncStructuresFromIndex(m.structIndex || {});
+            }));
+        },
+
+        // ── Première bascule : meta absent → lit la collection une fois et le crée ──
+        async _buildMeta() {
+            try {
+                // Récupérer les tags depuis l'ancien annuaire (gelé) une dernière fois
+                const annu = await getDoc(doc(dbFirestore, "shared", "annuaire"));
+                if (annu.exists()) {
+                    const a = annu.data();
+                    this.db.tagCategories = a.tagCategories || this.db.tagCategories;
+                    this.db.tagGenres     = a.tagGenres     || this.db.tagGenres;
+                    this.db.tagReseaux    = a.tagReseaux    || this.db.tagReseaux;
+                    this.db.tagKeywords   = a.tagKeywords   || this.db.tagKeywords;
+                }
+                // Lire la sous-collection (une seule fois) et bâtir l'index
+                const qs = await getDocs(collection(dbFirestore, "structures"));
+                const list = [], index = {};
+                qs.forEach(d => { list.push(d.data()); index[d.id] = Date.now() + '.' + (++this._revCounter); });
+                this.db.structures = list;
+                this._takeStructSnapshot();
+                this._lastIndex = index;
+                this._idbSet('structures', this.db.structures);
+                this._idbSet('metaIndex', index);
+
+                // Tenter d'écrire meta (réservé aux éditeurs/admins ; sinon lecture seule)
+                await setDoc(doc(dbFirestore, "shared", "meta"), {
+                    tagCategories: this.db.tagCategories,
+                    tagGenres:     this.db.tagGenres,
+                    tagReseaux:    this.db.tagReseaux,
+                    tagKeywords:   this.db.tagKeywords,
+                    structIndex:   index,
+                    updatedAt:     new Date().toISOString(),
+                });
+            } catch (e) {
+                // Un lecteur (rôle non-éditeur) ne peut pas créer meta : il a déjà
+                // chargé structures + tags ci-dessus, il fonctionne en lecture seule.
+                console.warn('meta non créé (probablement rôle lecteur) :', e.message);
+            }
+        },
+
+        // ── Applique les changements distants : ne télécharge que les structures modifiées ──
+        async _syncStructuresFromIndex(index) {
+            const prev = this._lastIndex || {};
+            const toFetch = [], toRemove = [];
+            for (const id in index)  if (prev[id] !== index[id]) toFetch.push(id);
+            for (const id in prev)   if (!(id in index))         toRemove.push(id);
+            if (!toFetch.length && !toRemove.length) return;
+
+            const fetched = [];
+            for (const id of toFetch) {
+                try {
+                    const ds = await getDoc(doc(dbFirestore, "structures", id));
+                    if (ds.exists()) fetched.push(ds.data());
+                } catch (e) { /* lecture unitaire silencieuse */ }
+            }
+
+            const byId = {};
+            for (const s of this.db.structures) byId[String(s.id)] = s;
+            for (const s of fetched)            byId[String(s.id)] = s;
+            for (const id of toRemove)          delete byId[id];
+            this.db.structures = Object.values(byId);
+
+            this._lastIndex = { ...index };
+            this._takeStructSnapshot();
+            this._idbSet('structures', this.db.structures);
+            this._idbSet('metaIndex', this._lastIndex);
+        },
+
+        // ── Sauvegarde différentielle : n'écrit que les structures modifiées ──
+        async _saveStructuresDiff() {
+            if (this._revCounter == null) this._revCounter = 0;
+            const prev    = this._structSnapshot || {};
+            const index   = { ...(this._lastIndex || {}) };
+            const current = {};
+            const changed = [], removed = [];
+
+            for (const s of this.db.structures) {
+                const id = String(s.id);
+                const h  = this._structKey(s);
+                current[id] = h;
+                if (prev[id] !== h) { changed.push(s); index[id] = Date.now() + '.' + (++this._revCounter); }
+            }
+            for (const id in prev) if (!(id in current)) { removed.push(id); delete index[id]; }
+
+            // Écritures par lots de 400 (set des modifiées + delete des retirées)
+            const ops = [];
+            changed.forEach(s  => ops.push({ type: 'set', id: String(s.id), data: s }));
+            removed.forEach(id => ops.push({ type: 'del', id }));
+            for (let i = 0; i < ops.length; i += 400) {
+                const wb = writeBatch(dbFirestore);
+                ops.slice(i, i + 400).forEach(op => {
+                    const ref = doc(dbFirestore, "structures", op.id);
+                    if (op.type === 'set') wb.set(ref, op.data); else wb.delete(ref);
+                });
+                await wb.commit();
+            }
+
+            // Meta : tags + index (petit document, toujours réécrit)
+            await setDoc(doc(dbFirestore, "shared", "meta"), {
+                tagCategories: this.db.tagCategories,
+                tagGenres:     this.db.tagGenres,
+                tagReseaux:    this.db.tagReseaux,
+                tagKeywords:   this.db.tagKeywords,
+                structIndex:   index,
+                updatedAt:     new Date().toISOString(),
+            });
+
+            // Rafraîchir photo + index appliqué + cache local
+            this._structSnapshot = current;
+            this._lastIndex      = index;
+            this._idbSet('structures', this.db.structures);
+            this._idbSet('metaIndex', index);
+        },
+
         async refreshTags() {
     this.saveStatus = 'saving';
     this.saveStatusMessage = 'Actualisation des tags...';
     try {
         const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
-        const docRef = doc(dbFirestore, "shared", "annuaire");
+        const docRef = doc(dbFirestore, "shared", "meta");
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -799,31 +985,8 @@ async removeGlobalTag(familyName, tag) {
                     }
                 }));
 
-                // ── Annuaire partagé (structures + tags) ── UNIQUE listener ──
-                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "annuaire"), (docSnap) => {
-                    if (docSnap.exists()) {
-                        const d = docSnap.data();
-                        this.db.structures    = d.structures    || [];
-                        this.db.tagCategories = d.tagCategories || this.db.tagCategories;
-                        this.db.tagGenres     = d.tagGenres     || this.db.tagGenres;
-                        this.db.tagReseaux    = d.tagReseaux    || this.db.tagReseaux;
-                        this.db.tagKeywords   = d.tagKeywords   || this.db.tagKeywords;
-                        if (!d.tagCategories) this.saveDB();
-                    } else {
-                        const oldLocal = localStorage.getItem('coopArtBookingDB');
-                        if (oldLocal) {
-                            try {
-                                const oldDb = JSON.parse(oldLocal);
-                                if (oldDb.structures && oldDb.structures.length > 0) {
-                                    this.db.structures = oldDb.structures;
-                                    this.saveDB();
-                                }
-                            } catch (e) { /* migration annuaire silencieuse */ }
-                        } else {
-                            this.db.structures = [];
-                        }
-                    }
-                }));
+                // ── Annuaire : cache local (IndexedDB) + sync différentielle via shared/meta ──
+                this._initAnnuaire();
 
             } else {
                 this.currentUser = null;
