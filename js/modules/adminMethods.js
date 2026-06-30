@@ -5,6 +5,11 @@ import { auth, dbFirestore }                                  from '../firebase.
 import { sendPasswordResetEmail }                             from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// URL de l'application : redirection après définition du mot de passe.
+// Le domaine doit figurer dans Firebase → Authentication → Settings → Authorized domains.
+const APP_URL = 'https://coopartbooking.github.io/test/';
+const RESET_SETTINGS = { url: APP_URL, handleCodeInApp: false };
+
 export const adminMethods = {
 
     // --- ADMIN ---
@@ -789,7 +794,7 @@ export const adminMethods = {
         if (!r.isConfirmed || !r.value) return;
 
         try {
-            await sendPasswordResetEmail(auth, r.value);
+            await sendPasswordResetEmail(auth, r.value, RESET_SETTINGS);
             Swal.fire({
                 title: 'Email envoyé ✓',
                 html: `Un lien de réinitialisation a été envoyé à<br><strong>${r.value}</strong><br><small class="text-slate-400">Valable 1 heure — vérifier les spams</small>`,
