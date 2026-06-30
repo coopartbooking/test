@@ -147,25 +147,35 @@ export const gouvMethods = {
             const offset = this.gouvImport.page * limit;
             const where  = [];
 
+            // NB : l'API parle ODSQL (Opendatasoft), pas SQL.
+            // - le joker est "*" en suffixe (recherche greedy), pas "%"
+            // - "like" fait une correspondance plein-texte par mot (insensible casse/accents)
+            // - les noms de champs doivent exister, sinon erreur 400
             if (this.gouvImport.searchName.trim()) {
                 const name = this.gouvImport.searchName.trim().replace(/"/g, '');
-                where.push(`suggest(nom,"${name}")`);
+                // Recherche greedy par mot sur le champ "nom"
+                name.split(/\s+/).filter(Boolean).forEach(w => {
+                    where.push(`nom like "${w}*"`);
+                });
             }
             if (this.gouvImport.filterType) {
                 const type = this.gouvImport.filterType.replace(/"/g, '');
-                where.push(`label_et_appellation like "%${type}%"`);
+                where.push(`label_et_appellation like "${type}"`);
             }
             if (this.gouvImport.filterDept) {
-                const dept = this.gouvImport.filterDept.trim().replace(/\D/g, '');
-                if (dept) where.push(`departement like "%${dept}%"`);
+                const raw = this.gouvImport.filterDept.trim().replace(/"/g, '');
+                const num = raw.replace(/\D/g, '');
+                // Numéro de département dans n_departement ("01"), nom dans departement ("Ain")
+                if (num) where.push(`n_departement like "${num}"`);
+                else     where.push(`departement like "${raw}"`);
             }
             if (this.gouvImport.filterRegion) {
                 const reg = this.gouvImport.filterRegion.replace(/"/g, '').replace(/'/g, '');
-                where.push(`region like "%${reg}%"`);
+                where.push(`region like "${reg}"`);
             }
-            // Filtre spectacle vivant par défaut
+            // Filtre spectacle vivant par défaut (noms de champs réels : domaine, label_et_appellation)
             if (!this.gouvImport.filterType && !this.gouvImport.searchName.trim()) {
-                where.push(`(domaine_culturel like "%spectacle%" OR label_et_appellation like "%scene%" OR label_et_appellation like "%theatre%" OR label_et_appellation like "%festival%" OR label_et_appellation like "%musique%" OR label_et_appellation like "%cirque%")`);
+                where.push(`(domaine like "spectacle" OR domaine like "musique" OR label_et_appellation like "scene" OR label_et_appellation like "theatre" OR label_et_appellation like "festival" OR label_et_appellation like "cirque")`);
             }
 
             const params = new URLSearchParams({ limit, offset });
@@ -190,8 +200,8 @@ export const gouvMethods = {
                 const nom     = r.nom_du_lieu || r.nom || r.libelle || r.denomination || r.nom_officiel || '';
                 const adresse = r.adresse || r.adresse_postale || r.adresse_1 || '';
                 const cp      = r.code_postal || r.cp || r.code_postale || '';
-                const ville   = r.commune || r.ville || r.nom_commune || r.libelle_commune || '';
-                const type    = r.label_et_appellation || r.label || r.type || r.categorie || r.appellation || '';
+                const ville   = r.libelle_geographique || r.commune || r.ville || r.nom_commune || r.libelle_commune || '';
+                const type    = r.label_et_appellation || r.type_equipement_ou_lieu || r.label || r.type || r.categorie || r.appellation || '';
                 const domaine = r.domaine_culturel || r.domaine || r.secteur || '';
                 const site    = r.site_internet || r.url || r.site_web || r.website || '';
                 const tel     = r.telephone || r.tel || r.phone || '';
@@ -199,7 +209,10 @@ export const gouvMethods = {
                 const region  = r.region_administrative || r.region || '';
                 // GPS : plusieurs formats possibles
                 let lat = null, lng = null;
-                if (r.coordonnees_geographiques) {
+                if (r.coordonnees_geo) {
+                    lat = r.coordonnees_geo.lat;
+                    lng = r.coordonnees_geo.lon;
+                } else if (r.coordonnees_geographiques) {
                     lat = r.coordonnees_geographiques.lat;
                     lng = r.coordonnees_geographiques.lon;
                 } else if (r.geolocalisation) {
