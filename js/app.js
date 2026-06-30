@@ -319,6 +319,41 @@ createApp({
             deep: true,
             handler() { if (this.tab === 'geo') this.updateMap(); }
         },
+        // Persistance des sous-entités de la fiche ouverte.
+        // currentCrmStruct est un CLONE (openCrmView) détaché de db.structures.
+        // Les sous-entités (contacts, commentaires, tags, salles) s'enregistrent
+        // immédiatement → on les recopie dans l'objet vivant de db.structures puis on sauve.
+        // Les champs scalaires (nom, notes, etc.) ne sont PAS recopiés ici : ils gardent
+        // le comportement "clone modifiable annulable" jusqu'au bouton Enregistrer de la fiche.
+        'currentCrmStruct': {
+            deep: true,
+            handler(s) {
+                if (!s || s.id == null) return;
+                const idx = this.db.structures.findIndex(x => x.id === s.id);
+                if (idx < 0) return;            // fiche nouvelle pas encore enregistrée
+                const live = this.db.structures[idx];
+                const subs = {
+                    contacts: s.contacts || [],
+                    comments: s.comments || [],
+                    tags:     s.tags     || { categories: [], genres: [], reseaux: [], keywords: [] },
+                    venues:   s.venues   || [],
+                };
+                const liveSubs = {
+                    contacts: live.contacts || [],
+                    comments: live.comments || [],
+                    tags:     live.tags     || { categories: [], genres: [], reseaux: [], keywords: [] },
+                    venues:   live.venues   || [],
+                };
+                // Rien de neuf dans les sous-entités → ne pas déclencher de sauvegarde
+                if (JSON.stringify(subs) === JSON.stringify(liveSubs)) return;
+                const copy = JSON.parse(JSON.stringify(subs));
+                live.contacts = copy.contacts;
+                live.comments = copy.comments;
+                live.tags     = copy.tags;
+                live.venues   = copy.venues;
+                this.saveDB();
+            }
+        },
     },
 
     // ─────────────────────────────────────────────────────────────────────────
