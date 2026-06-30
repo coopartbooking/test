@@ -434,6 +434,46 @@ export const crmMethods = {
         else          arr.push(tag);
     },
 
+    // Création d'un tag inédit directement depuis la fiche structure.
+    // Ajoute le tag au référentiel global (db.tagXxx) ET à la structure courante.
+    addCrmTagInline(family, ev) {
+        if (!this.currentCrmStruct) return;
+
+        const raw = ev && ev.target ? ev.target.value : '';
+        const tag = this.sanitizeText(String(raw), 60).trim();
+        if (!tag) return;
+
+        // Mapping famille structure -> clef du référentiel global
+        const globalKeys = {
+            categories: 'tagCategories',
+            genres:     'tagGenres',
+            reseaux:    'tagReseaux',
+            keywords:   'tagKeywords',
+        };
+        const gKey = globalKeys[family];
+        if (!gKey) return;
+
+        // Sécuriser les tableaux
+        if (!Array.isArray(this.db[gKey])) this.db[gKey] = [];
+        if (!this.currentCrmStruct.tags || Array.isArray(this.currentCrmStruct.tags)) {
+            this.currentCrmStruct.tags = { categories: [], genres: [], reseaux: [], keywords: [] };
+        }
+        if (!Array.isArray(this.currentCrmStruct.tags[family])) this.currentCrmStruct.tags[family] = [];
+
+        // Référentiel global : dédup insensible à la casse (réutilise la casse existante si déjà connu)
+        const existsGlobal = this.db[gKey].find(t => t.toLowerCase() === tag.toLowerCase());
+        const finalTag = existsGlobal || tag;
+        if (!existsGlobal) this.db[gKey].push(tag);
+
+        // Structure courante : dédup insensible à la casse
+        const onStruct = this.currentCrmStruct.tags[family].some(t => t.toLowerCase() === finalTag.toLowerCase());
+        if (!onStruct) this.currentCrmStruct.tags[family].push(finalTag);
+
+        // Reset du champ + persistance
+        if (ev && ev.target) ev.target.value = '';
+        this.saveDB();
+    },
+
     addCrmComment() {
         if (!this.newCrmComment.trim()) return;
         if (!this.currentCrmStruct.comments) this.currentCrmStruct.comments = [];
