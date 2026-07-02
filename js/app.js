@@ -105,6 +105,8 @@ createApp({
             structFilterGPS:         false,
             structFilterHasContacts: false,
             structFiltersOpen:       false,
+            structSortField:         'name',   // 'name' | 'city'
+            structSortDir:           'asc',    // 'asc' | 'desc'
             contactViewMode: 'grid',
             contactSubTab: 'annuaire',
             currentSearch: { name: '', criteria: [], filterCity: '', filterStatus: '', filterRegion: '' },

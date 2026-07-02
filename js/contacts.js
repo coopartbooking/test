@@ -11,7 +11,7 @@ export const contactsComputed = {
         const hasGPS   = this.structFilterGPS      || false;
         const hasContacts = this.structFilterHasContacts || false;
 
-        return this.db.structures.filter(st => {
+        const list = this.db.structures.filter(st => {
             // Recherche texte (nom, ville, email, notes)
             if (s && ![ st.name, st.city, st.email, st.notes, st.address ]
                 .some(v => (v || '').toLowerCase().includes(s))) return false;
@@ -32,6 +32,18 @@ export const contactsComputed = {
             // Filtre contacts
             if (hasContacts && !(st.contacts || []).length) return false;
             return true;
+        });
+
+        // --- Tri alphabétique (Nom ou Ville), accents-aware, inversable A→Z / Z→A ---
+        const field = this.structSortField === 'city' ? 'city' : 'name';
+        const dir   = this.structSortDir === 'desc' ? -1 : 1;
+        return list.sort((a, b) => {
+            const va = (a[field] || '').trim();
+            const vb = (b[field] || '').trim();
+            if (!va && !vb) return 0;
+            if (!va) return 1;   // valeurs vides toujours en fin de liste
+            if (!vb) return -1;
+            return dir * va.localeCompare(vb, 'fr', { sensitivity: 'base', numeric: true });
         });
     },
 
