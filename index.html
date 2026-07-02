@@ -1545,6 +1545,19 @@
                         <div class="text-sm text-slate-500">
                             <span class="font-black text-slate-800">{{ filteredStructures.length }}</span> / {{ db.structures.length }} structure(s)
                         </div>
+                        <!-- Tri alphabétique -->
+                        <div class="flex items-center gap-1">
+                            <select v-model="structSortField" class="input-field text-sm py-2">
+                                <option value="name">Nom</option>
+                                <option value="city">Ville</option>
+                            </select>
+                            <button @click="structSortDir = structSortDir === 'asc' ? 'desc' : 'asc'"
+                                    :data-tooltip="structSortDir === 'asc' ? 'A → Z (croissant)' : 'Z → A (décroissant)'"
+                                    class="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition whitespace-nowrap">
+                                <i :class="structSortDir === 'asc' ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a'"></i>
+                                <span>{{ structSortDir === 'asc' ? 'A→Z' : 'Z→A' }}</span>
+                            </button>
+                        </div>
                         <!-- Reset -->
                         <button v-if="structFilterCat || structFilterGenre || structFilterReseau || structFilterCity || structFilterStatus || structFilterGPS || structFilterHasContacts || searchStruct"
                                 @click="searchStruct=''; structFilterCat=''; structFilterGenre=''; structFilterReseau=''; structFilterCity=''; structFilterStatus=''; structFilterGPS=false; structFilterHasContacts=false;"
