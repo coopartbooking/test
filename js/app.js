@@ -30,6 +30,7 @@ import { venueMethods }                          from './modules/venueMethods.js
 import { crmMethods }                            from './modules/crmMethods.js';
 import { appComputed }                           from './modules/appComputed.js';
 import { collaboratorMethods }                   from './modules/collaboratorMethods.js';
+import { icalMethods }                            from './modules/icalMethods.js';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -377,6 +378,7 @@ createApp({
         ...venueMethods,
         ...crmMethods,
         ...collaboratorMethods,
+        ...icalMethods,
 
         // --- AUTHENTIFICATION FIREBASE ---
         async handleAuth() {
