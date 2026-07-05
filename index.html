@@ -739,6 +739,13 @@
                                             <i class="fas fa-key"></i>
                                         </button>
 
+                                        <!-- Lien agenda iCal du collaborateur -->
+                                        <button @click="showCollaboratorIcalLink(collab)"
+                                                data-tooltip="Obtenir le lien d'agenda de ce collaborateur"
+                                                class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </button>
+
                                         <!-- Activer / Désactiver -->
                                         <button v-if="collab.isActive"
                                                 @click="disableCollaborator(collab)"
@@ -1451,6 +1458,11 @@
                         <h3 class="font-bold text-lg w-48 text-center uppercase tracking-wide">{{ currentMonthName }} {{ currentYear }}</h3>
                         <button @click="changeMonth(1)" class="w-8 h-8 rounded-full bg-white border shadow-sm hover:bg-slate-50"><i class="fas fa-chevron-right"></i></button>
                     </div>
+                    <button @click="showMyIcalLink()"
+                            data-tooltip="Obtenir le lien pour s'abonner à cet agenda (Google, Apple, Outlook)"
+                            class="flex items-center gap-2 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition whitespace-nowrap">
+                        <i class="fas fa-calendar-alt text-indigo-500"></i> Mon lien d'agenda
+                    </button>
                 </div>
                 <div class="flex gap-6 flex-1 overflow-hidden">
                     <div class="w-56 bg-white rounded-lg shadow border border-slate-200 p-4 flex flex-col">
@@ -4333,7 +4345,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=10"></script>
+<script type="module" src="./js/app.js?v=12"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
