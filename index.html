@@ -739,6 +739,13 @@
                                             <i class="fas fa-key"></i>
                                         </button>
 
+                                        <!-- Lien agenda iCal du collaborateur -->
+                                        <button @click="showCollaboratorIcalLink(collab)"
+                                                data-tooltip="Obtenir le lien d'agenda de ce collaborateur"
+                                                class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </button>
+
                                         <!-- Activer / Désactiver -->
                                         <button v-if="collab.isActive"
                                                 @click="disableCollaborator(collab)"
@@ -1451,6 +1458,11 @@
                         <h3 class="font-bold text-lg w-48 text-center uppercase tracking-wide">{{ currentMonthName }} {{ currentYear }}</h3>
                         <button @click="changeMonth(1)" class="w-8 h-8 rounded-full bg-white border shadow-sm hover:bg-slate-50"><i class="fas fa-chevron-right"></i></button>
                     </div>
+                    <button @click="showMyIcalLink()"
+                            data-tooltip="Obtenir le lien pour s'abonner à cet agenda (Google, Apple, Outlook)"
+                            class="flex items-center gap-2 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition whitespace-nowrap">
+                        <i class="fas fa-calendar-alt text-indigo-500"></i> Mon lien d'agenda
+                    </button>
                 </div>
                 <div class="flex gap-6 flex-1 overflow-hidden">
                     <div class="w-56 bg-white rounded-lg shadow border border-slate-200 p-4 flex flex-col">
@@ -4343,8 +4355,31 @@
         </div>
     </div>
 
+    <!-- ══ BANDEAU MISE À JOUR (discret, non bloquant) ══ -->
+    <div v-if="updateAvailable"
+         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[min(92vw,520px)]
+                bg-white rounded-2xl shadow-2xl border border-indigo-100 p-4
+                flex items-center gap-3 animate-[slideUp_.25s_ease-out]">
+        <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-rotate text-indigo-500"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+            <div class="font-bold text-slate-800 text-sm">Mise à jour disponible</div>
+            <div v-if="updateNotes" class="text-xs text-slate-500 truncate">{{ updateNotes }}</div>
+            <div v-else class="text-xs text-slate-400">Version {{ serverVersion }} — rechargez pour en profiter.</div>
+        </div>
+        <button @click="applyUpdate()"
+                class="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition">
+            Mettre à jour
+        </button>
+        <button @click="dismissUpdate()" data-tooltip="Ignorer jusqu'à la prochaine version"
+                class="flex-shrink-0 text-slate-300 hover:text-slate-500 transition px-1">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=10"></script>
+<script type="module" src="./js/app.js?v=13"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
