@@ -1,7 +1,13 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
-import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=13';
+import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=15';
+
+// Ressource "Basilic" sur data.gouv.fr (CSV interrogeable via l'API tabulaire).
+// Mis à jour le 18/02/2026 — 86 366 lieux. Voir :
+// https://www.data.gouv.fr/datasets/base-des-lieux-et-equipements-culturels-basilic
+const BASILIC_RESOURCE = 'dced78ee-0823-4b61-86e6-57717308d4e4';
+const BASILIC_URL      = `https://tabular-api.data.gouv.fr/api/resources/${BASILIC_RESOURCE}/data/`;
 
 export const gouvMethods = {
 
@@ -138,6 +144,51 @@ export const gouvMethods = {
         this.gouvImport.error        = '';
     },
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Source : jeu « Basilic » (Base des lieux et équipements culturels)
+    // hébergé sur data.gouv.fr, interrogé via l'API tabulaire.
+    // ⚠️ L'ancien portail Opendatasoft (data.culture.gouv.fr) a été retiré.
+    // Si la ressource change un jour, seul BASILIC_RESOURCE est à modifier.
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Construit une query string en encodant %20 (et non "+") : les noms de
+    // colonnes contiennent des espaces et des accents.
+    _gouvQuery(pairs) {
+        return pairs
+            .filter(([, v]) => v !== '' && v != null)
+            .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+            .join('&');
+    },
+
+    // Convertit une ligne du CSV Basilic en objet "lieu" utilisé par l'interface.
+    _gouvMapRow(r, i) {
+        const num = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+        const lat = num(r.Latitude);
+        const lng = num(r.Longitude);
+        const adresse = [r.Adresse, r['Complement Adresse']].filter(Boolean).join(' ').trim();
+        const govId = r.Identifiant_deps_a_partir_de_2022 || '';
+        return {
+            id:        `gouv_${govId || r.__id || i}`,
+            nom:       (r.Nom || '').trim(),
+            adresse,
+            cp:        r['Code Postal'] || '',
+            ville:     r.libelle_geographique || '',
+            type:      r['Label et appellation'] || r['Type équipement ou lieu'] || '',
+            domaine:   r.Domaine || '',
+            sousDomaine: r.Sous_domaine || '',
+            site:      '',        // absent de cette source
+            telephone: '',        // absent de cette source
+            dept:      r['N_Département'] || '',
+            region:    r['Région']        || '',
+            lat, lng,
+            hasGps:    !!(lat && lng),
+            govId,
+            siret:     '',
+            licence:   '',
+            capacity:  r.Jauge_du_theatre || r.Nombre_fauteuils_de_cinema || '',
+        };
+    },
+
     async searchGouv(resetPage = true) {
         if (resetPage === true) this.gouvImport.page = 0;
         this.gouvImport.loading = true;
@@ -145,110 +196,41 @@ export const gouvMethods = {
         this.gouvImport.results = [];
 
         try {
-            const limit  = 50;
-            const offset = this.gouvImport.page * limit;
-            const where  = [];
+            const g = this.gouvImport;
+            const pairs = [
+                ['page',      String((g.page || 0) + 1)],   // l'API pagine à partir de 1
+                ['page_size', '50'],                        // maximum autorisé
+            ];
 
-            // NB : l'API parle ODSQL (Opendatasoft), pas SQL.
-            // - le joker est "*" en suffixe (recherche greedy), pas "%"
-            // - "like" fait une correspondance plein-texte par mot (insensible casse/accents)
-            // - les noms de champs doivent exister, sinon erreur 400
-            if (this.gouvImport.searchName.trim()) {
-                const name = this.gouvImport.searchName.trim().replace(/"/g, '');
-                // Recherche greedy par mot sur le champ "nom"
-                name.split(/\s+/).filter(Boolean).forEach(w => {
-                    where.push(`nom like "${w}*"`);
-                });
-            }
-            if (this.gouvImport.filterType) {
-                const type = this.gouvImport.filterType.replace(/"/g, '');
-                where.push(`label_et_appellation like "${type}"`);
-            }
-            if (this.gouvImport.filterDept) {
-                const raw = this.gouvImport.filterDept.trim().replace(/"/g, '');
-                const num = raw.replace(/\D/g, '');
-                // Numéro de département dans n_departement ("01"), nom dans departement ("Ain")
-                if (num) where.push(`n_departement like "${num}"`);
-                else     where.push(`departement like "${raw}"`);
-            }
-            if (this.gouvImport.filterRegion) {
-                const reg = this.gouvImport.filterRegion.replace(/"/g, '').replace(/'/g, '');
-                where.push(`region like "${reg}"`);
-            }
-            // Filtre spectacle vivant par défaut (noms de champs réels : domaine, label_et_appellation)
-            if (!this.gouvImport.filterType && !this.gouvImport.searchName.trim()) {
-                where.push(`(domaine like "spectacle" OR domaine like "musique" OR label_et_appellation like "scene" OR label_et_appellation like "theatre" OR label_et_appellation like "festival" OR label_et_appellation like "cirque")`);
-            }
+            const name = (g.searchName || '').trim();
+            if (name) pairs.push(['Nom__contains', name]);
 
-            const params = new URLSearchParams({ limit, offset });
-            if (where.length) params.append('where', where.join(' AND '));
+            const city = (g.filterCity || '').trim();
+            if (city) pairs.push(['libelle_geographique__contains', city]);
 
-            const url  = `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/base-des-lieux-et-des-equipements-culturels/records?${params.toString()}`;
+            // Département : "1" → "01" (les codes sont sur 2 caractères, 2A/2B pour la Corse)
+            const dept = (g.filterDept || '').trim().toUpperCase().replace(/\s/g, '');
+            if (dept) pairs.push(['N_Département__exact', /^[0-9]$/.test(dept) ? '0' + dept : dept]);
+
+            if (g.filterRegion)  pairs.push(['Région__exact',  g.filterRegion]);
+            if (g.filterDomaine) pairs.push(['Domaine__exact', g.filterDomaine]);
+            if (g.filterType)    pairs.push(['Label et appellation__contains', g.filterType]);
+
+            const url  = `${BASILIC_URL}?${this._gouvQuery(pairs)}`;
             const resp = await fetch(url);
-            if (!resp.ok) {
-                const errText = await resp.text();
-                throw new Error(`Erreur HTTP ${resp.status} — ${errText.substring(0, 200)}`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            const json = await resp.json();
+            const rows = Array.isArray(json.data) ? json.data : [];
+            this.gouvImport.totalFound = (json.meta && json.meta.total) || rows.length;
+            this.gouvImport.results    = rows.map((r, i) => this._gouvMapRow(r, i));
+
+            if (!rows.length) {
+                this.gouvImport.error = 'Aucun résultat. Élargissez la recherche (nom partiel, sans département…).';
             }
-            const data = await resp.json();
-
-            this.gouvImport.totalFound = data.total_count || 0;
-
-            // Log du premier résultat pour voir les vrais noms de champs
-            if (data.results && data.results.length > 0) {
-            }
-
-            this.gouvImport.results = (data.results || []).map((r, i) => {
-                // Gestion flexible des noms de champs (la base peut utiliser différentes conventions)
-                const nom     = r.nom_du_lieu || r.nom || r.libelle || r.denomination || r.nom_officiel || '';
-                const adresse = r.adresse || r.adresse_postale || r.adresse_1 || '';
-                const cp      = r.code_postal || r.cp || r.code_postale || '';
-                const ville   = r.libelle_geographique || r.commune || r.ville || r.nom_commune || r.libelle_commune || '';
-                const type    = r.label_et_appellation || r.type_equipement_ou_lieu || r.label || r.type || r.categorie || r.appellation || '';
-                const domaine = r.domaine_culturel || r.domaine || r.secteur || '';
-                const site    = r.site_internet || r.url || r.site_web || r.website || '';
-                const tel     = r.telephone || r.tel || r.phone || '';
-                const dept    = r.code_departement || r.departement || r.dept || '';
-                const region  = r.region_administrative || r.region || '';
-                // GPS : plusieurs formats possibles
-                let lat = null, lng = null;
-                if (r.coordonnees_geo) {
-                    lat = r.coordonnees_geo.lat;
-                    lng = r.coordonnees_geo.lon;
-                } else if (r.coordonnees_geographiques) {
-                    lat = r.coordonnees_geographiques.lat;
-                    lng = r.coordonnees_geographiques.lon;
-                } else if (r.geolocalisation) {
-                    lat = r.geolocalisation.lat;
-                    lng = r.geolocalisation.lon;
-                } else if (r.geo_point_2d) {
-                    lat = r.geo_point_2d.lat;
-                    lng = r.geo_point_2d.lon;
-                } else if (r.latitude && r.longitude) {
-                    lat = parseFloat(r.latitude);
-                    lng = parseFloat(r.longitude);
-                }
-                // Identifiant stable du jeu de données (si l'API le fournit).
-                // Capture opportuniste : si absent, rien ne casse.
-                const govId = r.recordid || r.record_id || r.identifiant
-                    || r.id_lieu || r.identifiant_lieu || r.code_uai || '';
-                // SIRET / licence si présents dans le jeu de données
-                const siret   = r.siret || r.numero_siret || r.siret_etablissement || '';
-                const licence = r.licence || r.numero_licence || r.licences || '';
-                return {
-                    id:        `gouv_${offset}_${i}_${nom.replace(/\s/g,'').substring(0,20)}`,
-                    nom, adresse, cp, ville, type, domaine, site,
-                    telephone: tel, dept, region,
-                    lat, lng,
-                    govId: String(govId || ''),
-                    siret: String(siret || ''),
-                    licence: String(licence || ''),
-                    hasGps: !!(lat),
-                };
-            }).filter(r => r.nom); // Ignorer les lignes sans nom
-
         } catch (e) {
-            console.error('Import Gouv.fr');
-            this.gouvImport.error = e.message || 'Erreur de connexion à l\'API.';
+            console.error('Import Gouv.fr', e);
+            this.gouvImport.error = "Impossible de contacter data.gouv.fr. Réessayez dans un instant.";
         } finally {
             this.gouvImport.loading = false;
         }
@@ -293,9 +275,10 @@ export const gouvMethods = {
             website: lieu.site    || '',
             phone1:  lieu.telephone || '',
             email:   '',
-            siret:   lieu.siret   || '',
-            licence: lieu.licence || '',
-            govId:   lieu.govId   || '',
+            siret:    lieu.siret   || '',
+            licence:  lieu.licence || '',
+            govId:    lieu.govId   || '',
+            capacity: lieu.capacity || '',
             lat:     lieu.lat,
             lng:     lieu.lng,
         };
@@ -319,17 +302,28 @@ export const gouvMethods = {
     // Mapping type gouv → tag catégorie
     gouvTypeToTag(type) {
         const t = (type || '').toLowerCase();
-        if (t.includes('scène nationale'))     return 'Scène Nationale';
-        if (t.includes('smac'))                return 'SMAC';
-        if (t.includes('centre dramatique'))   return 'CDN';
-        if (t.includes('opéra'))               return 'Opéra';
-        if (t.includes('théâtre'))             return 'Théâtre';
-        if (t.includes('festival'))            return 'Festival';
-        if (t.includes('cirque'))              return 'Cirque';
-        if (t.includes('chorégraphique'))      return 'Centre chorégraphique';
-        if (t.includes('scène conventionnée')) return 'Scène Conventionnée';
-        if (t.includes('zénith'))              return 'Salle de concerts';
-        if (t.includes('musique'))             return 'Salle de concerts';
+        // Vocabulaire "Label et appellation" / "Type équipement ou lieu" de Basilic
+        if (t.includes('scène nationale'))      return 'Scène Nationale';
+        if (t.includes('scène conventionnée'))  return 'Scène Conventionnée';
+        if (t.includes('smac'))                 return 'SMAC';
+        if (t.includes('musiques actuelles'))   return 'SMAC';
+        if (t.includes('centre dramatique'))    return 'CDN';
+        if (t.includes('chorégraphique'))       return 'Centre chorégraphique';
+        if (t.includes('cirque'))               return 'Cirque';
+        if (t.includes('opéra'))                return 'Opéra';
+        if (t.includes('zénith'))               return 'Salle de concerts';
+        if (t.includes('art et essai'))         return 'Cinéma';
+        if (t.includes('cinéma'))               return 'Cinéma';
+        if (t.includes('musée'))                return 'Musée';
+        if (t.includes('monument'))             return 'Monument';
+        if (t.includes('bibliothèque'))         return 'Bibliothèque';
+        if (t.includes('médiathèque'))          return 'Bibliothèque';
+        if (t.includes('archives'))             return 'Archives';
+        if (t.includes('conservatoire'))        return 'Conservatoire';
+        if (t.includes('théâtre'))              return 'Théâtre';
+        if (t.includes('festival'))             return 'Festival';
+        if (t.includes('scène'))                return 'Salle de spectacle';
+        if (t.includes('musique'))              return 'Salle de concerts';
         return '';
     },
 
@@ -353,7 +347,7 @@ export const gouvMethods = {
                 if (filled.length || conflicts.length) {
                     m.target.comments = Array.isArray(m.target.comments) ? m.target.comments : [];
                     m.target.comments.push(buildMergeComment({
-                        source: 'data.culture.gouv.fr', filled, conflicts, user: this.currentUserName,
+                        source: 'data.gouv.fr (Basilic)', filled, conflicts, user: this.currentUserName,
                     }));
                     m.target.updatedAt = new Date().toISOString();
                     m.target.updatedBy = this.currentUserName;
@@ -376,7 +370,7 @@ export const gouvMethods = {
                 isClient:       false,
                 isActive:       true,
                 clientCode:     '',
-                source:         'data.culture.gouv.fr',
+                source:         'data.gouv.fr (Basilic)',
                 createdDate:    now,
                 address:        lieu.adresse,
                 suite:          '',
@@ -393,7 +387,7 @@ export const gouvMethods = {
                 licence:        lieu.licence || '',
                 govId:          lieu.govId   || '',
                 aliases:        [],
-                capacity:       '',
+                capacity:       lieu.capacity || '',
                 season:         '',
                 hours:          '',
                 progMonthStart: '',
