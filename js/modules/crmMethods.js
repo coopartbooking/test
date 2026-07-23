@@ -2,6 +2,8 @@
 // Section : entre // --- MOTEUR CRM --- et // --- ADMIN ---
 // Note : nextTick() remplacé par this.$nextTick() (équivalent dans le contexte composant Vue)
 
+import { matchStructure, addAlias, scanDuplicates, markNotDuplicate } from './structMatch.js?v=17';
+
 export const crmMethods = {
 
     // --- MOTEUR CRM ---
@@ -14,6 +16,7 @@ export const crmMethods = {
                 address: '', suite: '', zip: '', city: '', region: '', country: 'France',
                 phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
                 capacity: '', season: '', hours: '', lat: null, lng: null,
+                siret: '', licence: '', govId: '', aliases: [],
                 progMonthStart: '', progMonthEnd: '',
                 tags: { categories: [], genres: [], reseaux: [], keywords: [] },
                 contacts: [], comments: [], venues: [],
@@ -67,6 +70,52 @@ export const crmMethods = {
 
         const idx = this.db.structures.findIndex(x => x.id === this.currentCrmStruct.id);
         const now = new Date().toISOString();
+
+        // ── Détection de doublon à la création manuelle ──
+        // Uniquement sur une NOUVELLE fiche : on ne dérange jamais lors d'une modification.
+        if (idx === -1) {
+            const m = matchStructure(this.currentCrmStruct, this.db.structures, { excludeId: this.currentCrmStruct.id });
+            if ((m.status === 'auto' || m.status === 'suggest') && m.target) {
+                const esc = v => String(v == null ? '' : v)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const r = await Swal.fire({
+                    title: 'Structure déjà existante ?',
+                    html: `<div class="text-left text-sm space-y-2">
+                             <p>Cette fiche ressemble à une structure déjà présente dans l'annuaire :</p>
+                             <div class="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                               <div class="font-bold text-slate-800">${esc(m.target.name)}</div>
+                               <div class="text-xs text-slate-500">${esc(m.target.city || '')}</div>
+                               <div class="text-[11px] text-orange-600 mt-1"><i class="fas fa-link mr-1"></i>${esc(m.reasons[0] || '')}</div>
+                             </div>
+                             <p class="text-xs text-slate-500">Ouvrir la fiche existante évite de créer un doublon.</p>
+                           </div>`,
+                    icon: 'question',
+                    width: 520,
+                    showDenyButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: 'Ouvrir la fiche existante',
+                    denyButtonText: 'Créer quand même',
+                    cancelButtonText: 'Annuler',
+                    confirmButtonColor: '#4f46e5',
+                    denyButtonColor: '#64748b',
+                });
+
+                if (r.isDismissed) return;              // Annuler : on ne touche à rien
+                if (r.isConfirmed) {
+                    // Mémorise la variante de nom saisie, puis bascule sur la fiche existante
+                    if (addAlias(m.target, this.currentCrmStruct.name)) {
+                        m.target.updatedAt = now;
+                        m.target.updatedBy = this.currentUserName;
+                        this.saveDB();
+                    }
+                    this.showCrmModal = false;
+                    this.$nextTick(() => this.openCrmView(m.target));
+                    return;
+                }
+                // isDenied : on poursuit la création normalement
+            }
+        }
+
         this.currentCrmStruct.updatedAt = now;
         this.currentCrmStruct.updatedBy = this.currentUserName;
         if (idx === -1) {
@@ -256,47 +305,41 @@ export const crmMethods = {
         return Math.round(matches / longer.length * 100);
     },
 
-    // Détecte les doublons potentiels dans la base
+    // Détecte les doublons potentiels dans la base.
+    // Utilise le moteur partagé structMatch.js : mêmes règles qu'à l'import
+    // et à la saisie manuelle (identifiant fort, domaine, alias, téléphone,
+    // ville + nom normalisé, proximité GPS). Un nom qui se ressemble ne
+    // suffit JAMAIS : il faut au minimum une localité commune.
     findDuplicates() {
-        const structs = this.db.structures;
-        const pairs   = [];
-        const seen    = new Set();
-
-        for (let i = 0; i < structs.length; i++) {
-            for (let j = i + 1; j < structs.length; j++) {
-                const a = structs[i];
-                const b = structs[j];
-                const key = `${a.id}-${b.id}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-
-                const nameSimilarity = this._stringSimilarity(a.name, b.name);
-                const sameCity = a.city && b.city &&
-                    a.city.toLowerCase().trim() === b.city.toLowerCase().trim();
-
-                // Doublon probable : nom très similaire (>80%) OU même ville + nom similaire (>60%)
-                const score = nameSimilarity >= 80 ? nameSimilarity
-                            : (sameCity && nameSimilarity >= 60) ? nameSimilarity
-                            : 0;
-
-                if (score > 0) {
-                    pairs.push({ a, b, score, sameCity });
-                }
-            }
-        }
-
-        // Trier par score décroissant
-        this.duplicatePairs = pairs.sort((x, y) => y.score - x.score);
+        this.duplicatePairs = scanDuplicates(this.db.structures);
         this.showDuplicatesModal = true;
 
         if (!this.duplicatePairs.length) {
             this.showDuplicatesModal = false;
             Swal.fire({
                 title: 'Aucun doublon détecté ✓',
-                html: 'Votre base ne contient pas de structures avec des noms similaires.',
+                html: 'Aucune structure ne partage d\'identifiant, de domaine, de téléphone ni de nom proche dans une même ville.',
                 icon: 'success',
                 confirmButtonColor: '#4f46e5',
             });
+        }
+    },
+
+    // "Ignorer" : mémorise le refus pour que la paire ne revienne plus.
+    async ignoreDuplicatePair(i) {
+        const pair = this.duplicatePairs[i];
+        if (!pair) return;
+        const a = this.db.structures.find(s => s.id === pair.a.id);
+        const b = this.db.structures.find(s => s.id === pair.b.id);
+        if (a && b) {
+            markNotDuplicate(a, b);
+            const now = new Date().toISOString();
+            a.updatedAt = now; a.updatedBy = this.currentUserName;
+            b.updatedAt = now; b.updatedBy = this.currentUserName;
+            this.saveDB();
+        }
+        this.duplicatePairs.splice(i, 1);
+    },
         }
     },
 

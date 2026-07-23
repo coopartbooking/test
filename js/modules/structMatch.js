@@ -353,3 +353,155 @@ export function buildMergeComment({ source, filled, conflicts, user }) {
         text:   `[Fusion ${source}] ${parts.join(' — ')}`,
     };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Balayage de l'annuaire : détection des doublons déjà présents.
+//
+// Même cascade que matchStructure(), mais optimisée pour comparer TOUTES les
+// fiches entre elles. On ne compare jamais toutes les paires : on regroupe
+// d'abord par signal (domaine, téléphone, ville), puis on ne compare qu'à
+// l'intérieur de chaque groupe. Sur un annuaire de 1 400 fiches, cela ramène
+// ~1 000 000 de comparaisons à quelques milliers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Marque deux structures comme "pas des doublons" (refus mémorisé). */
+export function markNotDuplicate(a, b) {
+    if (!a || !b) return;
+    a.notDuplicates = Array.isArray(a.notDuplicates) ? a.notDuplicates : [];
+    b.notDuplicates = Array.isArray(b.notDuplicates) ? b.notDuplicates : [];
+    if (!a.notDuplicates.includes(String(b.id))) a.notDuplicates.push(String(b.id));
+    if (!b.notDuplicates.includes(String(a.id))) b.notDuplicates.push(String(a.id));
+}
+
+function isRefused(a, b) {
+    const la = Array.isArray(a.notDuplicates) ? a.notDuplicates : [];
+    const lb = Array.isArray(b.notDuplicates) ? b.notDuplicates : [];
+    return la.includes(String(b.id)) || lb.includes(String(a.id));
+}
+
+/**
+ * Analyse l'annuaire et renvoie les paires suspectes, triées par certitude.
+ * @returns {Array<{a,b,score,level:'auto'|'suggest',reasons:string[],sameCity:boolean}>}
+ */
+export function scanDuplicates(structures) {
+    const list = (Array.isArray(structures) ? structures : []).filter(s => s && s.name);
+
+    // ── Pré-calcul des signaux, une seule fois par fiche ──
+    const sig = list.map(s => ({
+        s,
+        key:      normalizeName(s.name),
+        tokens:   new Set(nameTokens(s.name)),
+        city:     normalizeCity(s.city),
+        zip:      String(s.zip || '').trim(),
+        domains:  structDomains(s),
+        phones:   structPhones(s),
+        aliases:  structAliasKeys(s),
+        lat: s.lat, lng: s.lng,
+        siret:   String(s.siret   || '').replace(/\s/g, ''),
+        licence: String(s.licence || '').replace(/\s/g, ''),
+        govId:   String(s.govId   || '').replace(/\s/g, ''),
+    }));
+
+    const pairs = new Map();   // "idA|idB" -> pair
+    const addPair = (x, y, score, level, reason) => {
+        if (x.s.id === y.s.id) return;
+        if (isRefused(x.s, y.s)) return;
+        const [p, q] = String(x.s.id) < String(y.s.id) ? [x, y] : [y, x];
+        const k = `${p.s.id}|${q.s.id}`;
+        const prev = pairs.get(k);
+        if (prev) {
+            if (!prev.reasons.includes(reason)) prev.reasons.push(reason);
+            if (score > prev.score) { prev.score = score; prev.level = level; }
+            return;
+        }
+        pairs.set(k, {
+            a: p.s, b: q.s, score, level,
+            reasons: [reason],
+            sameCity: !!(p.city && q.city && p.city === q.city),
+        });
+    };
+
+    // ── 1. Identifiants forts : regroupement direct ──
+    [['siret', 'même SIRET'], ['licence', 'même licence'], ['govId', 'même identifiant gouv']]
+        .forEach(([field, label]) => {
+            const idx = new Map();
+            sig.forEach(x => {
+                const v = x[field];
+                if (!v) return;
+                if (!idx.has(v)) idx.set(v, []);
+                idx.get(v).push(x);
+            });
+            idx.forEach((group, v) => {
+                for (let i = 0; i < group.length; i++)
+                    for (let j = i + 1; j < group.length; j++)
+                        addPair(group[i], group[j], 100, 'auto', `${label} : ${v}`);
+            });
+        });
+
+    // ── 2. Domaine propre commun (email ou site) ──
+    const byDomain = new Map();
+    sig.forEach(x => x.domains.forEach(d => {
+        if (!byDomain.has(d)) byDomain.set(d, []);
+        byDomain.get(d).push(x);
+    }));
+    byDomain.forEach((group, d) => {
+        for (let i = 0; i < group.length; i++)
+            for (let j = i + 1; j < group.length; j++)
+                addPair(group[i], group[j], 95, 'auto', `même domaine : ${d}`);
+    });
+
+    // ── 3. Téléphone identique ──
+    const byPhone = new Map();
+    sig.forEach(x => x.phones.forEach(p => {
+        if (!byPhone.has(p)) byPhone.set(p, []);
+        byPhone.get(p).push(x);
+    }));
+    byPhone.forEach((group, p) => {
+        for (let i = 0; i < group.length; i++)
+            for (let j = i + 1; j < group.length; j++)
+                addPair(group[i], group[j], 75, 'suggest', `même téléphone : ${p}`);
+    });
+
+    // ── 4. Même localité : nom identique, alias, similarité, proximité GPS ──
+    const byLocality = new Map();
+    sig.forEach(x => {
+        const loc = x.city || (x.zip ? `zip:${x.zip}` : '');
+        if (!loc) return;                       // sans localité : on ne compare pas
+        if (!byLocality.has(loc)) byLocality.set(loc, []);
+        byLocality.get(loc).push(x);
+    });
+
+    byLocality.forEach(group => {
+        for (let i = 0; i < group.length; i++) {
+            for (let j = i + 1; j < group.length; j++) {
+                const x = group[i], y = group[j];
+
+                if (x.key && x.key === y.key) {
+                    addPair(x, y, 90, 'auto', 'même nom et même ville');
+                    continue;
+                }
+                if ((x.key && y.aliases.has(x.key)) || (y.key && x.aliases.has(y.key))) {
+                    addPair(x, y, 90, 'auto', 'variante de nom déjà validée');
+                    continue;
+                }
+
+                // Similarité de tokens (Dice)
+                let inter = 0;
+                x.tokens.forEach(t => { if (y.tokens.has(t)) inter++; });
+                const sim = (x.tokens.size && y.tokens.size)
+                    ? (2 * inter) / (x.tokens.size + y.tokens.size) : 0;
+                if (sim >= 0.5) {
+                    addPair(x, y, Math.round((0.5 + sim * 0.3) * 100), 'suggest',
+                        `nom proche dans la même ville (${Math.round(sim * 100)} %)`);
+                }
+
+                const dist = distanceMeters(x.lat, x.lng, y.lat, y.lng);
+                if (dist < 150) {
+                    addPair(x, y, 70, 'suggest', `même adresse à ${Math.round(dist)} m près`);
+                }
+            }
+        }
+    });
+
+    return Array.from(pairs.values()).sort((u, v) => v.score - u.score);
+}

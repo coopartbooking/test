@@ -1,6 +1,8 @@
 // js/modules/importMethods.js — Import Excel, Export natif CRM, modale Projet
 // Section : entre // --- IMPORT EXCEL --- et // --- IMPORT CULTURE.GOUV.FR ---
 
+import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=17';
+
 // Couleurs par défaut des projets (même constante que dans app.js)
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
 
@@ -15,7 +17,7 @@ export const importMethods = {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data      = new Uint8Array(e.target.result);
                 const workbook  = XLSX.read(data, { type: 'array' });
@@ -31,31 +33,81 @@ export const importMethods = {
                 const str  = v => (v === null || v === undefined || v === '') ? '' : String(v).trim();
                 const bool = v => str(v) === '1' || str(v).toLowerCase() === 'oui' || str(v).toLowerCase() === 'true';
 
-                const findOrCreateStruct = (name, city) => {
+                // ── Table de décisions (remplie par la phase d'analyse) ──
+                // clé "nom|ville" -> { action:'merge'|'mergeKey'|'create', targetId, targetKey, resolved }
+                const decisions = new Map();
+                const keyOf = (name, city) =>
+                    `${String(name || '').toLowerCase().trim()}|${String(city || '').toLowerCase().trim()}`;
+
+                let countMerged = 0;
+                const mergeLog = [];   // { name, reason, conflicts }
+
+                const findOrCreateStruct = (name, city, incomingArg = null) => {
                     if (!name) return null;
-                    let s = this.db.structures.find(x =>
-                        x.name.toLowerCase() === name.toLowerCase() &&
-                        (x.city || '').toLowerCase() === city.toLowerCase()
-                    );
-                    if (!s) {
-                        const now = new Date().toISOString();
-                        s = {
-                            id: Date.now() + Math.random(),
-                            name, city,
-                            clientCode: '', source: '', createdDate: now,
-                            address: '', suite: '', zip: '', country: 'France',
-                            phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
-                            capacity: '', season: '', hours: '', lat: null, lng: null,
-                            isClient: false, isActive: true,
-                            contacts: [], comments: [], venues: [],
-                            tags: { categories: [], genres: [], reseaux: [], keywords: [] },
-                            createdAt:  now, createdBy:  this.currentUserName,
-                            updatedAt:  now, updatedBy:  this.currentUserName,
-                            importedAt: now, importedBy: this.currentUserName,
-                        };
-                        this.db.structures.push(s);
-                        countStructs++;
+                    const key = keyOf(name, city);
+                    let d = decisions.get(key);
+                    if (!d) { d = { action: 'create' }; decisions.set(key, d); }
+                    if (d.resolved) return d.resolved;
+                    const incoming = incomingArg || d._incoming || null;
+
+                    // Rattachement à une fiche existante de l'annuaire
+                    if (d.action === 'merge' && d.targetId != null) {
+                        const target = this.db.structures.find(x => String(x.id) === String(d.targetId));
+                        if (target) {
+                            d.resolved = target;
+                            countMerged++;
+                            addAlias(target, name);
+                            if (incoming) {
+                                const { filled, conflicts } = mergeInto(target, incoming);
+                                if (filled.length || conflicts.length) {
+                                    target.comments = Array.isArray(target.comments) ? target.comments : [];
+                                    target.comments.push(buildMergeComment({
+                                        source: 'import fichier', filled, conflicts, user: this.currentUserName,
+                                    }));
+                                }
+                                mergeLog.push({ name: target.name, reason: d.reason || '', conflicts });
+                            } else {
+                                mergeLog.push({ name: target.name, reason: d.reason || '', conflicts: [] });
+                            }
+                            return target;
+                        }
                     }
+
+                    // Rattachement à une autre ligne du MÊME fichier
+                    if (d.action === 'mergeKey' && d.targetKey && d.targetKey !== key) {
+                        const td = decisions.get(d.targetKey);
+                        if (td) {
+                            const target = td.resolved || findOrCreateStruct(td._name, td._city, td._incoming);
+                            if (target) {
+                                d.resolved = target;
+                                countMerged++;
+                                addAlias(target, name);
+                                mergeLog.push({ name: target.name, reason: d.reason || 'doublon dans le fichier', conflicts: [] });
+                                return target;
+                            }
+                        }
+                    }
+
+                    // Création
+                    const now = new Date().toISOString();
+                    const s = {
+                        id: Date.now() + Math.random(),
+                        name, city,
+                        clientCode: '', source: '', createdDate: now,
+                        address: '', suite: '', zip: '', country: 'France',
+                        phone1: '', phone2: '', mobile: '', fax: '', email: '', website: '',
+                        capacity: '', season: '', hours: '', lat: null, lng: null,
+                        siret: '', licence: '', govId: '', aliases: [],
+                        isClient: false, isActive: true,
+                        contacts: [], comments: [], venues: [],
+                        tags: { categories: [], genres: [], reseaux: [], keywords: [] },
+                        createdAt:  now, createdBy:  this.currentUserName,
+                        updatedAt:  now, updatedBy:  this.currentUserName,
+                        importedAt: now, importedBy: this.currentUserName,
+                    };
+                    this.db.structures.push(s);
+                    countStructs++;
+                    d.resolved = s;
                     return s;
                 };
 
@@ -100,6 +152,151 @@ export const importMethods = {
                 };
 
                 const splitTags = v => str(v) ? str(v).split(';').map(x => x.trim()).filter(Boolean) : [];
+
+                // ═══════════════════════════════════════════════════════════
+                // PHASE 1 — ANALYSE : repérer les doublons AVANT d'écrire
+                // ═══════════════════════════════════════════════════════════
+                const incomingList = [];   // structures uniques du fichier
+                const seen = new Map();
+
+                const collect = (o) => {
+                    if (!o.name) return;
+                    const key = keyOf(o.name, o.city);
+                    if (seen.has(key)) {
+                        // Complète les signaux manquants depuis les lignes suivantes
+                        const prev = seen.get(key);
+                        Object.keys(o).forEach(k => { if (!prev[k] && o[k]) prev[k] = o[k]; });
+                        return;
+                    }
+                    const rec = { ...o, _key: key };
+                    seen.set(key, rec);
+                    incomingList.push(rec);
+                };
+
+                if (isNativeFormat) {
+                    const hdr = raw[1] || [];
+                    const hasVis = str(hdr[40]).toLowerCase() === 'visibilité' || str(hdr[40]).toLowerCase() === 'visibilite';
+                    raw.slice(2).forEach(cols => {
+                        if (!str(cols[0])) return;
+                        collect({
+                            name: str(cols[0]), city: str(cols[5]), zip: str(cols[4]),
+                            address: str(cols[2]), phone1: str(cols[7]), phone2: str(cols[8]),
+                            email: str(cols[9]), mobile: str(cols[10]), website: str(cols[12]),
+                        });
+                    });
+                    void hasVis;
+                } else {
+                    const hdrs = raw[0];
+                    raw.slice(1).forEach(cols => {
+                        const row = {};
+                        hdrs.forEach((h, i) => { row[h] = cols[i]; });
+                        collect({
+                            name:    str(row["Structure - Nom"] || row["Nom"] || "Structure importée"),
+                            city:    str(row["Structure - Ville"] || row["Ville"] || ""),
+                            zip:     str(row["Structure - Code Postal"]),
+                            address: str(row["Structure - Adresse"]),
+                            phone1:  str(row["Structure - Tél 1"]),
+                            phone2:  str(row["Structure - Tél 2"]),
+                            mobile:  str(row["Structure - Mobile"]),
+                            email:   str(row["Structure - E-mail"]),
+                            website: str(row["Structure - Site"]),
+                        });
+                    });
+                }
+
+                // Classement : annuaire existant + lignes déjà traitées du fichier
+                // (pour attraper aussi les doublons INTERNES au fichier)
+                const virtual = this.db.structures.slice();
+                const ambiguous = [];
+                let autoCount = 0;
+
+                incomingList.forEach(inc => {
+                    const m = matchStructure(inc, virtual);
+                    const d = { action: 'create', _name: inc.name, _city: inc.city, _incoming: inc };
+
+                    if (m.status === 'auto' && m.target) {
+                        if (m.target.__pendingKey) { d.action = 'mergeKey'; d.targetKey = m.target.__pendingKey; }
+                        else                        { d.action = 'merge';    d.targetId  = m.target.id; }
+                        d.reason = m.reasons[0] || '';
+                        autoCount++;
+                    } else if (m.status === 'suggest' && m.target) {
+                        ambiguous.push({ inc, target: m.target, reason: m.reasons[0] || '', score: m.score });
+                        d._suggest = m.target;
+                    }
+
+                    if (d.action === 'create') {
+                        // Placeholder : les lignes suivantes pourront s'y rattacher
+                        virtual.push({ ...inc, id: `__pending_${inc._key}`, __pendingKey: inc._key });
+                    }
+                    decisions.set(inc._key, d);
+                });
+
+                // ═══════════════════════════════════════════════════════════
+                // PHASE 2 — REVUE : l'utilisateur tranche les cas douteux
+                // ═══════════════════════════════════════════════════════════
+                if (ambiguous.length) {
+                    const esc = v => String(v == null ? '' : v)
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+                    const rows = ambiguous.map((a, i) => {
+                        const preselMerge = a.score >= 0.7;
+                        return `
+                        <div class="border border-slate-200 rounded-xl p-3 text-left">
+                            <div class="text-sm font-bold text-slate-800">${esc(a.inc.name)}${a.inc.city ? ` <span class="font-normal text-slate-400">(${esc(a.inc.city)})</span>` : ''}</div>
+                            <div class="text-[11px] text-orange-600 mb-2"><i class="fas fa-link mr-1"></i>${esc(a.reason)}</div>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer py-0.5">
+                                <input type="radio" name="dup${i}" value="merge" ${preselMerge ? 'checked' : ''}>
+                                <span>Rattacher à <b>${esc(a.target.name)}</b>${a.target.city ? ` (${esc(a.target.city)})` : ''}</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-xs cursor-pointer py-0.5">
+                                <input type="radio" name="dup${i}" value="create" ${preselMerge ? '' : 'checked'}>
+                                <span>Créer une nouvelle fiche</span>
+                            </label>
+                        </div>`;
+                    }).join('');
+
+                    const res = await Swal.fire({
+                        title: 'Doublons possibles',
+                        html: `
+                            <p class="text-xs text-slate-500 text-left mb-3">
+                                ${ambiguous.length} fiche(s) ressemblent à des structures déjà présentes.
+                                Vérifiez les choix pré-cochés avant de continuer.
+                            </p>
+                            <div class="flex gap-2 mb-3">
+                                <button type="button" id="dup-all-merge" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100">Tout rattacher</button>
+                                <button type="button" id="dup-all-create" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">Tout créer</button>
+                            </div>
+                            <div class="space-y-2 max-h-[45vh] overflow-y-auto pr-1">${rows}</div>`,
+                        width: 620,
+                        showCancelButton: true,
+                        confirmButtonText: "Lancer l'import",
+                        cancelButtonText: 'Annuler',
+                        confirmButtonColor: '#4f46e5',
+                        didOpen: () => {
+                            const setAll = val => document.querySelectorAll(`input[type=radio][value="${val}"]`)
+                                .forEach(r => { r.checked = true; });
+                            document.getElementById('dup-all-merge')?.addEventListener('click', () => setAll('merge'));
+                            document.getElementById('dup-all-create')?.addEventListener('click', () => setAll('create'));
+                        },
+                        preConfirm: () => ambiguous.map((a, i) => {
+                            const el = document.querySelector(`input[name="dup${i}"]:checked`);
+                            return el ? el.value : 'create';
+                        }),
+                    });
+
+                    if (!res.isConfirmed) { event.target.value = ''; return; }
+
+                    res.value.forEach((choice, i) => {
+                        if (choice !== 'merge') return;
+                        const a = ambiguous[i];
+                        const d = decisions.get(a.inc._key);
+                        if (!d) return;
+                        if (a.target.__pendingKey) { d.action = 'mergeKey'; d.targetKey = a.target.__pendingKey; }
+                        else                        { d.action = 'merge';    d.targetId  = a.target.id; }
+                        d.reason = a.reason;
+                    });
+                }
+
 
                 // ── Format natif (2 lignes d'en-tête) ───────────────────
                 if (isNativeFormat) {
@@ -222,9 +419,29 @@ export const importMethods = {
 
                 this.saveDB();
                 event.target.value = '';
-                Swal.fire('Succès !',
-                    `Importation terminée.<br><b>${countContacts}</b> contacts importés.<br><b>${countStructs}</b> nouvelles structures créées.`,
-                    'success');
+
+                const escR = v => String(v == null ? '' : v)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const withConflicts = mergeLog.filter(m => m.conflicts && m.conflicts.length);
+                let htmlR = `<div class="text-left text-sm space-y-2">`;
+                htmlR += `<p><b>${countContacts}</b> contact(s) importé(s)</p>`;
+                htmlR += `<p><b>${countStructs}</b> nouvelle(s) structure(s) créée(s)</p>`;
+                if (countMerged) {
+                    htmlR += `<p class="text-emerald-600"><b>${countMerged}</b> rattachée(s) à une fiche existante</p>`;
+                }
+                if (withConflicts.length) {
+                    htmlR += `<div class="text-slate-500 border-t pt-2 mt-2">
+                                <p class="text-xs"><b>${withConflicts.length}</b> fiche(s) avec données divergentes — valeur existante conservée, détail dans les commentaires :</p>
+                                <ul class="text-xs mt-1 ml-4 list-disc">`
+                          + withConflicts.slice(0, 6).map(m =>
+                                `<li>${escR(m.name)} — ${m.conflicts.map(c => escR(c.label)).join(', ')}</li>`
+                            ).join('')
+                          + (withConflicts.length > 6 ? `<li>… et ${withConflicts.length - 6} autre(s)</li>` : '')
+                          + `</ul></div>`;
+                }
+                htmlR += `</div>`;
+
+                Swal.fire({ title: 'Importation terminée ✓', html: htmlR, icon: 'success', width: 560, confirmButtonColor: '#059669' });
             } catch (err) {
                 console.error("Erreur import Excel");
                 Swal.fire('Erreur', 'Impossible de lire le fichier Excel.<br>' + err.message, 'error');
