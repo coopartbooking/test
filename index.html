@@ -739,13 +739,6 @@
                                             <i class="fas fa-key"></i>
                                         </button>
 
-                                        <!-- Lien agenda iCal du collaborateur -->
-                                        <button @click="showCollaboratorIcalLink(collab)"
-                                                data-tooltip="Obtenir le lien d'agenda de ce collaborateur"
-                                                class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
-                                            <i class="fas fa-calendar-alt"></i>
-                                        </button>
-
                                         <!-- Activer / Désactiver -->
                                         <button v-if="collab.isActive"
                                                 @click="disableCollaborator(collab)"
@@ -1458,11 +1451,6 @@
                         <h3 class="font-bold text-lg w-48 text-center uppercase tracking-wide">{{ currentMonthName }} {{ currentYear }}</h3>
                         <button @click="changeMonth(1)" class="w-8 h-8 rounded-full bg-white border shadow-sm hover:bg-slate-50"><i class="fas fa-chevron-right"></i></button>
                     </div>
-                    <button @click="showMyIcalLink()"
-                            data-tooltip="Obtenir le lien pour s'abonner à cet agenda (Google, Apple, Outlook)"
-                            class="flex items-center gap-2 px-3 py-2 bg-white text-slate-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-slate-50 transition whitespace-nowrap">
-                        <i class="fas fa-calendar-alt text-indigo-500"></i> Mon lien d'agenda
-                    </button>
                 </div>
                 <div class="flex gap-6 flex-1 overflow-hidden">
                     <div class="w-56 bg-white rounded-lg shadow border border-slate-200 p-4 flex flex-col">
@@ -3480,6 +3468,17 @@
                                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">Source / Origine</label><input autocomplete="off" name="currentCrmStruct-source" v-model="currentCrmStruct.source" class="input-field text-sm"></div>
                                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">Capacité / Jauge</label><input autocomplete="off" name="currentCrmStruct-capacity" v-model="currentCrmStruct.capacity" class="input-field text-sm"></div>
                                         <div><label class="text-[10px] font-bold text-slate-500 uppercase">Saison (ex: Oct-Mai)</label><input autocomplete="off" name="currentCrmStruct-season" v-model="currentCrmStruct.season" class="input-field text-sm"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase" data-tooltip="Identifiant unique : évite les doublons à l'import">SIRET</label><input autocomplete="off" name="currentCrmStruct-siret" v-model="currentCrmStruct.siret" class="input-field text-sm" placeholder="14 chiffres"></div>
+                                        <div><label class="text-[10px] font-bold text-slate-500 uppercase">Licence spectacle</label><input autocomplete="off" name="currentCrmStruct-licence" v-model="currentCrmStruct.licence" class="input-field text-sm" placeholder="PLATESV-..."></div>
+                                        <div class="col-span-2" v-if="currentCrmStruct.aliases && currentCrmStruct.aliases.length">
+                                            <label class="text-[10px] font-bold text-slate-500 uppercase"><i class="fas fa-tags text-indigo-400 mr-1"></i> Autres noms connus</label>
+                                            <div class="flex flex-wrap gap-1 mt-1">
+                                                <span v-for="(a, i) in currentCrmStruct.aliases" :key="i" class="text-[11px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                    {{ a }}
+                                                    <button @click="currentCrmStruct.aliases.splice(i, 1)" class="text-indigo-300 hover:text-red-500" data-tooltip="Retirer cette variante">&times;</button>
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div class="col-span-2">
                                             <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1"><i class="fas fa-calendar-check text-indigo-400 mr-1"></i> Période de Programmation</label>
                                             <div class="flex items-center gap-2">
@@ -4345,7 +4344,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=12"></script>
+<script type="module" src="./js/app.js?v=10"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
