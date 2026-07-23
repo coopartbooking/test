@@ -1,4 +1,4 @@
 {
-  "version": "14",
-  "notes": "Détection des doublons à l'import et à la saisie"
+  "version": "15",
+  "notes": "Import gouv rebranché sur data.gouv.fr (Basilic)"
 }

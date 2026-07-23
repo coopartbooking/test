@@ -3800,31 +3800,50 @@
 
         <!-- Filtres (onglet BASILIC) -->
         <div v-if="gouvImport.activeTab === 'gouv'" class="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex-shrink-0">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Recherche par nom</label>
-                    <input autocomplete="off" name="gouvImport-searchName" v-model="gouvImport.searchName" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: Théâtre, Zénith...">
+                    <input autocomplete="off" name="gouvImport-searchName" v-model="gouvImport.searchName" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: Coursive, Zénith...">
                 </div>
                 <div>
-                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Type de lieu</label>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Ville</label>
+                    <input autocomplete="off" name="gouvImport-filterCity" v-model="gouvImport.filterCity" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: La Rochelle...">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Domaine</label>
+                    <select v-model="gouvImport.filterDomaine" class="input-field text-sm">
+                        <option value="">Tous les domaines</option>
+                        <option>Arts du spectacle</option>
+                        <option>Cinéma</option>
+                        <option>Patrimoine</option>
+                        <option>Musées</option>
+                        <option>Livre et lecture</option>
+                        <option>Archives</option>
+                        <option>Arts visuels</option>
+                        <option>Enseignement supérieur</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Label / appellation</label>
                     <select v-model="gouvImport.filterType" class="input-field text-sm">
-                        <option value="">Tous les types</option>
+                        <option value="">Tous les labels</option>
                         <option value="Scène nationale">Scène nationale</option>
-                        <option value="SMAC">SMAC</option>
-                        <option value="Centre dramatique national">CDN</option>
+                        <option value="Scène conventionnée">Scène conventionnée</option>
+                        <option value="Centre dramatique">CDN</option>
+                        <option value="chorégraphique">Centre chorégraphique</option>
+                        <option value="musiques actuelles">SMAC</option>
+                        <option value="Cirque">Cirque</option>
                         <option value="Opéra">Opéra</option>
                         <option value="Théâtre">Théâtre</option>
-                        <option value="Festival">Festival</option>
-                        <option value="Cirque">Cirque</option>
-                        <option value="Centre chorégraphique">Centre chorégraphique</option>
-                        <option value="Scène conventionnée">Scène conventionnée</option>
-                        <option value="Zénith">Zénith</option>
-                        <option value="Salle de musique">Salle de musique</option>
+                        <option value="Art et essai">Cinéma Art et essai</option>
+                        <option value="Monument historique">Monument historique</option>
+                        <option value="Bibliothèque">Bibliothèque</option>
+                        <option value="Conservatoire">Conservatoire</option>
                     </select>
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Département (ex: 75)</label>
-                    <input autocomplete="off" name="gouvImport-filterDept" v-model="gouvImport.filterDept" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: 63, 75, 13...">
+                    <input autocomplete="off" name="gouvImport-filterDept" v-model="gouvImport.filterDept" @keyup.enter="searchGouv" class="input-field text-sm" placeholder="Ex: 63, 75, 2A...">
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-indigo-700 uppercase mb-1 block">Région</label>
@@ -4379,7 +4398,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=14"></script>
+<script type="module" src="./js/app.js?v=15"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
