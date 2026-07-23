@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js';
+import { auth, dbFirestore }                                              from './firebase.js?v=13';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,21 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js';
-import { contactsComputed, contactsMethods }    from './contacts.js';
-import { planningComputed, planningMethods }    from './planning.js';
-import { adminMethods }                           from './modules/adminMethods.js';
-import { mapMethods }                             from './modules/mapMethods.js';
-import { annuaireMethods }                       from './modules/annuaireMethods.js';
-import { importMethods }                         from './modules/importMethods.js';
-import { gouvMethods }                           from './modules/gouvMethods.js';
-import { searchMethods }                         from './modules/searchMethods.js';
-import { projectMethods }                        from './modules/projectMethods.js';
-import { venueMethods }                          from './modules/venueMethods.js';
-import { crmMethods }                            from './modules/crmMethods.js';
-import { appComputed }                           from './modules/appComputed.js';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js';
-import { icalMethods }                            from './modules/icalMethods.js';
+import { utilsMethods }                         from './utils.js?v=13';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=13';
+import { planningComputed, planningMethods }    from './planning.js?v=13';
+import { adminMethods }                           from './modules/adminMethods.js?v=13';
+import { mapMethods }                             from './modules/mapMethods.js?v=13';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=13';
+import { importMethods }                         from './modules/importMethods.js?v=13';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=13';
+import { searchMethods }                         from './modules/searchMethods.js?v=13';
+import { projectMethods }                        from './modules/projectMethods.js?v=13';
+import { venueMethods }                          from './modules/venueMethods.js?v=13';
+import { crmMethods }                            from './modules/crmMethods.js?v=13';
+import { appComputed }                           from './modules/appComputed.js?v=13';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=13';
+import { icalMethods }                            from './modules/icalMethods.js?v=13';
+import { updateMethods }                          from './modules/updateMethods.js?v=13';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -108,6 +109,12 @@ createApp({
             structFiltersOpen:       false,
             structSortField:         'name',   // 'name' | 'city'
             structSortDir:           'asc',    // 'asc' | 'desc'
+            // --- Mise à jour de l'application ---
+            appVersion:              '',
+            serverVersion:           '',
+            updateAvailable:         false,
+            updateNotes:             '',
+            updateDismissedVersion:  '',
             contactViewMode: 'grid',
             contactSubTab: 'annuaire',
             currentSearch: { name: '', criteria: [], filterCity: '', filterStatus: '', filterRegion: '' },
@@ -379,6 +386,7 @@ createApp({
         ...crmMethods,
         ...collaboratorMethods,
         ...icalMethods,
+        ...updateMethods,
 
         // --- AUTHENTIFICATION FIREBASE ---
         async handleAuth() {
@@ -905,6 +913,9 @@ async removeGlobalTag(familyName, tag) {
     // LIFECYCLE
     // ─────────────────────────────────────────────────────────────────────────
     mounted() {
+        // Surveillance des nouvelles versions déployées (indépendante de la connexion)
+        this.startUpdateChecker();
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 this.currentUser     = user.uid;
