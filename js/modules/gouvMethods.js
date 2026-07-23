@@ -1,6 +1,8 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
+import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js';
+
 export const gouvMethods = {
 
     // --- IMPORT CULTURE.GOUV.FR ---
@@ -225,11 +227,21 @@ export const gouvMethods = {
                     lat = parseFloat(r.latitude);
                     lng = parseFloat(r.longitude);
                 }
+                // Identifiant stable du jeu de données (si l'API le fournit).
+                // Capture opportuniste : si absent, rien ne casse.
+                const govId = r.recordid || r.record_id || r.identifiant
+                    || r.id_lieu || r.identifiant_lieu || r.code_uai || '';
+                // SIRET / licence si présents dans le jeu de données
+                const siret   = r.siret || r.numero_siret || r.siret_etablissement || '';
+                const licence = r.licence || r.numero_licence || r.licences || '';
                 return {
                     id:        `gouv_${offset}_${i}_${nom.replace(/\s/g,'').substring(0,20)}`,
                     nom, adresse, cp, ville, type, domaine, site,
                     telephone: tel, dept, region,
                     lat, lng,
+                    govId: String(govId || ''),
+                    siret: String(siret || ''),
+                    licence: String(licence || ''),
                     hasGps: !!(lat),
                 };
             }).filter(r => r.nom); // Ignorer les lignes sans nom
@@ -270,11 +282,38 @@ export const gouvMethods = {
         });
     },
 
+    // Convertit un résultat de recherche gouv en objet "structure" comparable.
+    _gouvToStruct(lieu) {
+        return {
+            name:    lieu.nom     || '',
+            city:    lieu.ville   || '',
+            zip:     lieu.cp      || '',
+            address: lieu.adresse || '',
+            region:  lieu.region  || '',
+            website: lieu.site    || '',
+            phone1:  lieu.telephone || '',
+            email:   '',
+            siret:   lieu.siret   || '',
+            licence: lieu.licence || '',
+            govId:   lieu.govId   || '',
+            lat:     lieu.lat,
+            lng:     lieu.lng,
+        };
+    },
+
+    // Rapprochement via le moteur partagé (structMatch.js).
+    _gouvMatch(lieu) {
+        return matchStructure(this._gouvToStruct(lieu), this.db.structures);
+    },
+
+    // Badge "Déjà importé" dans la liste de résultats : uniquement les certitudes.
     gouvAlreadyExists(lieu) {
-        return this.db.structures.some(s =>
-            s.name.toLowerCase() === (lieu.nom || '').toLowerCase() &&
-            (s.city || '').toLowerCase() === (lieu.ville || '').toLowerCase()
-        );
+        return this._gouvMatch(lieu).status === 'auto';
+    },
+
+    // Badge "À vérifier" : doublon probable, mais l'utilisateur tranchera.
+    gouvMaybeExists(lieu) {
+        return this._gouvMatch(lieu).status === 'suggest';
     },
 
     // Mapping type gouv → tag catégorie
@@ -296,10 +335,39 @@ export const gouvMethods = {
 
     async importGouvSelected() {
         if (!this.gouvImport.selected.length) return;
-        let imported = 0, skipped = 0;
+        let imported = 0, merged = 0;
+        const mergeReport = [];   // fusions automatiques (avec conflits éventuels)
+        const toReview    = [];   // doublons probables : décision de l'utilisateur
 
         this.gouvImport.selected.forEach(lieu => {
-            if (this.gouvAlreadyExists(lieu)) { skipped++; return; }
+            const incoming = this._gouvToStruct(lieu);
+            const m = matchStructure(incoming, this.db.structures);
+
+            // ── Doublon certain : on enrichit la fiche existante ──
+            if (m.status === 'auto' && m.target) {
+                const catTag = this.gouvTypeToTag(lieu.type);
+                if (catTag) {
+                    incoming.tags = { categories: [catTag], genres: [], reseaux: [], keywords: [] };
+                }
+                const { filled, conflicts } = mergeInto(m.target, incoming);
+                if (filled.length || conflicts.length) {
+                    m.target.comments = Array.isArray(m.target.comments) ? m.target.comments : [];
+                    m.target.comments.push(buildMergeComment({
+                        source: 'data.culture.gouv.fr', filled, conflicts, user: this.currentUserName,
+                    }));
+                    m.target.updatedAt = new Date().toISOString();
+                    m.target.updatedBy = this.currentUserName;
+                }
+                merged++;
+                mergeReport.push({ name: m.target.name, reason: m.reasons[0] || '', filled, conflicts });
+                return;
+            }
+
+            // ── Doublon probable : mis de côté, importé mais signalé ──
+            if (m.status === 'suggest' && m.target) {
+                toReview.push({ incomingName: lieu.nom, existingName: m.target.name, reason: m.reasons[0] || '' });
+            }
+
             const catTag = this.gouvTypeToTag(lieu.type);
             const now = new Date().toISOString();
             const newStruct = {
@@ -321,6 +389,10 @@ export const gouvMethods = {
                 fax:            '',
                 email:          '',
                 website:        lieu.site,
+                siret:          lieu.siret   || '',
+                licence:        lieu.licence || '',
+                govId:          lieu.govId   || '',
+                aliases:        [],
                 capacity:       '',
                 season:         '',
                 hours:          '',
@@ -349,10 +421,43 @@ export const gouvMethods = {
         this.gouvImport.selected = [];
         this.showGouvImport = false;
 
+        // ── Bilan détaillé ──
+        const esc = v => String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const conflicts = mergeReport.filter(r => r.conflicts.length);
+        let html = `<div class="text-left text-sm space-y-2">`;
+        html += `<p><b>${imported}</b> structure(s) créée(s)</p>`;
+        if (merged) {
+            html += `<p class="text-emerald-600"><b>${merged}</b> rattachée(s) à une fiche existante (données complétées)</p>`;
+        }
+        if (toReview.length) {
+            html += `<div class="text-orange-600">
+                        <p><b>${toReview.length}</b> doublon(s) possible(s) — créées, à vérifier :</p>
+                        <ul class="text-xs mt-1 ml-4 list-disc">`
+                 + toReview.slice(0, 8).map(r =>
+                        `<li>« ${esc(r.incomingName)} » ≈ « ${esc(r.existingName)} »<br><span class="text-slate-400">${esc(r.reason)}</span></li>`
+                   ).join('')
+                 + (toReview.length > 8 ? `<li>… et ${toReview.length - 8} autre(s)</li>` : '')
+                 + `</ul></div>`;
+        }
+        if (conflicts.length) {
+            html += `<div class="text-slate-500 border-t pt-2 mt-2">
+                        <p class="text-xs"><b>${conflicts.length}</b> fiche(s) avec données divergentes — valeur existante conservée, détail dans les commentaires de la fiche :</p>
+                        <ul class="text-xs mt-1 ml-4 list-disc">`
+                 + conflicts.slice(0, 5).map(r =>
+                        `<li>${esc(r.name)} — ${r.conflicts.map(c => esc(c.label)).join(', ')}</li>`
+                   ).join('')
+                 + (conflicts.length > 5 ? `<li>… et ${conflicts.length - 5} autre(s)</li>` : '')
+                 + `</ul></div>`;
+        }
+        html += `</div>`;
+
         Swal.fire({
-            title: `Import terminé ✓`,
-            html:  `<b>${imported}</b> structure(s) importée(s)${skipped > 0 ? `<br><span class="text-orange-500">${skipped} déjà existante(s) — ignorée(s)</span>` : ''}`,
+            title: 'Import terminé ✓',
+            html,
             icon:  'success',
+            width: 560,
             confirmButtonColor: '#059669'
         });
     },
