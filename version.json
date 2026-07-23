@@ -1,4 +1,4 @@
 {
-  "version": "13",
-  "notes": ""
+  "version": "14",
+  "notes": "Détection des doublons à l'import et à la saisie"
 }
