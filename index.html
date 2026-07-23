@@ -3358,11 +3358,13 @@
             </div>
             <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                 <div v-for="(pair, i) in duplicatePairs" :key="i" class="border border-slate-200 rounded-2xl p-4">
-                    <div class="flex items-center gap-2 mb-3">
+                    <div class="flex flex-wrap items-center gap-2 mb-3">
                         <span class="text-xs font-black px-2 py-1 rounded-full"
-                              :class="pair.score >= 90 ? 'bg-red-100 text-red-700' : pair.score >= 75 ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'">
-                            {{ pair.score }}% similaire
+                              :class="pair.level === 'auto' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'">
+                            <i class="fas fa-link mr-1"></i>{{ pair.level === 'auto' ? 'Doublon très probable' : 'À vérifier' }}
                         </span>
+                        <span v-for="(r, ri) in pair.reasons" :key="ri"
+                              class="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded-full">{{ r }}</span>
                         <span v-if="pair.sameCity" class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full"><i class="fas fa-map-marker-alt mr-1"></i>Même ville</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 mb-3">
@@ -3395,7 +3397,7 @@
                             <button @click="cancelMerge()" class="text-xs font-bold px-3 py-1.5 bg-white text-slate-500 hover:bg-slate-50 rounded-lg border transition">Annuler</button>
                         </div>
                     </div>
-                    <button @click="duplicatePairs.splice(i, 1)" class="mt-2 text-[10px] text-slate-400 hover:text-slate-600 transition"><i class="fas fa-eye-slash mr-1"></i>Ignorer</button>
+                    <button @click="ignoreDuplicatePair(i)" data-tooltip="Ces deux fiches ne seront plus jamais proposées ensemble" class="mt-2 text-[10px] text-slate-400 hover:text-slate-600 transition"><i class="fas fa-eye-slash mr-1"></i>Ignorer définitivement</button>
                 </div>
             </div>
             <div class="p-4 border-t border-slate-100 flex justify-between items-center">
@@ -4399,7 +4401,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=16"></script>
+<script type="module" src="./js/app.js?v=17"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
