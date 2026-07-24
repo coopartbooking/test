@@ -1663,7 +1663,7 @@
                                <td class="p-4 text-right whitespace-nowrap">
     <button @click="openCrmView(s)" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-1.5 rounded-lg text-xs font-bold transition mr-2 shadow-sm"><i class="fas fa-folder-open mr-1"></i> Fiche CRM</button>
     <button @click="exportStructurePDF(s)" class="text-slate-300 hover:text-indigo-500 px-2 transition" data-tooltip="Exporter la fiche en PDF"><i class="fas fa-file-pdf"></i></button>
-    <button @click="deleteStructure(s)" class="text-slate-300 hover:text-red-500 px-2 transition"><i class="fas fa-trash"></i></button>
+    <button v-if="canEdit" @click="deleteStructure(s)" class="text-slate-300 hover:text-red-500 px-2 transition" data-tooltip="Supprimer cette structure"><i class="fas fa-trash"></i></button>
 </td> 
                             </tr>
                         </tbody>
@@ -2763,7 +2763,7 @@
                         <select v-if="editTaskData.relType" v-model="editTaskData.relId" class="input-field w-2/3">
                             <option value="" disabled>Sélectionnez...</option>
                             <template v-if="editTaskData.relType==='contact'"><option v-for="c in filteredContacts" :value="c.id">{{ c.name }} ({{ c.structName }})</option></template>
-                            <template v-if="editTaskData.relType==='structure'"><option v-for="s in db.structures" :value="s.id">{{ s.name }} ({{ s.city }})</option></template>
+                            <template v-if="editTaskData.relType==='structure'"><option v-for="s in sortedStructures" :key="s.id" :value="s.id">{{ s.name }} ({{ s.city }})</option></template>
                             <template v-if="editTaskData.relType==='event'"><option v-for="e in db.events" :value="e.id">{{ e.date ? formatDate(e.date) : 'À définir' }} - {{ e.venueName || 'Lieu inconnu' }}</option></template>
                             <template v-if="editTaskData.relType==='project'"><option v-for="p in db.projects" :value="p.id">{{ p.name }}</option></template>
                         </select>
@@ -3482,7 +3482,11 @@
                     <button @click="goToTasksFromCrm" class="bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold transition flex items-center shadow-sm"><i class="fas fa-tasks mr-2"></i> Voir / Lier Tâche</button>
                     <div class="w-px h-8 bg-slate-200 mx-1"></div>
                     <button @click="showCrmModal = false" class="text-slate-500 hover:text-red-500 px-3 py-2 text-sm font-bold transition">Fermer</button>
-                    <button @click="saveCrmStruct" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center"><i class="fas fa-save mr-2"></i> Enregistrer</button>
+                    <button @click="saveCrmStruct" :disabled="!canEdit"
+                            :data-tooltip="canEdit ? null : 'Lecture seule : votre rôle ne permet pas d\'enregistrer'"
+                            :class="canEdit ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'"
+                            class="px-6 py-2 rounded-lg text-sm font-bold transition flex items-center">
+                        <i :class="canEdit ? 'fas fa-save' : 'fas fa-lock'" class="mr-2"></i> {{ canEdit ? 'Enregistrer' : 'Lecture seule' }}</button>
                 </div>
             </div>
 
@@ -4119,7 +4123,7 @@
                         <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Structure</label>
                         <select v-model="exportMapping.filterStruct" class="input-field text-sm">
                             <option value="">Toutes</option>
-                            <option v-for="s in db.structures" :key="s.id" :value="s.id">{{ s.name }}</option>
+                            <option v-for="s in sortedStructures" :key="s.id" :value="s.id">{{ s.name }}</option>
                         </select>
                     </div>
                     <div>
@@ -4443,7 +4447,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=19"></script>
+<script type="module" src="./js/app.js?v=20"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
