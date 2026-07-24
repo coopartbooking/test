@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=19';
+import { auth, dbFirestore }                                              from './firebase.js?v=20';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=19';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=19';
-import { planningComputed, planningMethods }    from './planning.js?v=19';
-import { adminMethods }                           from './modules/adminMethods.js?v=19';
-import { mapMethods }                             from './modules/mapMethods.js?v=19';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=19';
-import { importMethods }                         from './modules/importMethods.js?v=19';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=19';
-import { searchMethods }                         from './modules/searchMethods.js?v=19';
-import { projectMethods }                        from './modules/projectMethods.js?v=19';
-import { venueMethods }                          from './modules/venueMethods.js?v=19';
-import { crmMethods }                            from './modules/crmMethods.js?v=19';
-import { appComputed }                           from './modules/appComputed.js?v=19';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=19';
-import { icalMethods }                            from './modules/icalMethods.js?v=19';
-import { updateMethods }                          from './modules/updateMethods.js?v=19';
+import { utilsMethods }                         from './utils.js?v=20';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=20';
+import { planningComputed, planningMethods }    from './planning.js?v=20';
+import { adminMethods }                           from './modules/adminMethods.js?v=20';
+import { mapMethods }                             from './modules/mapMethods.js?v=20';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=20';
+import { importMethods }                         from './modules/importMethods.js?v=20';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=20';
+import { searchMethods }                         from './modules/searchMethods.js?v=20';
+import { projectMethods }                        from './modules/projectMethods.js?v=20';
+import { venueMethods }                          from './modules/venueMethods.js?v=20';
+import { crmMethods }                            from './modules/crmMethods.js?v=20';
+import { appComputed }                           from './modules/appComputed.js?v=20';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=20';
+import { icalMethods }                            from './modules/icalMethods.js?v=20';
+import { updateMethods }                          from './modules/updateMethods.js?v=20';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -981,9 +981,14 @@ async removeGlobalTag(familyName, tag) {
                     const userRoles  = cfg2.userRoles || {};
                     const inUserRoles = userRoles.hasOwnProperty(user.email);
                     // Priorité : userRoles > adminEmails > editeur par défaut
+                    // Priorité : userRoles > adminEmails > lecteur par défaut.
+                    // ⚠️ Le défaut DOIT rester 'lecteur' : c'est celui des règles
+                    // Firestore (userRoles.get(email, 'lecteur')). Tout autre défaut
+                    // rendrait l'interface plus permissive que la base, et l'utilisateur
+                    // verrait ses enregistrements échouer sans comprendre pourquoi.
                     const newRole = inUserRoles
                         ? userRoles[user.email]
-                        : (this.adminEmails.includes(user.email) ? 'admin' : 'editeur');
+                        : (this.adminEmails.includes(user.email) ? 'admin' : 'lecteur');
                     const prevRole = this.userRole;
                     this.userRole  = newRole;
                     // Si le rôle a changé après le chargement initial → recharger

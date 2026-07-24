@@ -1,6 +1,20 @@
 // contacts.js — Computed et méthodes pour l'annuaire
 
 export const contactsComputed = {
+    // Liste alphabétique de TOUTES les structures, sans les filtres de l'onglet
+    // Structures. Destinée aux menus déroulants : un filtre posé ailleurs ne
+    // doit jamais masquer une structure dans une liste de sélection.
+    sortedStructures() {
+        return (this.db.structures || []).slice().sort((a, b) => {
+            const va = (a.name || '').trim();
+            const vb = (b.name || '').trim();
+            if (!va && !vb) return 0;
+            if (!va) return 1;
+            if (!vb) return -1;
+            return va.localeCompare(vb, 'fr', { sensitivity: 'base', numeric: true });
+        });
+    },
+
     filteredStructures() {
         const s        = (this.searchStruct       || '').toLowerCase().trim();
         const cat      = this.structFilterCat      || '';
