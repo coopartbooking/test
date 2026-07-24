@@ -2,7 +2,7 @@
 // Section : entre // --- MOTEUR CRM --- et // --- ADMIN ---
 // Note : nextTick() remplacé par this.$nextTick() (équivalent dans le contexte composant Vue)
 
-import { matchStructure, addAlias, scanDuplicates, markNotDuplicate } from './structMatch.js?v=18';
+import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=19';
 
 export const crmMethods = {
 
@@ -355,8 +355,16 @@ export const crmMethods = {
 
         const r = await Swal.fire({
             title: 'Confirmer la fusion ?',
-            html: `<p>La fiche <strong>${src.name}</strong> sera absorbée dans <strong>${tgt.name}</strong>.</p>
-                   <p class="text-sm text-slate-500 mt-2">Les contacts, commentaires et tags seront fusionnés.<br>La fiche source sera supprimée.</p>`,
+            html: `<div class="text-left text-sm space-y-2">
+                     <p>Tout le contenu de <strong>${src.name}</strong> sera ajouté à <strong>${tgt.name}</strong> :</p>
+                     <ul class="text-xs text-slate-600 ml-4 list-disc">
+                       <li>contacts (les doublons d'email sont ignorés)</li>
+                       <li>commentaires, tags, champs vides complétés</li>
+                       <li>affaires reliées, reportées automatiquement</li>
+                       <li><b>« ${src.name} » sera conservé comme autre nom</b> — les prochains imports le reconnaîtront</li>
+                     </ul>
+                     <p class="text-xs text-slate-400">Aucune donnée n'est perdue : seule la fiche en double disparaît.</p>
+                   </div>`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#4f46e5',
@@ -394,15 +402,32 @@ export const crmMethods = {
             merged.tags[key] = [...existing];
         });
 
-        // Compléter les champs vides
-        ['phone1', 'phone2', 'mobile', 'email', 'website', 'address', 'zip', 'capacity', 'season', 'notes'].forEach(field => {
-            if (!merged[field] && src[field]) merged[field] = src[field];
-        });
-        // GPS
-        if ((!merged.lat || !merged.lng) && src.lat && src.lng) {
-            merged.lat = src.lat;
-            merged.lng = src.lng;
+        // Compléter les champs vides via le moteur partagé : aucun champ n'est
+        // oublié (siret, licence, govId inclus) et les conflits sont tracés.
+        const { filled, conflicts, aliasAdded } = mergeInto(merged, src);
+
+        // Notes : concaténation plutôt qu'écrasement
+        if (src.notes && merged.notes && src.notes.trim() !== merged.notes.trim()) {
+            merged.notes = `${merged.notes}\n\n--- Depuis ${src.name} ---\n${src.notes}`;
+        } else if (src.notes && !merged.notes) {
+            merged.notes = src.notes;
         }
+
+        // Le nom absorbé est déjà enregistré comme alias par mergeInto ;
+        // on reprend en plus les alias que portait la fiche absorbée.
+        (src.aliases || []).forEach(a => addAlias(merged, a));
+
+        // Conserver les refus "Ignorer" des deux fiches
+        const refus = new Set([...(merged.notDuplicates || []), ...(src.notDuplicates || [])]);
+        refus.delete(String(src.id));
+        merged.notDuplicates = [...refus];
+
+        // Trace de la fusion dans les commentaires
+        merged.comments.push(buildMergeComment({
+            source: `fusion de « ${src.name} »`, filled, conflicts, user: this.currentUserName,
+        }));
+        merged.updatedAt = new Date().toISOString();
+        merged.updatedBy = this.currentUserName;
 
         // Mettre à jour les affaires qui référencent la source
         (this.db.events || []).forEach(e => {
@@ -424,7 +449,8 @@ export const crmMethods = {
 
         Swal.fire({
             title: 'Fusion effectuée ✓',
-            html: `<strong>${src.name}</strong> a été fusionné dans <strong>${tgt.name}</strong>.`,
+            html: `<strong>${src.name}</strong> a été fusionné dans <strong>${tgt.name}</strong>.`
+                   + (aliasAdded ? `<br><span class="text-xs text-slate-500">« ${aliasAdded} » enregistré comme autre nom.</span>` : ''),
             icon: 'success',
             toast: true, position: 'top-end', timer: 3000, showConfirmButton: false,
         });
