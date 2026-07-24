@@ -2,7 +2,7 @@
 // Section : entre // --- MOTEUR CRM --- et // --- ADMIN ---
 // Note : nextTick() remplacé par this.$nextTick() (équivalent dans le contexte composant Vue)
 
-import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=23';
+import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=24';
 
 export const crmMethods = {
 
@@ -347,6 +347,77 @@ export const crmMethods = {
             this.saveDB();
         }
         this.duplicatePairs.splice(i, 1);
+    },
+
+    // Répare les valeurs "Suivi commercial par" contenant un identifiant
+    // technique (UID Firebase) au lieu d'un nom. Cause : un ancien import
+    // retombait sur currentUser (l'UID) au lieu de currentUserName.
+    async repairSuiviPar() {
+        const isUid = v => /^[A-Za-z0-9]{20,}$/.test(String(v || '').trim());
+
+        // Repérage préalable, sans rien modifier
+        const found = [];
+        (this.db.structures || []).forEach(s => {
+            (s.contacts || []).forEach(c => {
+                if (isUid(c.suiviPar)) found.push({ struct: s, contact: c, uid: String(c.suiviPar).trim() });
+            });
+        });
+
+        if (!found.length) {
+            return Swal.fire({
+                title: 'Rien à corriger ✓',
+                html: 'Aucun contact ne contient d\'identifiant technique dans « Suivi commercial par ».',
+                icon: 'success', confirmButtonColor: '#4f46e5',
+            });
+        }
+
+        // Correspondance UID → nom, depuis la liste des collaborateurs
+        if (!this.collaboratorsList || !this.collaboratorsList.length) {
+            await this.loadCollaborators();
+        }
+        const nameByUid = {};
+        (this.collaboratorsList || []).forEach(col => {
+            if (col.uid) nameByUid[col.uid] = col.displayName || col.email || '';
+        });
+
+        const uids = [...new Set(found.map(f => f.uid))];
+        const known   = uids.filter(u => nameByUid[u]);
+        const unknown = uids.filter(u => !nameByUid[u]);
+        const esc = v => String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const r = await Swal.fire({
+            title: 'Corriger « Suivi commercial par » ?',
+            html: `<div class="text-left text-sm space-y-2">
+                     <p><b>${found.length}</b> contact(s) contiennent un identifiant technique.</p>
+                     ${known.length ? `<p class="text-emerald-600">Correspondance trouvée pour :</p>
+                       <ul class="text-xs ml-4 list-disc">${known.map(u => `<li>${esc(nameByUid[u])}</li>`).join('')}</ul>` : ''}
+                     ${unknown.length ? `<p class="text-orange-600 text-xs">${unknown.length} identifiant(s) sans correspondance (compte supprimé) : le champ sera vidé.</p>` : ''}
+                   </div>`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Corriger',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#4f46e5',
+        });
+        if (!r.isConfirmed) return;
+
+        let fixed = 0, cleared = 0;
+        const now = new Date().toISOString();
+        found.forEach(f => {
+            const name = nameByUid[f.uid];
+            if (name) { f.contact.suiviPar = name; fixed++; }
+            else      { f.contact.suiviPar = '';   cleared++; }
+            f.struct.updatedAt = now;
+            f.struct.updatedBy = this.currentUserName;
+        });
+        await this.saveDB();
+
+        Swal.fire({
+            title: 'Correction terminée ✓',
+            html: `<b>${fixed}</b> contact(s) corrigé(s)${cleared ? `<br><span class="text-slate-500 text-sm">${cleared} champ(s) vidé(s), identifiant sans correspondance.</span>` : ''}`,
+            icon: 'success', confirmButtonColor: '#059669',
+        });
     },
 
     // Prépare la fusion : source = à absorber, target = à conserver

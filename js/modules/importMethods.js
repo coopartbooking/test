@@ -1,7 +1,7 @@
 // js/modules/importMethods.js — Import Excel, Export natif CRM, modale Projet
 // Section : entre // --- IMPORT EXCEL --- et // --- IMPORT CULTURE.GOUV.FR ---
 
-import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=23';
+import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=24';
 
 // Couleurs par défaut des projets (même constante que dans app.js)
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -140,7 +140,7 @@ export const importMethods = {
                         createdDate:  str(cols[base + 19]) || new Date().toISOString(),
                         modifiedDate: str(cols[base + 20]),
                         isActive:     str(cols[base + 21]) !== '0' && str(cols[base + 21]).toLowerCase() !== 'false',
-                        suiviPar:     str(cols[base + 22]) || this.currentUser,
+                        suiviPar:     str(cols[base + 22]) || this.currentUserName,
                         // Colonne Visibilité (nouveau format) : base+23
                         isPrivate:    hasVisibility
                                         ? str(cols[base + 23]).toLowerCase() === 'privé' || str(cols[base + 23]).toLowerCase() === 'prive'
@@ -405,7 +405,7 @@ export const importMethods = {
                                 country:      str(row["Contact - Pays"]),
                                 isVip:        bool(row["Contact - Est prioritaire"]),
                                 isActive:     str(row["Contact - Est actif"]) !== '0',
-                                suiviPar:     str(row["Contact - Suivi par"]) || this.currentUser,
+                                suiviPar:     str(row["Contact - Suivi par"]) || this.currentUserName,
                                 createdDate:  str(row["Contact - Créé le"])   || new Date().toISOString(),
                                 modifiedDate: str(row["Contact - Modifié le"]),
                                 isPrivate:    str(row["Contact - Statut"]) === 'Privé',
