@@ -1,4 +1,4 @@
 {
-  "version": "18",
-  "notes": "Détection de doublons unifiée sur tout l'annuaire"
+  "version": "19",
+  "notes": "Fusion enrichie, alias visibles, tri de l'annuaire"
 }
