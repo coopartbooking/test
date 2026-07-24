@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=18';
+import { auth, dbFirestore }                                              from './firebase.js?v=19';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=18';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=18';
-import { planningComputed, planningMethods }    from './planning.js?v=18';
-import { adminMethods }                           from './modules/adminMethods.js?v=18';
-import { mapMethods }                             from './modules/mapMethods.js?v=18';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=18';
-import { importMethods }                         from './modules/importMethods.js?v=18';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=18';
-import { searchMethods }                         from './modules/searchMethods.js?v=18';
-import { projectMethods }                        from './modules/projectMethods.js?v=18';
-import { venueMethods }                          from './modules/venueMethods.js?v=18';
-import { crmMethods }                            from './modules/crmMethods.js?v=18';
-import { appComputed }                           from './modules/appComputed.js?v=18';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=18';
-import { icalMethods }                            from './modules/icalMethods.js?v=18';
-import { updateMethods }                          from './modules/updateMethods.js?v=18';
+import { utilsMethods }                         from './utils.js?v=19';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=19';
+import { planningComputed, planningMethods }    from './planning.js?v=19';
+import { adminMethods }                           from './modules/adminMethods.js?v=19';
+import { mapMethods }                             from './modules/mapMethods.js?v=19';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=19';
+import { importMethods }                         from './modules/importMethods.js?v=19';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=19';
+import { searchMethods }                         from './modules/searchMethods.js?v=19';
+import { projectMethods }                        from './modules/projectMethods.js?v=19';
+import { venueMethods }                          from './modules/venueMethods.js?v=19';
+import { crmMethods }                            from './modules/crmMethods.js?v=19';
+import { appComputed }                           from './modules/appComputed.js?v=19';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=19';
+import { icalMethods }                            from './modules/icalMethods.js?v=19';
+import { updateMethods }                          from './modules/updateMethods.js?v=19';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -95,6 +95,7 @@ createApp({
             // Fusion de doublons
             showDuplicatesModal:  false,
             duplicatePairs:       [],
+            expandedDupStruct:    null,
             duplicateMergeSource: null,
             duplicateMergeTarget: null,
 
@@ -109,6 +110,8 @@ createApp({
             structFiltersOpen:       false,
             structSortField:         'name',   // 'name' | 'city'
             structSortDir:           'asc',    // 'asc' | 'desc'
+            contactSortField:        'name',   // 'name' | 'structName' | 'structCity'
+            contactSortDir:          'asc',    // 'asc' | 'desc'
             // --- Mise à jour de l'application ---
             appVersion:              '',
             serverVersion:           '',
