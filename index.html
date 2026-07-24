@@ -3651,7 +3651,7 @@
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
-                            <div v-for="c in currentCrmStruct.contacts" :key="c.id" @click="openCrmContact(c)" class="bg-white border border-slate-200 hover:border-indigo-400 p-4 rounded-xl shadow-sm cursor-pointer transition group relative">
+                            <div v-for="c in visibleCrmContacts" :key="c.id" @click="openCrmContact(c)" class="bg-white border border-slate-200 hover:border-indigo-400 p-4 rounded-xl shadow-sm cursor-pointer transition group relative">
                                 <div class="flex justify-between items-start mb-1">
                                     <div class="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition"><i v-if="c.isVip" class="fas fa-star text-orange-400 mr-1 text-[10px]" title="VIP"></i>{{ c.firstName }} {{ c.lastName }}</div>
                                     <span v-if="c.role" class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded uppercase">{{ c.role }}</span>
@@ -3680,7 +3680,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div><label class="input-label" aria-hidden="true">Prénom</label><input autocomplete="off" autocomplete="off" name="currentCrmContact-firstName" v-model="currentCrmContact.firstName" class="input-field font-bold"></div>
                                 <div><label class="input-label" aria-hidden="true">Nom</label><input autocomplete="off" autocomplete="off" name="currentCrmContact-lastName" v-model="currentCrmContact.lastName" class="input-field font-bold uppercase"></div>
-                                <div class="col-span-2"><label class="input-label" aria-hidden="true">Fonction / Rôle exact</label><input autocomplete="off" name="currentCrmContact-role" v-model="currentCrmContact.role" class="input-field"></div>
+                                <div class="col-span-2"><label class="input-label" aria-hidden="true">Fonction / Rôle exact</label><input autocomplete="off" list="known-roles-list" name="currentCrmContact-role" v-model="currentCrmContact.role" class="input-field" placeholder="Ex: Programmateur, Chargée de diffusion..."><datalist id="known-roles-list"><option v-for="r in knownRoles" :key="r" :value="r"></option></datalist><p class="text-[10px] text-slate-400 mt-1">Les fonctions déjà saisies vous sont proposées automatiquement.</p></div>
                             </div>
                             <div class="grid grid-cols-2 gap-6 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
                                 <div>
@@ -4447,7 +4447,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=21"></script>
+<script type="module" src="./js/app.js?v=22"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
