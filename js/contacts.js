@@ -15,6 +15,31 @@ export const contactsComputed = {
         });
     },
 
+    // Toutes les fonctions déjà saisies, pour alimenter les suggestions du champ
+    // "Fonction / Rôle". Aucun stockage : la liste se construit depuis l'existant
+    // et s'enrichit d'elle-même à chaque nouvelle fonction saisie.
+    knownRoles() {
+        const seen = new Map();   // clé normalisée -> libellé affiché
+        (this.db.structures || []).forEach(s => {
+            (s.contacts || []).forEach(c => {
+                const r = (c.role || '').trim();
+                if (!r) return;
+                const k = r.toLowerCase();
+                if (!seen.has(k)) seen.set(k, r);
+            });
+        });
+        return [...seen.values()].sort((a, b) =>
+            a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true }));
+    },
+
+    // Contacts affichables de la fiche structure ouverte : masque les contacts
+    // privés appartenant à quelqu'un d'autre. Sans cela, la fiche laissait voir
+    // les contacts privés de tous les collaborateurs.
+    visibleCrmContacts() {
+        const list = (this.currentCrmStruct && this.currentCrmStruct.contacts) || [];
+        return list.filter(c => !(c.isPrivate && c.owner && c.owner !== this.currentUser));
+    },
+
     filteredStructures() {
         const s        = (this.searchStruct       || '').toLowerCase().trim();
         const cat      = this.structFilterCat      || '';
@@ -65,7 +90,7 @@ export const contactsComputed = {
         let all = [];
         this.db.structures.forEach(s => {
             if (s.contacts) s.contacts.forEach(c => {
-                if (c.isPrivate && c.owner !== this.currentUser) return;
+                if (c.isPrivate && c.owner && c.owner !== this.currentUser) return;
                 // Normalise le nom : priorité firstName+lastName, fallback sur name
                 const displayName = (c.firstName || c.lastName)
                     ? `${c.firstName || ''} ${c.lastName || ''}`.trim()
@@ -100,7 +125,7 @@ export const contactsComputed = {
         let all = [];
         (this.db.structures || []).forEach(s => {
             (s.contacts || []).forEach(c => {
-                if (c.isPrivate && c.owner !== this.currentUser) return;
+                if (c.isPrivate && c.owner && c.owner !== this.currentUser) return;
                 // Priorité : emailPro (CRM) > emails[0] (ancien format) > email
                 const primary = c.emailPro
                     || (c.emails && c.emails.length > 0 ? c.emails[0] : '')
