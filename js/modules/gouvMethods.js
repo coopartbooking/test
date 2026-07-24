@@ -1,7 +1,7 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
-import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=21';
+import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=22';
 
 // Ressource "Basilic" sur data.gouv.fr (CSV interrogeable via l'API tabulaire).
 // Mis à jour le 18/02/2026 — 86 366 lieux. Voir :

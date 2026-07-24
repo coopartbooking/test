@@ -2,7 +2,7 @@
 // Section : entre // --- MOTEUR CRM --- et // --- ADMIN ---
 // Note : nextTick() remplacé par this.$nextTick() (équivalent dans le contexte composant Vue)
 
-import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=21';
+import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=22';
 
 export const crmMethods = {
 
@@ -70,6 +70,14 @@ export const crmMethods = {
 
         const idx = this.db.structures.findIndex(x => x.id === this.currentCrmStruct.id);
         const now = new Date().toISOString();
+
+        // Confidentialité des contacts : un contact marqué privé DOIT porter un
+        // propriétaire, sinon il devient invisible pour tout le monde (le filtre
+        // compare owner à l'utilisateur courant). On le pose ici plutôt qu'à la
+        // création, pour couvrir tous les chemins (saisie, import, duplication).
+        (this.currentCrmStruct.contacts || []).forEach(c => {
+            if (c.isPrivate && !c.owner) c.owner = this.currentUser;
+        });
 
         // ── Détection de doublon à la création manuelle ──
         // Uniquement sur une NOUVELLE fiche : on ne dérange jamais lors d'une modification.
