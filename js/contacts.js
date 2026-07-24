@@ -15,6 +15,31 @@ export const contactsComputed = {
         });
     },
 
+    // Noms déjà utilisés dans "Suivi commercial par", pour alimenter les
+    // suggestions. Les identifiants techniques (UID Firebase) sont écartés :
+    // ils n'ont rien à faire dans une liste destinée à l'utilisateur.
+    knownFollowers() {
+        const isUid = v => /^[A-Za-z0-9]{20,}$/.test(v);
+        const seen = new Map();
+        (this.db.structures || []).forEach(s => {
+            (s.contacts || []).forEach(c => {
+                const v = (c.suiviPar || '').trim();
+                if (!v || isUid(v)) return;
+                const k = v.toLowerCase();
+                if (!seen.has(k)) seen.set(k, v);
+            });
+        });
+        // Complété par les collaborateurs connus (panneau admin déjà chargé)
+        (this.collaboratorsList || []).forEach(col => {
+            const v = (col.displayName || '').trim();
+            if (!v) return;
+            const k = v.toLowerCase();
+            if (!seen.has(k)) seen.set(k, v);
+        });
+        return [...seen.values()].sort((a, b) =>
+            a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true }));
+    },
+
     // Toutes les fonctions déjà saisies, pour alimenter les suggestions du champ
     // "Fonction / Rôle". Aucun stockage : la liste se construit depuis l'existant
     // et s'enrichit d'elle-même à chaque nouvelle fonction saisie.
