@@ -1582,6 +1582,11 @@
                                 class="flex items-center gap-2 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-xl text-xs font-bold transition">
                             <i class="fas fa-compress-arrows-alt"></i> Doublons
                         </button>
+                        <button v-if="isAdmin" @click="repairSuiviPar()"
+                                data-tooltip="Remplacer les identifiants techniques par les noms dans « Suivi commercial par »"
+                                class="flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 rounded-xl text-xs font-bold transition">
+                            <i class="fas fa-wrench"></i> Réparer « Suivi par »
+                        </button>
                     </div>
 
                     <!-- Ligne 2 : filtres avancés (dépliables) -->
@@ -3701,7 +3706,7 @@
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label class="input-label" aria-hidden="true">Suivi Commercial par</label><input autocomplete="off" name="currentCrmContact-suiviPar" v-model="currentCrmContact.suiviPar" class="input-field text-sm" placeholder="Nom du commercial"></div>
+                                <div><label class="input-label" aria-hidden="true">Suivi Commercial par</label><input autocomplete="off" list="known-followers-list" name="currentCrmContact-suiviPar" v-model="currentCrmContact.suiviPar" class="input-field text-sm" placeholder="Nom du commercial"><datalist id="known-followers-list"><option v-for="f in knownFollowers" :key="f" :value="f"></option></datalist></div>
                                 <div>
                                     <label class="input-label" aria-hidden="true">Région</label>
                                     <select v-model="currentCrmContact.region" class="input-field text-sm">
@@ -4447,7 +4452,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=23"></script>
+<script type="module" src="./js/app.js?v=24"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
