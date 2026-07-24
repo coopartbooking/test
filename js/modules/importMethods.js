@@ -1,7 +1,7 @@
 // js/modules/importMethods.js — Import Excel, Export natif CRM, modale Projet
 // Section : entre // --- IMPORT EXCEL --- et // --- IMPORT CULTURE.GOUV.FR ---
 
-import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=20';
+import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=21';
 
 // Couleurs par défaut des projets (même constante que dans app.js)
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -56,18 +56,18 @@ export const importMethods = {
                         if (target) {
                             d.resolved = target;
                             countMerged++;
-                            addAlias(target, name);
+                            const alias1 = addAlias(target, name);
                             if (incoming) {
-                                const { filled, conflicts } = mergeInto(target, incoming);
+                                const { filled, conflicts, aliasAdded } = mergeInto(target, incoming);
                                 if (filled.length || conflicts.length) {
                                     target.comments = Array.isArray(target.comments) ? target.comments : [];
                                     target.comments.push(buildMergeComment({
                                         source: 'import fichier', filled, conflicts, user: this.currentUserName,
                                     }));
                                 }
-                                mergeLog.push({ name: target.name, reason: d.reason || '', conflicts });
+                                mergeLog.push({ name: target.name, reason: d.reason || '', conflicts, aliasAdded: alias1 || aliasAdded });
                             } else {
-                                mergeLog.push({ name: target.name, reason: d.reason || '', conflicts: [] });
+                                mergeLog.push({ name: target.name, reason: d.reason || '', conflicts: [], aliasAdded: alias1 });
                             }
                             return target;
                         }
@@ -81,8 +81,8 @@ export const importMethods = {
                             if (target) {
                                 d.resolved = target;
                                 countMerged++;
-                                addAlias(target, name);
-                                mergeLog.push({ name: target.name, reason: d.reason || 'doublon dans le fichier', conflicts: [] });
+                                const alias2 = addAlias(target, name);
+                                mergeLog.push({ name: target.name, reason: d.reason || 'doublon dans le fichier', conflicts: [], aliasAdded: alias2 });
                                 return target;
                             }
                         }
@@ -428,6 +428,17 @@ export const importMethods = {
                 htmlR += `<p><b>${countStructs}</b> nouvelle(s) structure(s) créée(s)</p>`;
                 if (countMerged) {
                     htmlR += `<p class="text-emerald-600"><b>${countMerged}</b> rattachée(s) à une fiche existante</p>`;
+                }
+                const aliasesLearned = mergeLog.filter(m => m.aliasAdded);
+                if (aliasesLearned.length) {
+                    htmlR += `<div class="text-indigo-600 border-t pt-2 mt-2">
+                                <p class="text-xs"><i class="fas fa-tags mr-1"></i><b>${aliasesLearned.length}</b> nouvelle(s) variante(s) de nom mémorisée(s) — les prochains imports les reconnaîtront automatiquement :</p>
+                                <ul class="text-xs mt-1 ml-4 list-disc">`
+                              + aliasesLearned.slice(0, 6).map(m =>
+                                    `<li>« ${escR(m.aliasAdded)} » → ${escR(m.name)}</li>`
+                                ).join('')
+                              + (aliasesLearned.length > 6 ? `<li>… et ${aliasesLearned.length - 6} autre(s)</li>` : '')
+                              + `</ul></div>`;
                 }
                 if (withConflicts.length) {
                     htmlR += `<div class="text-slate-500 border-t pt-2 mt-2">

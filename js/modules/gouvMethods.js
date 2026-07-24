@@ -1,7 +1,7 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
-import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=20';
+import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=21';
 
 // Ressource "Basilic" sur data.gouv.fr (CSV interrogeable via l'API tabulaire).
 // Mis à jour le 18/02/2026 — 86 366 lieux. Voir :
@@ -343,7 +343,7 @@ export const gouvMethods = {
                 if (catTag) {
                     incoming.tags = { categories: [catTag], genres: [], reseaux: [], keywords: [] };
                 }
-                const { filled, conflicts } = mergeInto(m.target, incoming);
+                const { filled, conflicts, aliasAdded } = mergeInto(m.target, incoming);
                 if (filled.length || conflicts.length) {
                     m.target.comments = Array.isArray(m.target.comments) ? m.target.comments : [];
                     m.target.comments.push(buildMergeComment({
@@ -353,7 +353,7 @@ export const gouvMethods = {
                     m.target.updatedBy = this.currentUserName;
                 }
                 merged++;
-                mergeReport.push({ name: m.target.name, reason: m.reasons[0] || '', filled, conflicts });
+                mergeReport.push({ name: m.target.name, reason: m.reasons[0] || '', filled, conflicts, aliasAdded });
                 return;
             }
 
@@ -433,6 +433,17 @@ export const gouvMethods = {
                         `<li>« ${esc(r.incomingName)} » ≈ « ${esc(r.existingName)} »<br><span class="text-slate-400">${esc(r.reason)}</span></li>`
                    ).join('')
                  + (toReview.length > 8 ? `<li>… et ${toReview.length - 8} autre(s)</li>` : '')
+                 + `</ul></div>`;
+        }
+        const aliases = mergeReport.filter(r => r.aliasAdded);
+        if (aliases.length) {
+            html += `<div class="text-indigo-600 border-t pt-2 mt-2">
+                        <p class="text-xs"><i class="fas fa-tags mr-1"></i><b>${aliases.length}</b> nouvelle(s) variante(s) de nom mémorisée(s) — les prochains imports les reconnaîtront automatiquement :</p>
+                        <ul class="text-xs mt-1 ml-4 list-disc">`
+                 + aliases.slice(0, 6).map(r =>
+                        `<li>« ${esc(r.aliasAdded)} » → ${esc(r.name)}</li>`
+                   ).join('')
+                 + (aliases.length > 6 ? `<li>… et ${aliases.length - 6} autre(s)</li>` : '')
                  + `</ul></div>`;
         }
         if (conflicts.length) {
