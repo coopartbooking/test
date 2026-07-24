@@ -60,11 +60,25 @@ export const contactsComputed = {
             });
         });
         const term = (this.searchContact || this.omniSearch || '').toLowerCase();
-        if (!term) return all;
-        return all.filter(c => {
-            // Inclut firstName/lastName dans la recherche même si name est vide
-            const searchStr = `${c.name} ${c.firstName || ''} ${c.lastName || ''} ${c.role || ''} ${c.structName} ${c.structCity}`.toLowerCase();
-            return searchStr.includes(term);
+        if (term) {
+            all = all.filter(c => {
+                // Inclut firstName/lastName dans la recherche même si name est vide
+                const searchStr = `${c.name} ${c.firstName || ''} ${c.lastName || ''} ${c.role || ''} ${c.structName} ${c.structCity}`.toLowerCase();
+                return searchStr.includes(term);
+            });
+        }
+
+        // --- Tri alphabétique (Nom, Structure ou Ville), accents-aware ---
+        const field = ['structName', 'structCity'].includes(this.contactSortField)
+            ? this.contactSortField : 'name';
+        const dir = this.contactSortDir === 'desc' ? -1 : 1;
+        return all.sort((a, b) => {
+            const va = (a[field] || '').trim();
+            const vb = (b[field] || '').trim();
+            if (!va && !vb) return 0;
+            if (!va) return 1;   // valeurs vides toujours en fin de liste
+            if (!vb) return -1;
+            return dir * va.localeCompare(vb, 'fr', { sensitivity: 'base', numeric: true });
         });
     },
 
