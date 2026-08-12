@@ -1,4 +1,4 @@
 {
-  "version": "25",
-  "notes": "Correctif du lien de retour dans les emails d'invitation collaborateur"
+  "version": "26",
+  "notes": "Nouveau bouton : obtenir le lien de mot de passe d'un collaborateur sans passer par l'email"
 }

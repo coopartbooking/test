@@ -270,4 +270,59 @@ export const collaboratorMethods = {
             }
         }
     },
+
+    // --- OBTENIR LE LIEN DE MOT DE PASSE (sans passer par l'email) ---
+    // Passe directement par le SDK Admin (Cloud Function sendPasswordResetAdmin).
+    // Intérêt par rapport à l'envoi par email :
+    //   - le SDK Admin n'est pas soumis à la protection anti-énumération : il
+    //     échoue franchement si le compte n'existe pas, au lieu de répondre
+    //     « succès » sans rien envoyer comme le fait le SDK client ;
+    //   - le lien est transmissible de la main à la main (SMS, message, oral),
+    //     donc plus aucune dépendance à la délivrabilité des emails.
+    async getCollaboratorResetLink(collab) {
+        try {
+            const result = await _sendPasswordResetAdmin({ email: collab.email });
+            const link = (result.data && result.data.resetLink) || '';
+            if (!link) throw new Error('Lien vide renvoyé par le serveur.');
+
+            const r = await Swal.fire({
+                title: 'Lien de mot de passe',
+                html:  `<p class="text-xs text-slate-500 mb-2">
+                            À transmettre à <strong>${collab.email}</strong>.<br>
+                            Valable 1 heure, utilisable une seule fois.
+                        </p>
+                        <div class="p-3 bg-slate-100 rounded text-xs break-all text-left">${link}</div>`,
+                icon:  'info',
+                showCancelButton:  true,
+                confirmButtonText: 'Copier le lien',
+                cancelButtonText:  'Fermer',
+                confirmButtonColor: '#4f46e5',
+            });
+            if (r.isConfirmed) {
+                try {
+                    await navigator.clipboard.writeText(link);
+                    Swal.fire({
+                        title: 'Lien copié ✓', icon: 'success',
+                        toast: true, position: 'top-end',
+                        timer: 2000, showConfirmButton: false,
+                    });
+                } catch (clipErr) {
+                    // Presse-papiers refusé (Safari hors geste utilisateur) :
+                    // le lien reste affiché, l'utilisateur le sélectionne à la main.
+                }
+            }
+        } catch (e) {
+            // « Compte introuvable » = le collaborateur figure dans Firestore
+            // mais son compte Firebase Auth n'existe pas (ou plus).
+            const introuvable = e.code === 'functions/not-found'
+                             || /introuvable|user-not-found/i.test(e.message || '');
+            Swal.fire(
+                'Erreur',
+                introuvable
+                    ? `Aucun compte Firebase pour ${collab.email}. La fiche existe dans l'annuaire des collaborateurs, mais le compte d'authentification est absent : recréez le collaborateur.`
+                    : (e.message || 'Impossible de générer le lien.'),
+                'error'
+            );
+        }
+    },
 };

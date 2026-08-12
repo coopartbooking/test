@@ -740,6 +740,13 @@
                                             <i class="fas fa-key"></i>
                                         </button>
 
+                                        <!-- Lien de mot de passe (sans email) -->
+                                        <button @click="getCollaboratorResetLink(collab)"
+                                                data-tooltip="Obtenir le lien de mot de passe à transmettre soi-même (sans email)"
+                                                class="text-slate-400 hover:text-indigo-500 transition text-sm px-1">
+                                            <i class="fas fa-link"></i>
+                                        </button>
+
                                         <!-- Lien agenda iCal du collaborateur -->
                                         <button @click="showCollaboratorIcalLink(collab)"
                                                 data-tooltip="Obtenir le lien d'agenda de ce collaborateur"
@@ -4452,7 +4459,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=25"></script>
+<script type="module" src="./js/app.js?v=26"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
