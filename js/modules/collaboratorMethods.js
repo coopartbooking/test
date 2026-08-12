@@ -9,6 +9,12 @@ import { firebaseApp }                           from '../firebase.js';
 const clientAuth = getAuth(firebaseApp);
 clientAuth.languageCode = 'fr';
 
+// URL de l'application : page sur laquelle le destinataire est renvoyé
+// après avoir défini son mot de passe (bouton "Continuer" dans l'email Firebase).
+// Le domaine doit être listé dans Firebase → Authentication → Settings → Authorized domains.
+const APP_URL = 'https://coopartbooking.github.io/test/';
+const RESET_SETTINGS = { url: APP_URL, handleCodeInApp: false };
+
 // Initialisation Functions pointant vers us-central1
 const functions = getFunctions(firebaseApp, 'us-central1');
 
@@ -94,7 +100,7 @@ export const collaboratorMethods = {
             // Compte nouveau → envoyer email automatiquement
             if (result.data.isNew) {
                 try {
-                    await sendPasswordResetEmail(clientAuth, r.value.email);
+                    await sendPasswordResetEmail(clientAuth, r.value.email, RESET_SETTINGS);
                     await Swal.fire({
                         title: 'Collaborateur créé ✓',
                         html:  `<p class="text-sm">Le compte de <strong>${r.value.name}</strong> a été créé.</p>
@@ -238,7 +244,7 @@ export const collaboratorMethods = {
         if (!r.isConfirmed) return;
 
         try {
-            await sendPasswordResetEmail(clientAuth, collab.email);
+            await sendPasswordResetEmail(clientAuth, collab.email, RESET_SETTINGS);
             Swal.fire({
                 title: 'Email envoyé ✓',
                 html:  `Un email de réinitialisation a été envoyé à <strong>${collab.email}</strong>.`,
