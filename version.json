@@ -1,4 +1,4 @@
 {
-  "version": "35",
-  "notes": "« Vider l'annuaire » et « Tout effacer » suppriment réellement, et annoncent ce qu'elles vont supprimer"
+  "version": "36",
+  "notes": "Nouveau bouton « Villes manquantes » : retrouve la commune des fiches qui n'en ont pas, à valider une par une"
 }

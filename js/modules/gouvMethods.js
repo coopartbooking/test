@@ -1,7 +1,30 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
-import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=35';
+import { matchStructure, mergeInto, buildMergeComment, structAliasKeys } from './structMatch.js?v=36';
+
+// ── Base Adresse Nationale : API officielle de l'État, gratuite et sans clé ──
+// Utilisée pour retrouver la commune d'une structure à partir de son nom.
+const BAN_URL = 'https://api-adresse.data.gouv.fr/search/';
+
+// Seuil de confiance mesuré sur l'annuaire réel : les bonnes réponses se
+// situaient toutes au-dessus de 0,85 (Yssingeaux 0,94, Langeac 0,94…), les
+// fausses nettement en dessous (« Jazz en Velay » → Arsac-en-Velay 0,41,
+// « La Barque » → Barquet dans l'Eure 0,48). 0,80 sépare proprement les deux.
+const BAN_MIN_SCORE = 0.80;
+
+// Isole un nom de commune en retirant les mots qui désignent le TYPE de
+// structure. « Mairie d'Yssingeaux » → « Yssingeaux », « MPT de Brives
+// Charensac » → « Brives Charensac ». Sans ce nettoyage, l'API cherche
+// l'expression entière et se trompe ou ne trouve rien.
+function _communeFromName(nom) {
+    let q = String(nom || '').trim();
+    q = q.replace(/^(mairie|ville|commune|municipalit[ée])\s+(de\s+|du\s+|d')?/i, '');
+    q = q.replace(/^(mjc|mpt|ece|cdmdt\d*|ehpad)\s+(de\s+|du\s+|d')?/i, '');
+    q = q.replace(/^(centre culturel|espace culturel|salle|auditorium|th[ée][âa]tre|m[ée]diath[èe]que|biblioth[èe]que|cin[ée]ma|conservatoire)\s+(de\s+|du\s+|des\s+|d'|le\s+|la\s+)?/i, '');
+    q = q.replace(/^(communaut[ée] de communes|communaut[ée] d'agglom[ée]ration|cc|ca)\s+(de\s+|du\s+|des\s+|d')?/i, '');
+    return q.trim();
+}
 
 // Ressource "Basilic" sur data.gouv.fr (CSV interrogeable via l'API tabulaire).
 // Mis à jour le 18/02/2026 — 86 366 lieux. Voir :
@@ -552,6 +575,172 @@ export const gouvMethods = {
             icon:  'success',
             width: 560,
             confirmButtonColor: '#059669'
+        });
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // COMPLÉTER LES VILLES MANQUANTES
+    //
+    // Une structure sans ville est invisible pour le moteur de doublons : il
+    // exige une localité commune avant de rapprocher deux noms identiques.
+    // C'est ainsi que des fiches en double se créent au lieu de fusionner.
+    //
+    // Deux sources, par ordre de fiabilité :
+    //   1. une fiche HOMONYME de l'annuaire qui possède déjà une ville
+    //      → certitude, aucun appel réseau ;
+    //   2. la Base Adresse Nationale, interrogée avec le nom nettoyé de son
+    //      type de structure, et seulement au-dessus de BAN_MIN_SCORE.
+    //
+    // Rien n'est écrit sans validation, et jamais par-dessus une valeur
+    // existante : seuls les champs vides sont remplis.
+    // ═══════════════════════════════════════════════════════════════════════
+    async fillMissingCities() {
+        const sansVille = this.db.structures.filter(s => !(s.city || '').trim());
+        if (!sansVille.length) {
+            return Swal.fire({
+                title: 'Rien à compléter ✓',
+                text:  'Toutes vos structures ont déjà une ville.',
+                icon:  'success', confirmButtonColor: '#4f46e5',
+            });
+        }
+
+        // ── Source 1 : les homonymes déjà renseignés ──
+        // Indexé sur le nom ET les alias mémorisés : « Département de la
+        // Haute-Loire » est un alias de « Médiathèque Départementale », dont la
+        // ville est connue. Ne regarder que les noms laisserait passer ce cas.
+        const villeParNom = new Map();
+        this.db.structures.forEach(s => {
+            const v = (s.city || '').trim();
+            if (!v) return;
+            structAliasKeys(s).forEach(k => {
+                if (k && !villeParNom.has(k)) villeParNom.set(k, { city: v, zip: (s.zip || '').trim() });
+            });
+        });
+
+        const propositions = [];
+        const aChercher    = [];
+        sansVille.forEach(s => {
+            let jumelle = null;
+            structAliasKeys(s).forEach(k => { if (!jumelle) jumelle = villeParNom.get(k) || null; });
+            if (jumelle) {
+                propositions.push({ struct: s, city: jumelle.city, zip: jumelle.zip,
+                                    origine: 'fiche homonyme de votre annuaire', sur: true });
+            } else {
+                aChercher.push(s);
+            }
+        });
+
+        // ── Source 2 : Base Adresse Nationale ──
+        if (aChercher.length) {
+            Swal.fire({
+                title: 'Recherche des communes…',
+                html:  `<span id="ban-progress" class="text-sm text-slate-500">0 / ${aChercher.length}</span>`,
+                allowOutsideClick: false, didOpen: () => Swal.showLoading(),
+            });
+
+            for (let i = 0; i < aChercher.length; i++) {
+                const s = aChercher[i];
+                const q = _communeFromName(s.name);
+                const el = document.getElementById('ban-progress');
+                if (el) el.textContent = `${i + 1} / ${aChercher.length}`;
+                if (!q) continue;
+                try {
+                    const url = `${BAN_URL}?q=${encodeURIComponent(q)}&type=municipality&limit=1`;
+                    const res = await fetch(url);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    const f = (data.features || [])[0];
+                    if (!f) continue;
+                    const p = f.properties || {};
+                    if ((p.score || 0) < BAN_MIN_SCORE) continue;   // trop incertain
+                    propositions.push({
+                        struct: s, city: p.city || '', zip: p.postcode || '',
+                        origine: `Base Adresse Nationale — confiance ${Math.round((p.score || 0) * 100)} %`,
+                        sur: false,
+                    });
+                } catch (e) { /* réseau indisponible : on passe */ }
+                // Courtoisie envers une API publique
+                await new Promise(r => setTimeout(r, 120));
+            }
+        }
+
+        if (!propositions.length) {
+            return Swal.fire({
+                title: 'Aucune commune trouvée',
+                html:  `Aucune des <b>${sansVille.length}</b> fiche(s) sans ville n'a pu être identifiée
+                        de façon fiable. Leur nom ne contient probablement pas de nom de commune.`,
+                icon:  'info', confirmButtonColor: '#4f46e5',
+            });
+        }
+
+        // ── Écran de validation : rien n'est écrit sans coche ──
+        const esc = v => String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        const lignes = propositions.map((p, i) => `
+            <label class="flex items-start gap-2 border border-slate-200 rounded-xl p-2 text-left cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" class="ville-chk mt-1" data-i="${i}" ${p.sur ? 'checked' : ''}>
+                <span class="text-xs leading-snug">
+                    <b>${esc(p.struct.name)}</b><br>
+                    <span class="text-emerald-700">${esc(p.city)}${p.zip ? ' · ' + esc(p.zip) : ''}</span>
+                    <span class="${p.sur ? 'text-indigo-500' : 'text-slate-400'}"> — ${esc(p.origine)}</span>
+                </span>
+            </label>`).join('');
+
+        const r = await Swal.fire({
+            title: 'Villes proposées',
+            html: `
+                <p class="text-xs text-slate-500 text-left mb-3">
+                    ${propositions.length} proposition(s) sur ${sansVille.length} fiche(s) sans ville.
+                    Les propositions issues de votre propre annuaire sont pré-cochées ;
+                    vérifiez les autres avant de valider.
+                </p>
+                <div class="flex gap-2 mb-3">
+                    <button type="button" id="ville-all" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100">Tout cocher</button>
+                    <button type="button" id="ville-none" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">Tout décocher</button>
+                </div>
+                <div class="space-y-2 max-h-[45vh] overflow-y-auto pr-1">${lignes}</div>`,
+            width: 620,
+            showCancelButton:  true,
+            confirmButtonText: 'Appliquer',
+            cancelButtonText:  'Annuler',
+            confirmButtonColor: '#4f46e5',
+            didOpen: () => {
+                const setAll = v => document.querySelectorAll('.ville-chk').forEach(c => { c.checked = v; });
+                document.getElementById('ville-all')?.addEventListener('click',  () => setAll(true));
+                document.getElementById('ville-none')?.addEventListener('click', () => setAll(false));
+            },
+            preConfirm: () => [...document.querySelectorAll('.ville-chk:checked')]
+                                .map(c => Number(c.dataset.i)),
+        });
+        if (!r.isConfirmed || !r.value || !r.value.length) return;
+
+        // ── Application : uniquement les champs VIDES ──
+        const now = new Date().toISOString();
+        let villes = 0, cps = 0;
+        r.value.forEach(i => {
+            const p = propositions[i];
+            const s = p.struct;
+            if (!(s.city || '').trim() && p.city) { s.city = p.city; villes++; }
+            if (!(s.zip  || '').trim() && p.zip)  { s.zip  = p.zip;  cps++; }
+            s.comments = Array.isArray(s.comments) ? s.comments : [];
+            s.comments.push({
+                id: Date.now() + Math.random(),
+                date: now,
+                author: this.currentUserName,
+                text: `[Ville complétée] ${p.city}${p.zip ? ' (' + p.zip + ')' : ''} — source : ${p.origine}`,
+            });
+            s.updatedAt = now;
+            s.updatedBy = this.currentUserName;
+        });
+
+        await this.saveDB();
+
+        Swal.fire({
+            title: 'Villes complétées ✓',
+            html:  `<b>${villes}</b> ville(s) et <b>${cps}</b> code(s) postal renseignés.<br>
+                    <span class="text-xs text-slate-500">Chaque fiche porte un commentaire indiquant la source.</span>`,
+            icon:  'success', confirmButtonColor: '#4f46e5',
         });
     },
 };

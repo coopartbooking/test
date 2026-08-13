@@ -133,6 +133,7 @@
                     https://nominatim.openstreetmap.org
                     https://tabular-api.data.gouv.fr
                     https://www.data.gouv.fr
+                    https://api-adresse.data.gouv.fr
                     https://cdnjs.cloudflare.com
                     https://unpkg.com
                     wss://*.firebaseio.com;
@@ -1611,6 +1612,11 @@
                                 data-tooltip="Détecter les structures en double"
                                 class="flex items-center gap-2 px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 rounded-xl text-xs font-bold transition">
                             <i class="fas fa-compress-arrows-alt"></i> Doublons
+                        </button>
+                        <button v-if="canEdit" @click="fillMissingCities()"
+                                data-tooltip="Retrouver la ville des fiches qui n'en ont pas, à valider une par une"
+                                class="flex items-center gap-2 px-3 py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold transition">
+                            <i class="fas fa-map-pin"></i> Villes manquantes
                         </button>
                         <button v-if="isAdmin" @click="repairSuiviPar()"
                                 data-tooltip="Remplacer les identifiants techniques par les noms dans « Suivi commercial par »"
@@ -4482,7 +4488,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=35"></script>
+<script type="module" src="./js/app.js?v=36"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
