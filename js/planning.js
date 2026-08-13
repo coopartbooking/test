@@ -242,11 +242,24 @@ export const planningMethods = {
         }
     },
 
-    deleteTask(t) {
-        if (confirm('Supprimer cette tâche ?')) {
-            this.db.tasks = this.db.tasks.filter(x => x.id !== t.id);
-            this.saveDB();
-        }
+    // Les trois suppressions de ce module passaient par le confirm() natif du
+    // navigateur, alors que tout le reste de l'application utilise SweetAlert2 :
+    // rendu dépareillé, et dialogues natifs bloqués par certains navigateurs en
+    // mode application installée. On passe le texte par « text: » et non
+    // « html: » — aucune donnée saisie n'est interprétée comme du HTML.
+    async deleteTask(t) {
+        const r = await Swal.fire({
+            title: 'Supprimer cette tâche ?',
+            text:  t.text || '',
+            icon:  'warning',
+            showCancelButton:   true,
+            confirmButtonText:  'Supprimer',
+            cancelButtonText:   'Annuler',
+            confirmButtonColor: '#ef4444',
+        });
+        if (!r.isConfirmed) return;
+        this.db.tasks = this.db.tasks.filter(x => x.id !== t.id);
+        this.saveDB();
     },
 
     // --- CALENDRIER ---
@@ -324,12 +337,20 @@ export const planningMethods = {
         this.showEventModal = false;
     },
 
-    deleteEvent() {
-        if (confirm('Supprimer cette affaire définitivement ?')) {
-            this.db.events = this.db.events.filter(e => e.id !== this.editEventData.id);
-            this.saveDB();
-            this.showEventModal = false;
-        }
+    async deleteEvent() {
+        const r = await Swal.fire({
+            title: 'Supprimer cette affaire ?',
+            text:  'Cette suppression est définitive.',
+            icon:  'warning',
+            showCancelButton:   true,
+            confirmButtonText:  'Supprimer',
+            cancelButtonText:   'Annuler',
+            confirmButtonColor: '#ef4444',
+        });
+        if (!r.isConfirmed) return;
+        this.db.events = this.db.events.filter(e => e.id !== this.editEventData.id);
+        this.saveDB();
+        this.showEventModal = false;
     },
 
     // --- PIPELINE KANBAN ---
@@ -417,13 +438,21 @@ export const planningMethods = {
         this.isEditingProject = false;
     },
 
-    deleteProject(p) {
-        if (confirm(`Supprimer le projet ${p.name} ?`)) {
-            this.db.projects = this.db.projects.filter(x => x.id !== p.id);
-            this.selectedProjectIds = this.selectedProjectIds.filter(id => id !== p.id);
-            this.saveDB();
-            this.showProjectModal = false;
-        }
+    async deleteProject(p) {
+        const r = await Swal.fire({
+            title: 'Supprimer ce projet ?',
+            text:  p.name || '',
+            icon:  'warning',
+            showCancelButton:   true,
+            confirmButtonText:  'Supprimer',
+            cancelButtonText:   'Annuler',
+            confirmButtonColor: '#ef4444',
+        });
+        if (!r.isConfirmed) return;
+        this.db.projects = this.db.projects.filter(x => x.id !== p.id);
+        this.selectedProjectIds = this.selectedProjectIds.filter(id => id !== p.id);
+        this.saveDB();
+        this.showProjectModal = false;
     },
 
     calculateBreakEven(e) {

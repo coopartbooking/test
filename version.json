@@ -1,4 +1,4 @@
 {
-  "version": "29",
-  "notes": "L'import CSV/Excel utilise enfin le moteur de doublons unifié : il complète les fiches existantes au lieu d'en créer des copies"
+  "version": "30",
+  "notes": "Fenêtres de confirmation harmonisées pour la suppression des tâches, affaires et projets"
 }
