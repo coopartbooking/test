@@ -644,9 +644,11 @@ export const adminMethods = {
     },
 
     async clearAnnuaire() {
+        const nbStruct   = (this.db.structures || []).length;
+        const nbContacts = (this.db.structures || []).reduce((n, s) => n + ((s.contacts || []).length), 0);
         const r = await Swal.fire({
             title: '⚠️ Vider l\'annuaire partagé ?',
-            html: 'Cela supprimera <b>toutes les structures, tous les contacts et tous les tags</b> de manière définitive.<br><br>Les événements, projets et tâches seront conservés.',
+            html: `Cela supprimera définitivement <b>${nbStruct} structure(s)</b> et <b>${nbContacts} contact(s)</b>, ainsi que tous les tags.<br><br>Les événements, projets et tâches seront conservés.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#f97316',
@@ -659,24 +661,49 @@ export const adminMethods = {
         if (!r.isConfirmed) return;
 
         try {
+            Swal.fire({ title: 'Suppression…', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
             this.db.structures    = [];
             this.db.tagCategories = [];
             this.db.tagGenres     = [];
             this.db.tagReseaux    = [];
             this.db.tagKeywords   = [];
-            await setDoc(doc(dbFirestore, "shared", "annuaire"), {
-                structures: [], tagCategories: [], tagGenres: [], tagReseaux: [], tagKeywords: []
+
+            // Suppression réelle de la sous-collection structures/{id}, mise à
+            // jour de shared/meta et du cache local — le tout par la voie
+            // normale de sauvegarde.
+            //
+            // Auparavant : écriture d'un objet vide dans « shared/annuaire »,
+            // document GELÉ depuis la migration. La sous-collection restait donc
+            // intacte alors que « Annuaire vidé ✓ » s'affichait, et la
+            // suppression ne survenait qu'à la sauvegarde automatique suivante,
+            // de façon différée et imprévisible. shared/annuaire n'est plus
+            // touché du tout : il reste le dernier filet de sauvegarde.
+            await this._saveStructuresDiff();
+
+            Swal.fire({
+                title: 'Annuaire vidé ✓',
+                text:  `${nbStruct} structure(s) et ${nbContacts} contact(s) supprimé(s).`,
+                icon:  'success', confirmButtonColor: '#f97316',
             });
-            Swal.fire({ title: 'Annuaire vidé ✓', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         } catch (e) {
             Swal.fire('Erreur', 'Vidage impossible : ' + e.message, 'error');
         }
     },
 
     async clearAllData() {
+        const nbStruct   = (this.db.structures || []).length;
+        const nbContacts = (this.db.structures || []).reduce((n, s) => n + ((s.contacts || []).length), 0);
         const r = await Swal.fire({
             title: '🚨 Tout réinitialiser ?',
-            html: '<b>TOUTES les données seront supprimées</b> de manière définitive :<br>structures, contacts, événements, projets, tâches, tags, templates, historique...<br><br>La configuration admin sera conservée.',
+            html: `<b>TOUTES les données seront supprimées</b> de manière définitive :
+                   <div class="text-left text-sm mt-2 ml-4">
+                     • ${nbStruct} structure(s) et ${nbContacts} contact(s)<br>
+                     • ${(this.db.events || []).length} affaire(s)<br>
+                     • ${(this.db.projects || []).length} projet(s)<br>
+                     • ${(this.db.tasks || []).length} tâche(s)<br>
+                     • tags, modèles, historique de campagnes
+                   </div><br>La configuration admin sera conservée.`,
             icon: 'error',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
@@ -703,15 +730,22 @@ export const adminMethods = {
             this.db.tagReseaux      = [];
             this.db.tagKeywords     = [];
 
-            // Vider Firebase
+            // Données propres à l'utilisateur (emplacement correct, inchangé)
             await setDoc(doc(dbFirestore, "users", this.currentUser), {
                 projects: [], tasks: [], events: [], templates: [], campaignHistory: []
             });
-            await setDoc(doc(dbFirestore, "shared", "annuaire"), {
-                structures: [], tagCategories: [], tagGenres: [], tagReseaux: [], tagKeywords: []
-            });
 
-            Swal.fire({ title: 'Base réinitialisée ✓', text: 'Toutes les données ont été supprimées.', icon: 'success', confirmButtonColor: '#dc2626' });
+            // Annuaire partagé : suppression réelle de la sous-collection, via
+            // la voie normale de sauvegarde. L'écriture dans « shared/annuaire »
+            // ne supprimait rien (document gelé) et laissait la vraie
+            // suppression se produire plus tard, à la sauvegarde suivante.
+            await this._saveStructuresDiff();
+
+            Swal.fire({
+                title: 'Base réinitialisée ✓',
+                text:  `${nbStruct} structure(s), ${nbContacts} contact(s) et toutes les données de travail ont été supprimés.`,
+                icon:  'success', confirmButtonColor: '#dc2626',
+            });
         } catch (e) {
             Swal.fire('Erreur', 'Réinitialisation impossible : ' + e.message, 'error');
         }

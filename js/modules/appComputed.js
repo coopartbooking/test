@@ -1,7 +1,7 @@
 // js/modules/appComputed.js — Toutes les computed properties de app.js
 // Spreadées après ...contactsComputed et ...planningComputed
 
-import { normSearch } from '../utils.js?v=34';
+import { normSearch } from '../utils.js?v=35';
 
 // Nombre maximum de résultats affichés par catégorie dans la recherche globale.
 // Au-delà, un compteur « +N autres » invite à préciser la recherche : sans

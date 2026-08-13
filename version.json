@@ -1,4 +1,4 @@
 {
-  "version": "34",
-  "notes": "Correctif majeur : les sauvegardes JSON contenaient une copie périmée. Alerte en cas de perte de données à la restauration."
+  "version": "35",
+  "notes": "« Vider l'annuaire » et « Tout effacer » suppriment réellement, et annoncent ce qu'elles vont supprimer"
 }
