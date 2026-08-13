@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=37';
+import { auth, dbFirestore }                                              from './firebase.js?v=38';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=37';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=37';
-import { planningComputed, planningMethods }    from './planning.js?v=37';
-import { adminMethods }                           from './modules/adminMethods.js?v=37';
-import { mapMethods }                             from './modules/mapMethods.js?v=37';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=37';
-import { importMethods }                         from './modules/importMethods.js?v=37';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=37';
-import { searchMethods }                         from './modules/searchMethods.js?v=37';
-import { projectMethods }                        from './modules/projectMethods.js?v=37';
-import { venueMethods }                          from './modules/venueMethods.js?v=37';
-import { crmMethods }                            from './modules/crmMethods.js?v=37';
-import { appComputed }                           from './modules/appComputed.js?v=37';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=37';
-import { icalMethods }                            from './modules/icalMethods.js?v=37';
-import { updateMethods }                          from './modules/updateMethods.js?v=37';
+import { utilsMethods }                         from './utils.js?v=38';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=38';
+import { planningComputed, planningMethods }    from './planning.js?v=38';
+import { adminMethods }                           from './modules/adminMethods.js?v=38';
+import { mapMethods }                             from './modules/mapMethods.js?v=38';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=38';
+import { importMethods }                         from './modules/importMethods.js?v=38';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=38';
+import { searchMethods }                         from './modules/searchMethods.js?v=38';
+import { projectMethods }                        from './modules/projectMethods.js?v=38';
+import { venueMethods }                          from './modules/venueMethods.js?v=38';
+import { crmMethods }                            from './modules/crmMethods.js?v=38';
+import { appComputed }                           from './modules/appComputed.js?v=38';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=38';
+import { icalMethods }                            from './modules/icalMethods.js?v=38';
+import { updateMethods }                          from './modules/updateMethods.js?v=38';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -62,7 +62,7 @@ createApp({
             // largeur fixe qui devient coûteuse sur tablette : le sous-onglet
             // Recherches en empile deux (288 px chacun), la Carte en a un de
             // 384 px sur un écran où la place est précieuse.
-            panelOpen: { searches: null, criteria: null, geo: null },
+            panelOpen: { searches: null, criteria: null, geo: null, selections: null, mailing: null },
             authEmail: '', authPassword: '', isLoginMode: true,
 
             // Base de données locale (miroir Firestore)
