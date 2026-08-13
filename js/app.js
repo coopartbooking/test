@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=38';
+import { auth, dbFirestore }                                              from './firebase.js?v=39';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=38';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=38';
-import { planningComputed, planningMethods }    from './planning.js?v=38';
-import { adminMethods }                           from './modules/adminMethods.js?v=38';
-import { mapMethods }                             from './modules/mapMethods.js?v=38';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=38';
-import { importMethods }                         from './modules/importMethods.js?v=38';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=38';
-import { searchMethods }                         from './modules/searchMethods.js?v=38';
-import { projectMethods }                        from './modules/projectMethods.js?v=38';
-import { venueMethods }                          from './modules/venueMethods.js?v=38';
-import { crmMethods }                            from './modules/crmMethods.js?v=38';
-import { appComputed }                           from './modules/appComputed.js?v=38';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=38';
-import { icalMethods }                            from './modules/icalMethods.js?v=38';
-import { updateMethods }                          from './modules/updateMethods.js?v=38';
+import { utilsMethods }                         from './utils.js?v=39';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=39';
+import { planningComputed, planningMethods }    from './planning.js?v=39';
+import { adminMethods }                           from './modules/adminMethods.js?v=39';
+import { mapMethods }                             from './modules/mapMethods.js?v=39';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=39';
+import { importMethods }                         from './modules/importMethods.js?v=39';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=39';
+import { searchMethods }                         from './modules/searchMethods.js?v=39';
+import { projectMethods }                        from './modules/projectMethods.js?v=39';
+import { venueMethods }                          from './modules/venueMethods.js?v=39';
+import { crmMethods }                            from './modules/crmMethods.js?v=39';
+import { appComputed }                           from './modules/appComputed.js?v=39';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=39';
+import { icalMethods }                            from './modules/icalMethods.js?v=39';
+import { updateMethods }                          from './modules/updateMethods.js?v=39';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];

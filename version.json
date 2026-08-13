@@ -1,4 +1,4 @@
 {
-  "version": "38",
-  "notes": "Adaptation tablette terminée : les cinq panneaux latéraux sont escamotables"
+  "version": "39",
+  "notes": "Script de déploiement : le cache-busting ne peut plus être oublié"
 }

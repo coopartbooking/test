@@ -2,7 +2,7 @@
 //
 // Fonctionnement :
 //   1. APP_VERSION est déduite AUTOMATIQUEMENT du ?v=N de son propre import
-//      (dans app.js : import ... from './modules/updateMethods.js?v=14').
+//      (dans app.js : import ... from './modules/updateMethods.js?v=N').
 //      → plus aucun numéro à maintenir à la main dans ce fichier.
 //   2. version.json (racine du dépôt) porte la version réellement en ligne.
 //   3. Si les deux diffèrent → bandeau "Mise à jour disponible".

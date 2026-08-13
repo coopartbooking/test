@@ -1,6 +1,6 @@
 // contacts.js — Computed et méthodes pour l'annuaire
 
-import { normSearch } from './utils.js?v=38';
+import { normSearch } from './utils.js?v=39';
 
 // Collateur français créé UNE SEULE FOIS et réutilisé par tous les tris.
 // localeCompare() reconstruit les règles de collation à chaque comparaison :
