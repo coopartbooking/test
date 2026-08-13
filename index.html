@@ -198,7 +198,19 @@
     </div>
 
 
-    <aside class="w-64 sidebar flex flex-col z-30 flex-shrink-0">
+    <!-- Voile de fermeture : seulement quand le menu a été ouvert à la main
+         (donc sur écran étroit). Neutralisé au-delà de 1024 px. -->
+    <div v-if="sidebarOpen === true" @click="sidebarOpen = null"
+         class="fixed inset-0 bg-slate-900/50 z-30 lg:hidden"></div>
+
+    <!-- Visibilité de la barre latérale :
+           sidebarOpen === null  → c'est le CSS qui décide (masquée sous 1024 px,
+                                   visible au-delà). La rotation de la tablette
+                                   est ainsi gérée sans une ligne de JavaScript.
+           sidebarOpen === true  → ouverte, quelle que soit la largeur
+           sidebarOpen === false → repliée à la demande, même sur grand écran -->
+    <aside :class="['w-64 sidebar flex-col z-40 flex-shrink-0 fixed inset-y-0 left-0 shadow-2xl lg:static lg:shadow-none',
+                    sidebarOpen === null ? 'hidden lg:flex' : (sidebarOpen ? 'flex' : 'hidden')]"
         <div class="h-16 flex items-center px-6 bg-slate-900 shadow-sm border-b border-slate-800">
             <div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white mr-3 font-bold">B</div>
             <h1 class="font-bold text-white tracking-wide">BOOKING<span class="text-indigo-400 font-light">PRO</span></h1>
@@ -298,11 +310,18 @@
     </aside>
 
     <main v-if="currentUser" class="flex-1 flex flex-col min-w-0 bg-white">
-        <header class="h-16 border-b border-slate-200 bg-white flex justify-between items-center px-6 z-10">
-            <div class="flex items-center gap-6">
-                <h2 class="text-xl font-bold text-slate-800">{{ pageTitle }}</h2>
-                
-                <div class="relative w-96 ml-8">
+        <header class="h-16 border-b border-slate-200 bg-white flex justify-between items-center px-4 lg:px-6 z-10">
+            <div class="flex items-center gap-3 lg:gap-6 flex-1 min-w-0">
+                <button @click="toggleSidebar()"
+                        data-tooltip="Afficher ou masquer le menu"
+                        class="text-slate-500 hover:text-indigo-600 transition text-lg px-1 flex-shrink-0">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 class="text-xl font-bold text-slate-800 truncate hidden sm:block">{{ pageTitle }}</h2>
+
+                <!-- Largeur souple : la barre occupait 384 px fixes, soit la
+                     moitié d'un iPad en portrait à elle seule. -->
+                <div class="relative flex-1 min-w-0 max-w-md lg:ml-8">
                     <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
                     <input id="omni-search" name="omniSearch" autocomplete="off" v-model="omniSearch" @focus="showOmniDropdown = true" @blur="hideOmni()" class="w-full bg-slate-100 border-none rounded-full pl-10 pr-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 transition shadow-inner" placeholder="Rechercher partout (Contact, Lieu, Artiste...)">
                     
@@ -4463,7 +4482,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=31"></script>
+<script type="module" src="./js/app.js?v=32"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {

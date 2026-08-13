@@ -1,4 +1,4 @@
 {
-  "version": "31",
-  "notes": "Détection de doublons recalibrée : un domaine partagé ou une adresse au centre-bourg ne suffisent plus à conclure"
+  "version": "32",
+  "notes": "Adaptation tablette : menu latéral escamotable et barre de recherche à largeur souple"
 }

@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=31';
+import { auth, dbFirestore }                                              from './firebase.js?v=32';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=31';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=31';
-import { planningComputed, planningMethods }    from './planning.js?v=31';
-import { adminMethods }                           from './modules/adminMethods.js?v=31';
-import { mapMethods }                             from './modules/mapMethods.js?v=31';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=31';
-import { importMethods }                         from './modules/importMethods.js?v=31';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=31';
-import { searchMethods }                         from './modules/searchMethods.js?v=31';
-import { projectMethods }                        from './modules/projectMethods.js?v=31';
-import { venueMethods }                          from './modules/venueMethods.js?v=31';
-import { crmMethods }                            from './modules/crmMethods.js?v=31';
-import { appComputed }                           from './modules/appComputed.js?v=31';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=31';
-import { icalMethods }                            from './modules/icalMethods.js?v=31';
-import { updateMethods }                          from './modules/updateMethods.js?v=31';
+import { utilsMethods }                         from './utils.js?v=32';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=32';
+import { planningComputed, planningMethods }    from './planning.js?v=32';
+import { adminMethods }                           from './modules/adminMethods.js?v=32';
+import { mapMethods }                             from './modules/mapMethods.js?v=32';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=32';
+import { importMethods }                         from './modules/importMethods.js?v=32';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=32';
+import { searchMethods }                         from './modules/searchMethods.js?v=32';
+import { projectMethods }                        from './modules/projectMethods.js?v=32';
+import { venueMethods }                          from './modules/venueMethods.js?v=32';
+import { crmMethods }                            from './modules/crmMethods.js?v=32';
+import { appComputed }                           from './modules/appComputed.js?v=32';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=32';
+import { icalMethods }                            from './modules/icalMethods.js?v=32';
+import { updateMethods }                          from './modules/updateMethods.js?v=32';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -49,6 +49,14 @@ createApp({
             currentUser: null,
             currentUserName: '',
             tab: 'dashboard',
+            // Barre latérale — trois états :
+            //   null  → automatique : le CSS décide (masquée sous 1024 px,
+            //           visible au-delà). La rotation de la tablette est donc
+            //           gérée sans dépendre d'un événement JavaScript.
+            //   true  → ouverte à la demande (superposition sur écran étroit)
+            //   false → repliée à la demande, y compris sur grand écran, utile
+            //           sur les onglets ayant déjà un panneau latéral (Carte…)
+            sidebarOpen: null,
             authEmail: '', authPassword: '', isLoginMode: true,
 
             // Base de données locale (miroir Firestore)
@@ -339,6 +347,10 @@ createApp({
             }
         },
         tab(newVal) {
+            // Sur écran étroit la barre latérale recouvre le contenu : une fois
+            // la destination choisie, on repasse en automatique — elle s'efface
+            // seule sous 1024 px et reste en place au-dessus.
+            this.sidebarOpen = null;
             if (newVal === 'geo') { nextTick(() => { setTimeout(() => { this.initMap(); }, 300); }); }
         },
         searchRadius() {
@@ -926,6 +938,19 @@ async removeGlobalTag(familyName, tag) {
             this._searchTimers[target] = setTimeout(() => { this[target] = val; }, 200);
         },
 
+        // Bascule de la barre latérale. En état automatique (null), on déduit
+        // ce que le CSS affiche actuellement pour basculer vers l'inverse :
+        // au-dessus de 1024 px elle est visible, en dessous elle est masquée.
+        toggleSidebar() {
+            if (this.sidebarOpen === null) {
+                const wide = !window.matchMedia
+                          || window.matchMedia('(min-width: 1024px)').matches;
+                this.sidebarOpen = !wide;
+            } else {
+                this.sidebarOpen = !this.sidebarOpen;
+            }
+        },
+
         goOmni(item) {
             this.showOmniDropdown = false;
             this.omniSearch = '';
@@ -947,6 +972,19 @@ async removeGlobalTag(familyName, tag) {
     mounted() {
         // Surveillance des nouvelles versions déployées (indépendante de la connexion)
         this.startUpdateChecker();
+
+        // Franchissement du seuil de 1024 px (rotation de la tablette) : on
+        // revient à l'état automatique, pour que le CSS reprenne la main. Sans
+        // cela, un menu replié à la main en paysage resterait replié en
+        // portrait, et inversement.
+        // matchMedia plutôt que l'événement resize : il écoute directement le
+        // moteur des media queries, et se déclenche là où resize peut manquer.
+        try {
+            const mq = window.matchMedia('(min-width: 1024px)');
+            const onBreakpoint = () => { this.sidebarOpen = null; };
+            mq.addEventListener ? mq.addEventListener('change', onBreakpoint)
+                                : mq.addListener(onBreakpoint);
+        } catch (e) { /* navigateur sans matchMedia : le CSS suffit */ }
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
