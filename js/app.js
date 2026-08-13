@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=39';
+import { auth, dbFirestore }                                              from './firebase.js?v=40';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,29 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=39';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=39';
-import { planningComputed, planningMethods }    from './planning.js?v=39';
-import { adminMethods }                           from './modules/adminMethods.js?v=39';
-import { mapMethods }                             from './modules/mapMethods.js?v=39';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=39';
-import { importMethods }                         from './modules/importMethods.js?v=39';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=39';
-import { searchMethods }                         from './modules/searchMethods.js?v=39';
-import { projectMethods }                        from './modules/projectMethods.js?v=39';
-import { venueMethods }                          from './modules/venueMethods.js?v=39';
-import { crmMethods }                            from './modules/crmMethods.js?v=39';
-import { appComputed }                           from './modules/appComputed.js?v=39';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=39';
-import { icalMethods }                            from './modules/icalMethods.js?v=39';
-import { updateMethods }                          from './modules/updateMethods.js?v=39';
+import { utilsMethods }                         from './utils.js?v=40';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=40';
+import { planningComputed, planningMethods }    from './planning.js?v=40';
+import { adminMethods }                           from './modules/adminMethods.js?v=40';
+import { mapMethods }                             from './modules/mapMethods.js?v=40';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=40';
+import { importMethods }                         from './modules/importMethods.js?v=40';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=40';
+import { searchMethods }                         from './modules/searchMethods.js?v=40';
+import { projectMethods }                        from './modules/projectMethods.js?v=40';
+import { venueMethods }                          from './modules/venueMethods.js?v=40';
+import { crmMethods }                            from './modules/crmMethods.js?v=40';
+import { appComputed }                           from './modules/appComputed.js?v=40';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=40';
+import { icalMethods }                            from './modules/icalMethods.js?v=40';
+import { updateMethods }                          from './modules/updateMethods.js?v=40';
+
+// Plafond d'affichage des longues listes (annuaire, structures).
+// Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
+// Tant que la base tient sous ce seuil, RIEN ne change à l'écran : le
+// mécanisme dort. Il protège du jour où un import de fédération ou de
+// Culture.gouv (86 000 lieux disponibles) ferait franchir le seuil d'un coup.
+const LISTE_PLAFOND = 100;
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -111,6 +118,11 @@ createApp({
             // instantanément, mais la base n'est refiltrée et retriée qu'une fois
             // la frappe terminée. Voir le bloc watch plus bas.
             searchContactDebounced: '', searchStructDebounced: '',
+            // Nombre de lignes réellement rendues (voir LISTE_PLAFOND).
+            // Remis au plafond dès qu'un filtre change : après avoir déplié une
+            // longue liste, une nouvelle recherche repart du début.
+            structVisible:  LISTE_PLAFOND,
+            contactVisible: LISTE_PLAFOND,
             // Fusion de doublons
             showDuplicatesModal:  false,
             duplicatePairs:       [],
@@ -337,6 +349,10 @@ createApp({
         // 2 000 structures, un mot de 8 lettres déclenchait 8 tris complets.
         // Un vidage (champ effacé, goOmni) est répercuté immédiatement, pour
         // que la liste complète réapparaisse sans délai.
+        // Un changement de filtre ramène l'affichage aux 100 premières lignes
+        _structFilterKey()  { this.structVisible  = LISTE_PLAFOND; },
+        _contactFilterKey() { this.contactVisible = LISTE_PLAFOND; },
+
         searchStruct(val)  { this._debounceSearch('searchStructDebounced', val); },
         searchContact(val) { this._debounceSearch('searchContactDebounced', val); },
         omniSearch(val)    { this._debounceSearch('omniSearchDebounced', val); },
@@ -967,6 +983,16 @@ async removeGlobalTag(familyName, tag) {
             const v = this.panelOpen[key];
             this.panelOpen[key] = (v === null) ? !this._isWideScreen() : !v;
         },
+
+        voirPlusStructures() { this.structVisible  += LISTE_PLAFOND; },
+        voirPlusContacts()   { this.contactVisible += LISTE_PLAFOND; },
+
+        // « Tout afficher » : nécessaire pour chercher dans la page entière
+        // (⌘F) ou imprimer. Sur une très grande liste le rendu sera lent —
+        // c'est un choix explicite de l'utilisateur, pas le comportement par
+        // défaut. Sans ce raccourci, 2 000 lignes demanderaient 19 clics.
+        toutAfficherStructures() { this.structVisible  = this.filteredStructures.length; },
+        toutAfficherContacts()   { this.contactVisible = this.filteredContacts.length; },
 
         goOmni(item) {
             this.showOmniDropdown = false;

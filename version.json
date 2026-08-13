@@ -1,4 +1,4 @@
 {
-  "version": "39",
-  "notes": "Script de déploiement : le cache-busting ne peut plus être oublié"
+  "version": "40",
+  "notes": "Plafond d'affichage sur les longues listes — invisible tant que la base est petite"
 }

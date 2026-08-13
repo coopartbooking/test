@@ -1,7 +1,7 @@
 // js/modules/appComputed.js — Toutes les computed properties de app.js
 // Spreadées après ...contactsComputed et ...planningComputed
 
-import { normSearch } from '../utils.js?v=39';
+import { normSearch } from '../utils.js?v=40';
 
 // Nombre maximum de résultats affichés par catégorie dans la recherche globale.
 // Au-delà, un compteur « +N autres » invite à préciser la recherche : sans
@@ -152,6 +152,20 @@ export const appComputed = {
         return this.db.events
             .filter(e => e.status === 'conf')
             .reduce((sum, e) => sum + (Number(e.fee) || 0), 0);
+    },
+
+    // ── Signature des filtres ────────────────────────────────────────────────
+    // Sert uniquement à remettre le plafond d'affichage à zéro quand
+    // l'utilisateur change de recherche ou de filtre : après avoir déplié une
+    // longue liste, une nouvelle recherche doit repartir des 100 premières.
+    // Une signature unique évite une douzaine d'observateurs séparés.
+    _structFilterKey() {
+        return [this.searchStructDebounced, this.structFilterCat, this.structFilterGenre,
+                this.structFilterReseau, this.structFilterCity, this.structFilterStatus,
+                this.structFilterGPS, this.structFilterHasContacts].join('|');
+    },
+    _contactFilterKey() {
+        return [this.searchContactDebounced, this.omniSearchDebounced].join('|');
     },
 
     // ── RECHERCHE GLOBALE ────────────────────────────────────────────────────
