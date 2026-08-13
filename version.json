@@ -1,4 +1,4 @@
 {
-  "version": "30",
-  "notes": "Fenêtres de confirmation harmonisées pour la suppression des tâches, affaires et projets"
+  "version": "31",
+  "notes": "Détection de doublons recalibrée : un domaine partagé ou une adresse au centre-bourg ne suffisent plus à conclure"
 }

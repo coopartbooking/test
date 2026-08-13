@@ -10,6 +10,11 @@
 // Domaines de messagerie génériques : ne JAMAIS rapprocher deux structures
 // parce qu'elles utilisent toutes les deux gmail.com. Garde-fou essentiel.
 // ─────────────────────────────────────────────────────────────────────────────
+// Au-delà de ce nombre de structures partageant un même domaine, celui-ci est
+// tenu pour institutionnel (une collectivité, un département) et cesse de
+// servir d'indice de doublon.
+const MAX_DOMAIN_GROUP = 3;
+
 const GENERIC_DOMAINS = new Set([
     'gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.fr', 'outlook.com',
     'outlook.fr', 'live.fr', 'live.com', 'msn.com', 'yahoo.com', 'yahoo.fr',
@@ -127,6 +132,32 @@ export function tokenSimilarity(a, b) {
     return (2 * inter) / (A.size + B.size);
 }
 
+// Tokens d'un nom PRIVÉS des mots de la ville.
+//
+// Beaucoup de structures publiques portent le nom de leur commune : « Mairie du
+// Puy en Velay », « agglo le puy en velay », « Service culturel de la
+// Communauté d'Agglomération du Puy-en-Velay ». Comme la comparaison n'a lieu
+// qu'entre structures d'une MÊME ville, ces mots sont communs par construction :
+// les compter revient à compter la ville deux fois, et gonfle artificiellement
+// la similarité (75 % mesurés entre « Mairie » et « agglo », alors que les deux
+// noms n'ont en réalité aucun mot signifiant en commun).
+export function distinctiveTokens(name, city) {
+    const stop = new Set(nameTokens(city));
+    return nameTokens(name).filter(w => !stop.has(w));
+}
+
+// Similarité de Dice calculée sur les seuls mots distinctifs.
+// Renvoie 0 si l'un des deux noms ne dit rien de plus que sa ville : on ne peut
+// alors rien conclure, et surtout pas un doublon.
+export function tokenSimilarityInCity(a, b, city) {
+    const A = new Set(distinctiveTokens(a, city));
+    const B = new Set(distinctiveTokens(b, city));
+    if (!A.size || !B.size) return 0;
+    let inter = 0;
+    A.forEach(t => { if (B.has(t)) inter++; });
+    return (2 * inter) / (A.size + B.size);
+}
+
 // Un token de A est-il contenu dans un token de B (fautes de frappe légères) ?
 export function containsAllTokens(a, b) {
     const A = nameTokens(a), B = new Set(nameTokens(b));
@@ -187,14 +218,6 @@ export function matchStructure(incoming, structures, opts = {}) {
             }
         }
 
-        // Domaine propre commun (email ou site)
-        const sDomains = structDomains(s);
-        let sharedDomain = null;
-        inDomains.forEach(d => { if (sDomains.has(d)) sharedDomain = d; });
-        if (sharedDomain) {
-            return { status: 'auto', target: s, score: 0.95, reasons: [`même domaine : ${sharedDomain}`], candidates: [] };
-        }
-
         // Alias déjà validé (ou nom normalisé identique) + même localité
         const aliasKeys = structAliasKeys(s);
         if (inKey && aliasKeys.has(inKey) && sameLocality(incoming, s)) {
@@ -206,8 +229,19 @@ export function matchStructure(incoming, structures, opts = {}) {
             };
         }
 
-        // ── Signaux faibles → suggestion ──
+        // ── Signaux faibles → suggestion, JAMAIS fusion automatique ──
         let score = 0;
+
+        // Domaine propre commun (email ou site).
+        // Auparavant : fusion automatique immédiate, sans même vérifier la ville.
+        // Or dans le secteur public un domaine couvre une collectivité entière
+        // (hauteloire.fr : le Département, sa médiathèque, ses services…) :
+        // deux structures bien distinctes le partagent couramment. Le signal est
+        // réel mais faible — il ne peut plus décider seul d'une fusion.
+        const sDomains = structDomains(s);
+        let sharedDomain = null;
+        inDomains.forEach(d => { if (sDomains.has(d)) sharedDomain = d; });
+        if (sharedDomain) { score = Math.max(score, 0.7); reasons.push(`même domaine : ${sharedDomain}`); }
 
         let sharedPhone = null;
         structPhones(s).forEach(p => { if (inPhones.has(p)) sharedPhone = p; });
@@ -215,15 +249,23 @@ export function matchStructure(incoming, structures, opts = {}) {
 
         const local = sameLocality(incoming, s);
         if (local) {
-            const sim = tokenSimilarity(incoming && incoming.name, s.name);
+            // Similarité calculée hors mots de la ville (voir tokenSimilarityInCity)
+            const city = (s && s.city) || (incoming && incoming.city) || '';
+            const sim  = tokenSimilarityInCity(incoming && incoming.name, s.name, city);
             if (sim >= 0.5 || containsAllTokens(incoming && incoming.name, s.name)) {
                 score = Math.max(score, 0.5 + sim * 0.3);
                 reasons.push(`nom proche dans la même ville : « ${s.name} »`);
             }
-            const dist = distanceMeters(incoming && incoming.lat, incoming && incoming.lng, s.lat, s.lng);
-            if (dist < 150) {
-                score = Math.max(score, 0.7);
-                reasons.push(`même adresse à ${Math.round(dist)} m près`);
+            // La proximité GPS ne crée plus de soupçon à elle seule : faute
+            // d'adresse précise, le géocodage place les fiches au centre-bourg,
+            // et toutes les structures d'une même commune s'y retrouvent à 0 m.
+            // Elle ne fait que renforcer un soupçon né d'un autre signal.
+            if (reasons.length) {
+                const dist = distanceMeters(incoming && incoming.lat, incoming && incoming.lng, s.lat, s.lng);
+                if (dist < 150) {
+                    score = Math.max(score, 0.7);
+                    reasons.push(`même adresse à ${Math.round(dist)} m près`);
+                }
             }
         }
 
@@ -391,6 +433,8 @@ export function scanDuplicates(structures) {
         s,
         key:      normalizeName(s.name),
         tokens:   new Set(nameTokens(s.name)),
+        // Mots du nom une fois retirés ceux de la ville — base de la similarité
+        distinctive: new Set(distinctiveTokens(s.name, s.city)),
         city:     normalizeCity(s.city),
         zip:      String(s.zip || '').trim(),
         domains:  structDomains(s),
@@ -421,6 +465,15 @@ export function scanDuplicates(structures) {
         });
     };
 
+    // Ajoute un motif à une paire DÉJÀ détectée, sans jamais en créer une.
+    // Réservé aux signaux trop faibles pour fonder un soupçon à eux seuls.
+    const reinforcePair = (x, y, reason) => {
+        if (x.s.id === y.s.id) return;
+        const [p, q] = String(x.s.id) < String(y.s.id) ? [x, y] : [y, x];
+        const prev = pairs.get(`${p.s.id}|${q.s.id}`);
+        if (prev && !prev.reasons.includes(reason)) prev.reasons.push(reason);
+    };
+
     // ── 1. Identifiants forts : regroupement direct ──
     [['siret', 'même SIRET'], ['licence', 'même licence'], ['govId', 'même identifiant gouv']]
         .forEach(([field, label]) => {
@@ -439,15 +492,21 @@ export function scanDuplicates(structures) {
         });
 
     // ── 2. Domaine propre commun (email ou site) ──
+    // Signal faible, pas une certitude : dans le secteur public un domaine
+    // couvre une collectivité entière (lepuyenvelay.fr : la Mairie, l'Atelier
+    // des Arts, le service culturel…). Au-delà de MAX_DOMAIN_GROUP structures,
+    // le domaine est manifestement institutionnel — on ne rapproche plus rien
+    // sur cette base, sans quoi n structures produiraient n²/2 fausses paires.
     const byDomain = new Map();
     sig.forEach(x => x.domains.forEach(d => {
         if (!byDomain.has(d)) byDomain.set(d, []);
         byDomain.get(d).push(x);
     }));
     byDomain.forEach((group, d) => {
+        if (group.length > MAX_DOMAIN_GROUP) return;
         for (let i = 0; i < group.length; i++)
             for (let j = i + 1; j < group.length; j++)
-                addPair(group[i], group[j], 95, 'auto', `même domaine : ${d}`);
+                addPair(group[i], group[j], 70, 'suggest', `même domaine : ${d}`);
     });
 
     // ── 3. Téléphone identique ──
@@ -485,19 +544,25 @@ export function scanDuplicates(structures) {
                     continue;
                 }
 
-                // Similarité de tokens (Dice)
+                // Similarité de Dice sur les seuls mots DISTINCTIFS : les mots
+                // de la ville sont retirés, sinon ils sont comptés deux fois
+                // (on ne compare que des structures d'une même ville).
+                const da = x.distinctive, db = y.distinctive;
                 let inter = 0;
-                x.tokens.forEach(t => { if (y.tokens.has(t)) inter++; });
-                const sim = (x.tokens.size && y.tokens.size)
-                    ? (2 * inter) / (x.tokens.size + y.tokens.size) : 0;
+                da.forEach(t => { if (db.has(t)) inter++; });
+                const sim = (da.size && db.size) ? (2 * inter) / (da.size + db.size) : 0;
                 if (sim >= 0.5) {
                     addPair(x, y, Math.round((0.5 + sim * 0.3) * 100), 'suggest',
                         `nom proche dans la même ville (${Math.round(sim * 100)} %)`);
                 }
 
+                // La proximité GPS ne crée plus de paire : sans adresse précise,
+                // le géocodage renvoie le centre-bourg et toutes les structures
+                // de la commune s'y retrouvent à 0 m les unes des autres. Elle
+                // ne fait que renforcer une paire née d'un autre signal.
                 const dist = distanceMeters(x.lat, x.lng, y.lat, y.lng);
                 if (dist < 150) {
-                    addPair(x, y, 70, 'suggest', `même adresse à ${Math.round(dist)} m près`);
+                    reinforcePair(x, y, `même adresse à ${Math.round(dist)} m près`);
                 }
             }
         }
