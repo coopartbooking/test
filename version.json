@@ -1,4 +1,4 @@
 {
-  "version": "26",
-  "notes": "Nouveau bouton : obtenir le lien de mot de passe d'un collaborateur sans passer par l'email"
+  "version": "27",
+  "notes": "Recherche globale étendue aux affaires et aux tâches, et recherches plus réactives"
 }

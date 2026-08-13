@@ -1,6 +1,21 @@
 // js/modules/appComputed.js — Toutes les computed properties de app.js
 // Spreadées après ...contactsComputed et ...planningComputed
 
+import { normSearch } from '../utils.js?v=27';
+
+// Nombre maximum de résultats affichés par catégorie dans la recherche globale.
+// Au-delà, un compteur « +N autres » invite à préciser la recherche : sans
+// plafond, une recherche sur deux lettres tentait d'afficher toute la base.
+const OMNI_MAX = 8;
+
+// Date courte pour les résultats de recherche. Renvoie la valeur brute si elle
+// n'est pas analysable, plutôt qu'un « Invalid Date » à l'écran.
+function _omniDate(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    return isNaN(d) ? String(v) : d.toLocaleDateString('fr-FR');
+}
+
 export const appComputed = {
 
     // ── Permissions par rôle ──
@@ -139,17 +154,75 @@ export const appComputed = {
             .reduce((sum, e) => sum + (Number(e.fee) || 0), 0);
     },
 
-    omniResults() {
-        if (this.omniSearch.length < 2) return {};
-        const s = this.omniSearch.toLowerCase();
+    // ── RECHERCHE GLOBALE ────────────────────────────────────────────────────
+    // omniRaw   : tous les résultats, sans plafond (mis en cache par Vue)
+    // omniResults : ce qui est affiché, plafonné à OMNI_MAX par catégorie
+    // omniOverflow : nombre de résultats masqués, par catégorie
+    //
+    // Les contacts sont cherchés dans allContacts et NON dans filteredContacts :
+    // ce dernier hérite du champ de recherche de l'onglet Contacts, ce qui
+    // masquait silencieusement des résultats ici.
+    omniRaw() {
+        const s = normSearch(this.omniSearchDebounced).trim();
+        if (s.length < 2) return {};
+        const has = v => normSearch(v).includes(s);
         const res = {};
-        const c = this.filteredContacts.filter(x => (x.name || '').toLowerCase().includes(s) || (x.structName && x.structName.toLowerCase().includes(s)));
-        if (c.length) res['Contacts'] = c.map(x => ({ id: x.id, name: x.name || `${x.firstName||''} ${x.lastName||''}`.trim(), sub: x.structName, type: 'contact', original: x }));
-        const st = this.db.structures.filter(x => x.name.toLowerCase().includes(s) || x.city.toLowerCase().includes(s));
-        if (st.length) res['Lieux & Structures'] = st.map(x => ({ id: x.id, name: x.name, sub: x.city, type: 'structure', original: x }));
-        const p = this.db.projects.filter(x => x.name.toLowerCase().includes(s));
-        if (p.length) res['Spectacles'] = p.map(x => ({ id: x.id, name: x.name, sub: x.genre, type: 'project', original: x }));
+
+        const c = this.allContacts.filter(x => has(x.name) || has(x.structName));
+        if (c.length) res['Contacts'] = c.map(x => ({
+            id: x.id, name: x.name || `${x.firstName||''} ${x.lastName||''}`.trim(),
+            sub: x.structName, type: 'contact', original: x,
+        }));
+
+        const st = (this.db.structures || []).filter(x => has(x.name) || has(x.city));
+        if (st.length) res['Lieux & Structures'] = st.map(x => ({
+            id: x.id, name: x.name, sub: x.city, type: 'structure', original: x,
+        }));
+
+        const projects = this.db.projects || [];
+        const p = projects.filter(x => has(x.name));
+        if (p.length) res['Spectacles'] = p.map(x => ({
+            id: x.id, name: x.name, sub: x.genre, type: 'project', original: x,
+        }));
+
+        // Affaires : cherchées sur le lieu, la ville et le nom du spectacle.
+        // La table des spectacles est construite une fois, pas à chaque affaire.
+        const projById = new Map(projects.map(x => [x.id, x.name || '']));
+        const ev = (this.db.events || []).filter(e =>
+            has(e.venueName) || has(e.city) || has(projById.get(e.projectId))
+        );
+        if (ev.length) res['Affaires'] = ev.map(e => ({
+            id: e.id,
+            name: e.venueName || projById.get(e.projectId) || 'Affaire sans lieu',
+            sub: [e.city, _omniDate(e.date)].filter(Boolean).join(' · '),
+            type: 'event', original: e,
+        }));
+
+        // Tâches : les tâches terminées sont exclues, sinon la liste se remplit
+        // d'historique sans valeur pour une recherche.
+        const tk = (this.db.tasks || []).filter(t => !t.done && has(t.text));
+        if (tk.length) res['Tâches'] = tk.map(t => ({
+            id: t.id, name: t.text, sub: _omniDate(t.dueDate),
+            type: 'task', original: t,
+        }));
+
         return res;
+    },
+
+    omniResults() {
+        const out = {};
+        Object.entries(this.omniRaw).forEach(([cat, items]) => {
+            out[cat] = items.slice(0, OMNI_MAX);
+        });
+        return out;
+    },
+
+    omniOverflow() {
+        const out = {};
+        Object.entries(this.omniRaw).forEach(([cat, items]) => {
+            if (items.length > OMNI_MAX) out[cat] = items.length - OMNI_MAX;
+        });
+        return out;
     },
 
     // ── Tags dynamiques : liste statique + tous les tags réellement en base ──

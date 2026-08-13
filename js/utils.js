@@ -1,5 +1,20 @@
 // utils.js — Méthodes utilitaires partagées
 
+// Normalisation pour la recherche : minuscules + suppression des accents.
+// Personne ne tape « Théâtre » avec ses accents dans une barre de recherche,
+// or l'annuaire en est rempli (Théâtre, Scène, Médiathèque, Château, Opéra…).
+// Appliquée AUX DEUX CÔTÉS de la comparaison — terme saisi et données — sans
+// quoi la correspondance échoue toujours d'un côté.
+//
+// Source unique : toute recherche textuelle de l'application doit passer par
+// cette fonction, jamais par un .toLowerCase() isolé.
+export function normSearch(v) {
+    return (v || '')
+        .toLowerCase()
+        .normalize('NFD')                  // sépare les lettres de leurs accents
+        .replace(/[\u0300-\u036f]/g, '');   // retire les accents ainsi isoles
+}
+
 export const utilsMethods = {
 
     // --- CHARGEMENT DIFFÉRÉ DES LIBRAIRIES LOURDES ---

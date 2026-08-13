@@ -1,18 +1,31 @@
 // contacts.js — Computed et méthodes pour l'annuaire
 
+import { normSearch } from './utils.js?v=27';
+
+// Collateur français créé UNE SEULE FOIS et réutilisé par tous les tris.
+// localeCompare() reconstruit les règles de collation à chaque comparaison :
+// sur 2 000 structures (~22 000 comparaisons par tri), le coût est loin d'être
+// négligeable. Options identiques à celles utilisées auparavant, donc tri
+// rigoureusement inchangé.
+const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+
+// Comparaison réutilisable : valeurs vides toujours rejetées en fin de liste.
+function compareField(a, b, field, dir = 1) {
+    const va = (a[field] || '').trim();
+    const vb = (b[field] || '').trim();
+    if (!va && !vb) return 0;
+    if (!va) return 1;
+    if (!vb) return -1;
+    return dir * collator.compare(va, vb);
+}
+
 export const contactsComputed = {
     // Liste alphabétique de TOUTES les structures, sans les filtres de l'onglet
     // Structures. Destinée aux menus déroulants : un filtre posé ailleurs ne
     // doit jamais masquer une structure dans une liste de sélection.
     sortedStructures() {
-        return (this.db.structures || []).slice().sort((a, b) => {
-            const va = (a.name || '').trim();
-            const vb = (b.name || '').trim();
-            if (!va && !vb) return 0;
-            if (!va) return 1;
-            if (!vb) return -1;
-            return va.localeCompare(vb, 'fr', { sensitivity: 'base', numeric: true });
-        });
+        return (this.db.structures || []).slice()
+            .sort((a, b) => compareField(a, b, 'name'));
     },
 
     // Noms déjà utilisés dans "Suivi commercial par", pour alimenter les
@@ -36,8 +49,7 @@ export const contactsComputed = {
             const k = v.toLowerCase();
             if (!seen.has(k)) seen.set(k, v);
         });
-        return [...seen.values()].sort((a, b) =>
-            a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true }));
+        return [...seen.values()].sort((a, b) => collator.compare(a, b));
     },
 
     // Toutes les fonctions déjà saisies, pour alimenter les suggestions du champ
@@ -53,8 +65,7 @@ export const contactsComputed = {
                 if (!seen.has(k)) seen.set(k, r);
             });
         });
-        return [...seen.values()].sort((a, b) =>
-            a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true }));
+        return [...seen.values()].sort((a, b) => collator.compare(a, b));
     },
 
     // Contacts affichables de la fiche structure ouverte : masque les contacts
@@ -66,21 +77,23 @@ export const contactsComputed = {
     },
 
     filteredStructures() {
-        const s        = (this.searchStruct       || '').toLowerCase().trim();
+        // Valeur différée (200 ms) : évite de refiltrer et retrier toute la base
+        // à chaque frappe. Le champ de saisie, lui, reste instantané.
+        const s        = normSearch(this.searchStructDebounced).trim();
         const cat      = this.structFilterCat      || '';
         const genre    = this.structFilterGenre    || '';
         const reseau   = this.structFilterReseau   || '';
-        const city     = (this.structFilterCity    || '').toLowerCase().trim();
+        const city     = normSearch(this.structFilterCity).trim();
         const status   = this.structFilterStatus   || '';
         const hasGPS   = this.structFilterGPS      || false;
         const hasContacts = this.structFilterHasContacts || false;
 
         const list = this.db.structures.filter(st => {
-            // Recherche texte (nom, ville, email, notes)
+            // Recherche texte (nom, ville, email, notes) — insensible aux accents
             if (s && ![ st.name, st.city, st.email, st.notes, st.address ]
-                .some(v => (v || '').toLowerCase().includes(s))) return false;
+                .some(v => normSearch(v).includes(s))) return false;
             // Filtre ville
-            if (city && !(st.city || '').toLowerCase().includes(city)) return false;
+            if (city && !normSearch(st.city).includes(city)) return false;
             // Filtre catégorie
             if (cat && !(st.tags?.categories || []).includes(cat)) return false;
             // Filtre genre
@@ -101,20 +114,19 @@ export const contactsComputed = {
         // --- Tri alphabétique (Nom ou Ville), accents-aware, inversable A→Z / Z→A ---
         const field = this.structSortField === 'city' ? 'city' : 'name';
         const dir   = this.structSortDir === 'desc' ? -1 : 1;
-        return list.sort((a, b) => {
-            const va = (a[field] || '').trim();
-            const vb = (b[field] || '').trim();
-            if (!va && !vb) return 0;
-            if (!va) return 1;   // valeurs vides toujours en fin de liste
-            if (!vb) return -1;
-            return dir * va.localeCompare(vb, 'fr', { sensitivity: 'base', numeric: true });
-        });
+        return list.sort((a, b) => compareField(a, b, field, dir));
     },
 
-    filteredContacts() {
-        let all = [];
-        this.db.structures.forEach(s => {
-            if (s.contacts) s.contacts.forEach(c => {
+    // TOUS les contacts de l'annuaire, aplatis depuis les structures, sans aucun
+    // filtre de recherche. Extrait de filteredContacts() pour deux raisons :
+    //   1. la recherche globale doit voir l'annuaire entier, jamais un
+    //      sous-ensemble hérité des filtres d'un onglet ;
+    //   2. Vue met les computed en cache : l'aplatissement n'est plus refait à
+    //      chaque appel, mais uniquement quand les structures changent.
+    allContacts() {
+        const all = [];
+        (this.db.structures || []).forEach(s => {
+            (s.contacts || []).forEach(c => {
                 if (c.isPrivate && c.owner && c.owner !== this.currentUser) return;
                 // Normalise le nom : priorité firstName+lastName, fallback sur name
                 const displayName = (c.firstName || c.lastName)
@@ -123,11 +135,16 @@ export const contactsComputed = {
                 all.push({ ...c, name: displayName, structName: s.name, structCity: s.city, structId: s.id });
             });
         });
-        const term = (this.searchContact || this.omniSearch || '').toLowerCase();
+        return all;
+    },
+
+    filteredContacts() {
+        let all = this.allContacts;
+        const term = normSearch(this.searchContactDebounced || this.omniSearchDebounced);
         if (term) {
             all = all.filter(c => {
                 // Inclut firstName/lastName dans la recherche même si name est vide
-                const searchStr = `${c.name} ${c.firstName || ''} ${c.lastName || ''} ${c.role || ''} ${c.structName} ${c.structCity}`.toLowerCase();
+                const searchStr = normSearch(`${c.name} ${c.firstName || ''} ${c.lastName || ''} ${c.role || ''} ${c.structName} ${c.structCity}`);
                 return searchStr.includes(term);
             });
         }
@@ -136,14 +153,9 @@ export const contactsComputed = {
         const field = ['structName', 'structCity'].includes(this.contactSortField)
             ? this.contactSortField : 'name';
         const dir = this.contactSortDir === 'desc' ? -1 : 1;
-        return all.sort((a, b) => {
-            const va = (a[field] || '').trim();
-            const vb = (b[field] || '').trim();
-            if (!va && !vb) return 0;
-            if (!va) return 1;   // valeurs vides toujours en fin de liste
-            if (!vb) return -1;
-            return dir * va.localeCompare(vb, 'fr', { sensitivity: 'base', numeric: true });
-        });
+        // slice() : allContacts est un computed mis en cache, il ne doit jamais
+        // être trié en place — sinon l'ordre fuiterait vers tous ses lecteurs.
+        return all.slice().sort((a, b) => compareField(a, b, field, dir));
     },
 
     validMailingContacts() {

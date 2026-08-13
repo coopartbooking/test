@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=26';
+import { auth, dbFirestore }                                              from './firebase.js?v=27';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=26';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=26';
-import { planningComputed, planningMethods }    from './planning.js?v=26';
-import { adminMethods }                           from './modules/adminMethods.js?v=26';
-import { mapMethods }                             from './modules/mapMethods.js?v=26';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=26';
-import { importMethods }                         from './modules/importMethods.js?v=26';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=26';
-import { searchMethods }                         from './modules/searchMethods.js?v=26';
-import { projectMethods }                        from './modules/projectMethods.js?v=26';
-import { venueMethods }                          from './modules/venueMethods.js?v=26';
-import { crmMethods }                            from './modules/crmMethods.js?v=26';
-import { appComputed }                           from './modules/appComputed.js?v=26';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=26';
-import { icalMethods }                            from './modules/icalMethods.js?v=26';
-import { updateMethods }                          from './modules/updateMethods.js?v=26';
+import { utilsMethods }                         from './utils.js?v=27';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=27';
+import { planningComputed, planningMethods }    from './planning.js?v=27';
+import { adminMethods }                           from './modules/adminMethods.js?v=27';
+import { mapMethods }                             from './modules/mapMethods.js?v=27';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=27';
+import { importMethods }                         from './modules/importMethods.js?v=27';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=27';
+import { searchMethods }                         from './modules/searchMethods.js?v=27';
+import { projectMethods }                        from './modules/projectMethods.js?v=27';
+import { venueMethods }                          from './modules/venueMethods.js?v=27';
+import { crmMethods }                            from './modules/crmMethods.js?v=27';
+import { appComputed }                           from './modules/appComputed.js?v=27';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=27';
+import { icalMethods }                            from './modules/icalMethods.js?v=27';
+import { updateMethods }                          from './modules/updateMethods.js?v=27';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -92,6 +92,11 @@ createApp({
 
             // Annuaire & contacts
             searchContact: '', searchStruct: '',
+            // Copies différées (200 ms) des champs de recherche : les computed
+            // lisent CELLES-CI, jamais les champs bruts. Le texte saisi s'affiche
+            // instantanément, mais la base n'est refiltrée et retriée qu'une fois
+            // la frappe terminée. Voir le bloc watch plus bas.
+            searchContactDebounced: '', searchStructDebounced: '',
             // Fusion de doublons
             showDuplicatesModal:  false,
             duplicatePairs:       [],
@@ -171,7 +176,7 @@ createApp({
             filterByViewport: false,  // Si true, la liste des contacts ne montre que les structures dans la zone visible
 
             // Recherche globale (omnibox)
-            omniSearch: '', showOmniDropdown: false,
+            omniSearch: '', omniSearchDebounced: '', showOmniDropdown: false,
 
            
 
@@ -313,6 +318,15 @@ createApp({
     // WATCHERS
     // ─────────────────────────────────────────────────────────────────────────
     watch: {
+        // ── Différé des champs de recherche (200 ms) ──
+        // Sans cela, chaque frappe refiltrait ET retriait toute la base : sur
+        // 2 000 structures, un mot de 8 lettres déclenchait 8 tris complets.
+        // Un vidage (champ effacé, goOmni) est répercuté immédiatement, pour
+        // que la liste complète réapparaisse sans délai.
+        searchStruct(val)  { this._debounceSearch('searchStructDebounced', val); },
+        searchContact(val) { this._debounceSearch('searchContactDebounced', val); },
+        omniSearch(val)    { this._debounceSearch('omniSearchDebounced', val); },
+
         // Sauvegarde la préférence tooltips
         tooltipsEnabled(val) {
             localStorage.setItem('coopArtTooltips', val ? '1' : '0');
@@ -902,12 +916,24 @@ async removeGlobalTag(familyName, tag) {
 },
 
         // --- OMNIBOX ---
+        // Reporte une valeur de recherche dans sa copie différée.
+        // Un champ vidé est propagé sans attendre : l'utilisateur qui efface
+        // veut revoir la liste complète tout de suite.
+        _debounceSearch(target, val) {
+            if (!this._searchTimers) this._searchTimers = {};
+            clearTimeout(this._searchTimers[target]);
+            if (!val) { this[target] = ''; return; }
+            this._searchTimers[target] = setTimeout(() => { this[target] = val; }, 200);
+        },
+
         goOmni(item) {
             this.showOmniDropdown = false;
             this.omniSearch = '';
             if (item.type === 'structure') { this.tab = 'structures'; this.openCrmView(item.original); }
             if (item.type === 'contact')   { const s = this.db.structures.find(st => st.id === item.original.structId); if (s) { this.tab = 'structures'; this.openCrmView(s); } }
             if (item.type === 'project')   { this.tab = 'projects'; this.openProjectModal(item.original); }
+            if (item.type === 'event')     { this.tab = 'pipeline'; this.openEventModal(null, item.original); }
+            if (item.type === 'task')      { this.tab = 'tasks';    this.openTaskModal(item.original); }
         },
 
         hideOmni() {
