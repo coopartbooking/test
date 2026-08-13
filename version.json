@@ -1,4 +1,4 @@
 {
-  "version": "32",
-  "notes": "Adaptation tablette : menu latéral escamotable et barre de recherche à largeur souple"
+  "version": "33",
+  "notes": "Correctif urgent : la version 32 empêchait l'application de démarrer"
 }
