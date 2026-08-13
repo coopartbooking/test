@@ -1,4 +1,4 @@
 {
-  "version": "33",
-  "notes": "Correctif urgent : la version 32 empêchait l'application de démarrer"
+  "version": "34",
+  "notes": "Correctif majeur : les sauvegardes JSON contenaient une copie périmée. Alerte en cas de perte de données à la restauration."
 }

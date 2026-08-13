@@ -395,9 +395,19 @@ export const adminMethods = {
         try {
             Swal.fire({ title: 'Préparation...', text: 'Chargement de toutes les données...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-            // Récupérer les données partagées depuis Firestore
-            const annuaireSnap = await getDoc(doc(dbFirestore, "shared", "annuaire"));
-            const configSnap   = await getDoc(doc(dbFirestore, "shared", "config"));
+            // Données partagées : la sous-collection structures/{id} est la
+            // SEULE source vivante. Cet export lisait auparavant le document
+            // « shared/annuaire », gelé lors de la migration vers les
+            // sous-collections : la sauvegarde produite était une photo
+            // périmée de plusieurs mois. Restaurée, elle effaçait tout le
+            // travail postérieur.
+            const structSnap = await getDocs(collection(dbFirestore, "structures"));
+            const structures = structSnap.docs.map(d => d.data());
+
+            // Les tags vivent désormais dans shared/meta
+            const metaSnap   = await getDoc(doc(dbFirestore, "shared", "meta"));
+            const meta       = metaSnap.exists() ? metaSnap.data() : {};
+            const configSnap = await getDoc(doc(dbFirestore, "shared", "config"));
 
             const backup = {
                 exportDate:      new Date().toISOString(),
@@ -409,12 +419,14 @@ export const adminMethods = {
                 events:          this.db.events,
                 templates:       this.db.templates,
                 campaignHistory: this.db.campaignHistory,
-                // Données partagées
-                structures:      annuaireSnap.exists() ? (annuaireSnap.data().structures || [])    : this.db.structures,
-                tagCategories:   annuaireSnap.exists() ? (annuaireSnap.data().tagCategories || []) : this.db.tagCategories,
-                tagGenres:       annuaireSnap.exists() ? (annuaireSnap.data().tagGenres || [])     : this.db.tagGenres,
-                tagReseaux:      annuaireSnap.exists() ? (annuaireSnap.data().tagReseaux || [])    : this.db.tagReseaux,
-                tagKeywords:     annuaireSnap.exists() ? (annuaireSnap.data().tagKeywords || [])   : this.db.tagKeywords,
+                // Données partagées (repli sur l'état local si la lecture
+                // distante ne renvoie rien : mieux vaut sauvegarder ce qu'on a
+                // à l'écran qu'un fichier vide)
+                structures:      structures.length ? structures : this.db.structures,
+                tagCategories:   meta.tagCategories || this.db.tagCategories,
+                tagGenres:       meta.tagGenres     || this.db.tagGenres,
+                tagReseaux:      meta.tagReseaux    || this.db.tagReseaux,
+                tagKeywords:     meta.tagKeywords   || this.db.tagKeywords,
                 // Config admin
                 adminConfig:     configSnap.exists() ? configSnap.data() : {},
             };
@@ -549,20 +561,52 @@ export const adminMethods = {
                 throw new Error('Ce fichier ne semble pas être un backup CoopArt Booking valide.');
             }
 
-            // Afficher les infos du backup avant restauration
+            // ── Comparaison avec l'état actuel ──────────────────────────────
+            // Une sauvegarde plus PAUVRE que la base signifie que la
+            // restauration va SUPPRIMER des données. C'est exactement ce qui
+            // s'est produit avec les anciennes sauvegardes, qui lisaient un
+            // document gelé : elles semblaient valides et effaçaient des mois
+            // de travail. On le dit maintenant, chiffres à l'appui.
+            const ligne = (label, avant, apres) => {
+                const perte = avant - apres;
+                const cls   = perte > 0 ? 'text-red-600 font-bold' : 'text-slate-600';
+                const suff  = perte > 0 ? ` — <b>${perte} perdu(e)s</b>` : '';
+                return `<div class="${cls}">${label} : ${avant} → ${apres}${suff}</div>`;
+            };
+            const nb = { structures: (backup.structures || []).length,
+                         events:     (backup.events     || []).length,
+                         projects:   (backup.projects   || []).length,
+                         tasks:      (backup.tasks      || []).length };
+            const contactsActuels = (this.db.structures || [])
+                .reduce((n, s) => n + ((s.contacts || []).length), 0);
+            const contactsBackup  = (backup.structures || [])
+                .reduce((n, s) => n + ((s.contacts || []).length), 0);
+            const pertes = (this.db.structures.length - nb.structures) > 0
+                        || (contactsActuels - contactsBackup)          > 0
+                        || (this.db.events.length   - nb.events)       > 0
+                        || (this.db.projects.length - nb.projects)     > 0
+                        || (this.db.tasks.length    - nb.tasks)        > 0;
+
             const backupInfo = `
                 <div class="text-left text-sm space-y-1 mt-2">
                     <div><b>Exporté le :</b> ${backup.exportDate ? new Date(backup.exportDate).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '?'}</div>
                     <div><b>Par :</b> ${backup.exportBy || '?'}</div>
-                    <div><b>Structures :</b> ${(backup.structures || []).length}</div>
-                    <div><b>Affaires :</b> ${(backup.events || []).length}</div>
-                    <div><b>Projets :</b> ${(backup.projects || []).length}</div>
-                    <div><b>Tâches :</b> ${(backup.tasks || []).length}</div>
+                    <div class="pt-2 text-xs text-slate-400 uppercase font-bold">Actuel → après restauration</div>
+                    ${ligne('Structures', this.db.structures.length, nb.structures)}
+                    ${ligne('Contacts',   contactsActuels,           contactsBackup)}
+                    ${ligne('Affaires',   this.db.events.length,     nb.events)}
+                    ${ligne('Projets',    this.db.projects.length,   nb.projects)}
+                    ${ligne('Tâches',     this.db.tasks.length,      nb.tasks)}
                 </div>`;
 
+            const avertissement = pertes
+                ? `<p class="text-red-600 font-bold text-xs mt-3">⚠️ Cette sauvegarde contient MOINS de données que votre base actuelle.
+                     La restauration en supprimera définitivement. Vérifiez les lignes en rouge.</p>`
+                : `<p class="text-slate-500 text-xs mt-3">Toutes les données actuelles seront remplacées par celles de la sauvegarde.</p>`;
+
             const confirm2 = await Swal.fire({
-                title: 'Confirmer la restauration ?',
-                html: `${backupInfo}<p class="text-red-600 font-bold text-xs mt-3">⚠️ Toutes les données actuelles seront remplacées.</p>`,
+                title: pertes ? '⚠️ Perte de données détectée' : 'Confirmer la restauration ?',
+                html: `${backupInfo}${avertissement}`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',

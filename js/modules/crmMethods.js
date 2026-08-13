@@ -2,7 +2,7 @@
 // Section : entre // --- MOTEUR CRM --- et // --- ADMIN ---
 // Note : nextTick() remplacé par this.$nextTick() (équivalent dans le contexte composant Vue)
 
-import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=33';
+import { matchStructure, addAlias, scanDuplicates, markNotDuplicate, mergeInto, buildMergeComment } from './structMatch.js?v=34';
 
 export const crmMethods = {
 
