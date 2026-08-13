@@ -1,4 +1,4 @@
 {
-  "version": "36",
-  "notes": "Nouveau bouton « Villes manquantes » : retrouve la commune des fiches qui n'en ont pas, à valider une par une"
+  "version": "37",
+  "notes": "Adaptation tablette, étape 2 : panneaux de la Carte et des Recherches escamotables"
 }

@@ -151,6 +151,14 @@
     <title>Coop'Art Booking — CRM &amp; Gestion de Tournée</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind en CDN ne génère que les classes qu'il TROUVE dans le DOM.
+        // Les panneaux latéraux vivent derrière un v-if : tant que leur vue
+        // n'est pas ouverte, leurs classes n'existent nulle part et la règle
+        // correspondante n'est jamais produite — le panneau resterait alors
+        // invisible même sur grand écran. On les déclare donc explicitement.
+        tailwind.config = { safelist: ['lg:block', 'lg:flex', 'lg:hidden', 'lg:static'] };
+    </script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <!-- jsPDF chargé à la demande (generateContract/generateRoadbook) — voir utils.js -->
     <!-- FontAwesome 6 — subset solid uniquement (~80KB vs 400KB pour all.min.css) -->
@@ -1817,7 +1825,8 @@
                 <!-- ══ SOUS-ONGLET : RECHERCHES ══ -->
                 <div v-if="contactSubTab==='searches'" class="flex-1 flex overflow-hidden">
                     <!-- Panneau gauche : liste recherches sauvegardées -->
-                    <div class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+                    <div :class="['w-72 flex-shrink-0 bg-white border-r border-slate-200 flex-col',
+                                  panelOpen.searches === null ? 'hidden lg:flex' : (panelOpen.searches ? 'flex' : 'hidden')]">
                         <div class="p-4 border-b border-slate-100 flex justify-between items-center">
                             <span class="font-bold text-slate-700 text-sm">Recherches sauvegardées</span>
                             <button @click="openNewSearch" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 transition"><i class="fas fa-plus mr-1"></i> Nouvelle</button>
@@ -1847,6 +1856,18 @@
                     <div class="flex-1 flex flex-col overflow-hidden bg-slate-50">
                         <div class="p-6 border-b border-slate-200 bg-white flex-shrink-0">
                             <div class="flex items-center gap-3">
+                                <!-- Replier les deux panneaux : ils occupent 576 px
+                                     à eux seuls, l'essentiel d'un écran de tablette. -->
+                                <button @click="togglePanel('searches')"
+                                        data-tooltip="Afficher ou masquer les recherches sauvegardées"
+                                        class="flex-shrink-0 w-9 h-9 rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition flex items-center justify-center">
+                                    <i class="fas fa-folder-open"></i>
+                                </button>
+                                <button @click="togglePanel('criteria')"
+                                        data-tooltip="Afficher ou masquer les critères de recherche"
+                                        class="flex-shrink-0 w-9 h-9 rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition flex items-center justify-center">
+                                    <i class="fas fa-sliders-h"></i>
+                                </button>
                                 <input autocomplete="off" name="currentSearch-name" v-model="currentSearch.name" class="input-field flex-1 max-w-xs font-bold" placeholder="Nom de la recherche...">
                                 <button @click="runSearch" class="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition shadow flex items-center gap-2">
                                     <i class="fas fa-calculator"></i> Calculer ({{ searchResults.length }})
@@ -1859,7 +1880,8 @@
 
                         <div class="flex flex-1 overflow-hidden">
                             <!-- Critères -->
-                            <div class="w-72 flex-shrink-0 p-4 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar">
+                            <div :class="['w-72 flex-shrink-0 p-4 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar',
+                                          panelOpen.criteria === null ? 'hidden lg:block' : (panelOpen.criteria ? 'block' : 'hidden')]">
                                 <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Critères de recherche</h4>
                                 <div class="space-y-3">
                                     <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -2658,7 +2680,16 @@
             <div v-if="tab==='geo'" class="flex h-full relative">
                 <div id="map" class="flex-1 z-0 relative"></div>
                 
-                <div class="w-96 bg-white border-l border-slate-200 flex flex-col z-10 shadow-2xl">
+                <!-- Bascule du panneau : posée au-dessus de tout (z-20), elle
+                     reste atteignable que le panneau soit ouvert ou replié. -->
+                <button @click="togglePanel('geo')"
+                        :data-tooltip="panelOpen.geo === false ? 'Afficher le panneau de recherche' : 'Replier le panneau pour agrandir la carte'"
+                        class="absolute top-3 right-3 z-20 w-9 h-9 rounded-lg bg-white/95 border border-slate-200 shadow-lg text-slate-500 hover:text-indigo-600 transition flex items-center justify-center">
+                    <i :class="panelOpen.geo === false ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
+                </button>
+
+                <div :class="['w-96 bg-white border-l border-slate-200 flex-col z-10 shadow-2xl',
+                              panelOpen.geo === null ? 'hidden lg:flex' : (panelOpen.geo ? 'flex' : 'hidden')]">
                     
                     <div class="p-6 border-b border-slate-100 bg-slate-50">
     <h3 class="font-bold text-slate-800 mb-2"><i class="fas fa-search-location text-indigo-500 mr-2"></i> Recherche & Invitations</h3>
@@ -4488,7 +4519,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=36"></script>
+<script type="module" src="./js/app.js?v=37"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {

@@ -1,7 +1,7 @@
 // js/modules/importMethods.js — Import Excel, Export natif CRM, modale Projet
 // Section : entre // --- IMPORT EXCEL --- et // --- IMPORT CULTURE.GOUV.FR ---
 
-import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=36';
+import { matchStructure, addAlias, mergeInto, buildMergeComment } from './structMatch.js?v=37';
 
 // Couleurs par défaut des projets (même constante que dans app.js)
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];

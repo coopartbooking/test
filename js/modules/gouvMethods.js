@@ -1,7 +1,7 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
-import { matchStructure, mergeInto, buildMergeComment, structAliasKeys } from './structMatch.js?v=36';
+import { matchStructure, mergeInto, buildMergeComment, structAliasKeys } from './structMatch.js?v=37';
 
 // ── Base Adresse Nationale : API officielle de l'État, gratuite et sans clé ──
 // Utilisée pour retrouver la commune d'une structure à partir de son nom.

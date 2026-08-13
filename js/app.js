@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=36';
+import { auth, dbFirestore }                                              from './firebase.js?v=37';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=36';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=36';
-import { planningComputed, planningMethods }    from './planning.js?v=36';
-import { adminMethods }                           from './modules/adminMethods.js?v=36';
-import { mapMethods }                             from './modules/mapMethods.js?v=36';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=36';
-import { importMethods }                         from './modules/importMethods.js?v=36';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=36';
-import { searchMethods }                         from './modules/searchMethods.js?v=36';
-import { projectMethods }                        from './modules/projectMethods.js?v=36';
-import { venueMethods }                          from './modules/venueMethods.js?v=36';
-import { crmMethods }                            from './modules/crmMethods.js?v=36';
-import { appComputed }                           from './modules/appComputed.js?v=36';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=36';
-import { icalMethods }                            from './modules/icalMethods.js?v=36';
-import { updateMethods }                          from './modules/updateMethods.js?v=36';
+import { utilsMethods }                         from './utils.js?v=37';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=37';
+import { planningComputed, planningMethods }    from './planning.js?v=37';
+import { adminMethods }                           from './modules/adminMethods.js?v=37';
+import { mapMethods }                             from './modules/mapMethods.js?v=37';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=37';
+import { importMethods }                         from './modules/importMethods.js?v=37';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=37';
+import { searchMethods }                         from './modules/searchMethods.js?v=37';
+import { projectMethods }                        from './modules/projectMethods.js?v=37';
+import { venueMethods }                          from './modules/venueMethods.js?v=37';
+import { crmMethods }                            from './modules/crmMethods.js?v=37';
+import { appComputed }                           from './modules/appComputed.js?v=37';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=37';
+import { icalMethods }                            from './modules/icalMethods.js?v=37';
+import { updateMethods }                          from './modules/updateMethods.js?v=37';
 
 // --- CONSTANTE COULEURS PAR DÉFAUT ---
 const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
@@ -57,6 +57,12 @@ createApp({
             //   false → repliée à la demande, y compris sur grand écran, utile
             //           sur les onglets ayant déjà un panneau latéral (Carte…)
             sidebarOpen: null,
+            // Panneaux latéraux internes aux vues, même logique à trois états
+            // que la barre latérale (null = le CSS décide). Ils occupent une
+            // largeur fixe qui devient coûteuse sur tablette : le sous-onglet
+            // Recherches en empile deux (288 px chacun), la Carte en a un de
+            // 384 px sur un écran où la place est précieuse.
+            panelOpen: { searches: null, criteria: null, geo: null },
             authEmail: '', authPassword: '', isLoginMode: true,
 
             // Base de données locale (miroir Firestore)
@@ -943,12 +949,23 @@ async removeGlobalTag(familyName, tag) {
         // au-dessus de 1024 px elle est visible, en dessous elle est masquée.
         toggleSidebar() {
             if (this.sidebarOpen === null) {
-                const wide = !window.matchMedia
-                          || window.matchMedia('(min-width: 1024px)').matches;
-                this.sidebarOpen = !wide;
+                this.sidebarOpen = !this._isWideScreen();
             } else {
                 this.sidebarOpen = !this.sidebarOpen;
             }
+        },
+
+        // Au-dessus de 1024 px : les panneaux sont visibles par défaut (CSS).
+        _isWideScreen() {
+            return !window.matchMedia || window.matchMedia('(min-width: 1024px)').matches;
+        },
+
+        // Bascule d'un panneau latéral interne à une vue. Même raisonnement que
+        // toggleSidebar : en état automatique on déduit ce que le CSS affiche
+        // pour basculer vers l'inverse.
+        togglePanel(key) {
+            const v = this.panelOpen[key];
+            this.panelOpen[key] = (v === null) ? !this._isWideScreen() : !v;
         },
 
         goOmni(item) {
@@ -981,7 +998,10 @@ async removeGlobalTag(familyName, tag) {
         // moteur des media queries, et se déclenche là où resize peut manquer.
         try {
             const mq = window.matchMedia('(min-width: 1024px)');
-            const onBreakpoint = () => { this.sidebarOpen = null; };
+            const onBreakpoint = () => {
+                this.sidebarOpen = null;
+                Object.keys(this.panelOpen).forEach(k => { this.panelOpen[k] = null; });
+            };
             mq.addEventListener ? mq.addEventListener('change', onBreakpoint)
                                 : mq.addListener(onBreakpoint);
         } catch (e) { /* navigateur sans matchMedia : le CSS suffit */ }
