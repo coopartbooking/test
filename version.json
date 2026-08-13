@@ -1,4 +1,4 @@
 {
-  "version": "28",
-  "notes": "L'annuaire se trie désormais par nom de famille, plus par prénom"
+  "version": "29",
+  "notes": "L'import CSV/Excel utilise enfin le moteur de doublons unifié : il complète les fiches existantes au lieu d'en créer des copies"
 }

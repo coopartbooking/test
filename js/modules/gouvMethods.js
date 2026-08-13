@@ -1,7 +1,7 @@
 // js/modules/gouvMethods.js — Import Culture.gouv.fr et Import CSV libre
 // Section : entre // --- IMPORT CULTURE.GOUV.FR --- et // --- EXPORT AVEC MAPPING ---
 
-import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=28';
+import { matchStructure, mergeInto, buildMergeComment } from './structMatch.js?v=29';
 
 // Ressource "Basilic" sur data.gouv.fr (CSV interrogeable via l'API tabulaire).
 // Mis à jour le 18/02/2026 — 86 366 lieux. Voir :
@@ -75,37 +75,57 @@ export const gouvMethods = {
         reader.readAsArrayBuffer(file);
     },
 
+    // Import d'un fichier CSV ou Excel.
+    //
+    // Branché sur structMatch.js, comme l'import Culture.gouv. Le contrôle
+    // précédent était une égalité stricte nom + ville aux minuscules près :
+    // « MAIRIE DU PUY EN VELAY » et « Mairie du Puy-en-Velay » passaient pour
+    // deux structures différentes, et un doublon détecté était simplement
+    // ignoré — les données nouvelles du fichier (téléphone, email, site) étaient
+    // perdues au lieu d'enrichir la fiche existante.
+    //
+    // Trois issues possibles par ligne, identiques à l'import gouv :
+    //   auto    → doublon certain  : la fiche existante est complétée
+    //   suggest → doublon probable : créée, mais signalée dans le bilan
+    //   new     → vraiment nouvelle
     async importCsvStructures() {
         const m = this.csvImport.mapping;
         if (!m.name) return Swal.fire('Champ requis', 'Associez au minimum la colonne "Nom" pour importer.', 'warning');
-        let imported = 0, skipped = 0;
+
+        let imported = 0, merged = 0;
+        const mergeReport = [];   // fusions réalisées (avec conflits éventuels)
+        const toReview    = [];   // doublons probables : décision de l'utilisateur
+        const sourceLabel = this.csvImport.fileName || 'Import CSV/Excel';
+
         this.csvImport.rows.forEach(row => {
-            const name = String(row[m.name] || '').trim();
-            const city = String(row[m.city] || '').trim();
+            // Valeur d'une colonne mappée, toujours en chaîne nettoyée
+            const val  = key => m[key] ? String(row[m[key]] || '').trim() : '';
+            const name = val('name');
             if (!name) return;
-            // Doublon check
-            const exists = this.db.structures.some(s => s.name.toLowerCase() === name.toLowerCase() && (s.city||'').toLowerCase() === city.toLowerCase());
-            if (exists) { skipped++; return; }
-            const catTag   = m.category && row[m.category] ? this.gouvTypeToTag(String(row[m.category])) || String(row[m.category]).trim() : '';
-            const genreTag = m.genre    && row[m.genre]    ? String(row[m.genre]).trim() : '';
-            const now = new Date().toISOString();
-            this.db.structures.push({
+
+            const catRaw   = val('category');
+            const catTag   = catRaw ? (this.gouvTypeToTag(catRaw) || catRaw) : '';
+            const genreTag = val('genre');
+            const now      = new Date().toISOString();
+
+            const incoming = {
                 id:           Date.now().toString() + Math.random().toString(36).slice(2),
                 name,
                 isClient:     false, isActive: true,
                 clientCode:   '',
-                source:       m.source && row[m.source] ? String(row[m.source]).trim() : (this.csvImport.fileName || 'Import CSV'),
+                source:       val('source') || sourceLabel,
                 createdDate:  now,
-                address:      m.address  ? String(row[m.address]  || '').trim() : '',
+                address:      val('address'),
                 suite:        '',
-                zip:          m.zip      ? String(row[m.zip]      || '').trim() : '',
-                city,
-                country:      m.country  ? String(row[m.country]  || '').trim() : 'France',
-                phone1:       m.phone    ? String(row[m.phone]    || '').trim() : '',
+                zip:          val('zip'),
+                city:         val('city'),
+                country:      val('country') || 'France',
+                phone1:       val('phone'),
                 phone2: '', mobile: '', fax: '',
-                email:        m.email    ? String(row[m.email]    || '').trim() : '',
-                website:      m.website  ? String(row[m.website]  || '').trim() : '',
-                capacity:     m.capacity ? String(row[m.capacity] || '').trim() : '',
+                email:        val('email'),
+                website:      val('website'),
+                aliases:      [],
+                capacity:     val('capacity'),
                 season: '', hours: '', progMonthStart: '', progMonthEnd: '',
                 lat: null, lng: null,
                 tags: {
@@ -117,18 +137,86 @@ export const gouvMethods = {
                 createdAt:  now, createdBy:  this.currentUserName,
                 updatedAt:  now, updatedBy:  this.currentUserName,
                 importedAt: now, importedBy: this.currentUserName,
-            });
+            };
+
+            const mt = matchStructure(incoming, this.db.structures);
+
+            // ── Doublon certain : on enrichit la fiche existante ──
+            // mergeInto ne recopie qu'une liste blanche de champs (adresse,
+            // téléphones, email, site…) : id, nom et dates de la fiche existante
+            // ne sont jamais écrasés.
+            if (mt.status === 'auto' && mt.target) {
+                const { filled, conflicts, aliasAdded } = mergeInto(mt.target, incoming);
+                if (filled.length || conflicts.length) {
+                    mt.target.comments = Array.isArray(mt.target.comments) ? mt.target.comments : [];
+                    mt.target.comments.push(buildMergeComment({
+                        source: sourceLabel, filled, conflicts, user: this.currentUserName,
+                    }));
+                    mt.target.updatedAt = now;
+                    mt.target.updatedBy = this.currentUserName;
+                }
+                merged++;
+                mergeReport.push({ name: mt.target.name, reason: mt.reasons[0] || '', filled, conflicts, aliasAdded });
+                return;
+            }
+
+            // ── Doublon probable : créée quand même, mais signalée ──
+            if (mt.status === 'suggest' && mt.target) {
+                toReview.push({ incomingName: name, existingName: mt.target.name, reason: mt.reasons[0] || '' });
+            }
+
+            this.db.structures.push(incoming);
             imported++;
         });
+
         await this.saveDB();
         this.csvImport.headers = [];
         this.csvImport.rows    = [];
         this.csvImport.mapping = {};
         this.showGouvImport    = false;
+
+        // ── Bilan détaillé (même présentation que l'import gouv) ──
+        const esc = v => String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        let html = `<div class="text-left text-sm space-y-2">`;
+        html += `<p><b>${imported}</b> structure(s) créée(s)</p>`;
+        if (merged) {
+            html += `<p class="text-emerald-600"><b>${merged}</b> rattachée(s) à une fiche existante (données complétées)</p>`;
+        }
+        if (toReview.length) {
+            html += `<div class="text-orange-600">
+                        <p><b>${toReview.length}</b> doublon(s) possible(s) — créées, à vérifier :</p>
+                        <ul class="text-xs mt-1 ml-4 list-disc">`
+                 + toReview.slice(0, 8).map(r =>
+                        `<li>« ${esc(r.incomingName)} » ≈ « ${esc(r.existingName)} »<br><span class="text-slate-400">${esc(r.reason)}</span></li>`
+                   ).join('')
+                 + (toReview.length > 8 ? `<li>… et ${toReview.length - 8} autre(s)</li>` : '')
+                 + `</ul></div>`;
+        }
+        const aliases = mergeReport.filter(r => r.aliasAdded);
+        if (aliases.length) {
+            html += `<div class="text-indigo-600 border-t pt-2 mt-2">
+                        <p class="text-xs"><i class="fas fa-tags mr-1"></i><b>${aliases.length}</b> nouvelle(s) variante(s) de nom mémorisée(s) — les prochains imports les reconnaîtront automatiquement :</p>
+                        <ul class="text-xs mt-1 ml-4 list-disc">`
+                 + aliases.slice(0, 6).map(r =>
+                        `<li>« ${esc(r.aliasAdded)} » → ${esc(r.name)}</li>`
+                   ).join('')
+                 + (aliases.length > 6 ? `<li>… et ${aliases.length - 6} autre(s)</li>` : '')
+                 + `</ul></div>`;
+        }
+        const conflicts = mergeReport.filter(r => r.conflicts.length);
+        if (conflicts.length) {
+            html += `<div class="text-slate-500 border-t pt-2 mt-2">
+                        <p class="text-xs"><b>${conflicts.length}</b> fiche(s) avec des valeurs divergentes — l'existant a été conservé, le détail figure dans les commentaires de chaque fiche.</p>
+                     </div>`;
+        }
+        html += `</div>`;
+
         Swal.fire({
-            title: 'Import CSV terminé ✓',
-            html:  `<b>${imported}</b> structure(s) importée(s)${skipped > 0 ? `<br><span class="text-orange-500">${skipped} doublon(s) ignoré(s)</span>` : ''}`,
-            icon:  'success', confirmButtonColor: '#059669'
+            title: 'Import terminé ✓',
+            html,
+            icon:  'success', confirmButtonColor: '#059669', width: 560,
         });
     },
 
