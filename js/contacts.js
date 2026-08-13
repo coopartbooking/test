@@ -1,6 +1,6 @@
 // contacts.js — Computed et méthodes pour l'annuaire
 
-import { normSearch } from './utils.js?v=27';
+import { normSearch } from './utils.js?v=28';
 
 // Collateur français créé UNE SEULE FOIS et réutilisé par tous les tris.
 // localeCompare() reconstruit les règles de collation à chaque comparaison :
@@ -8,6 +8,30 @@ import { normSearch } from './utils.js?v=27';
 // négligeable. Options identiques à celles utilisées auparavant, donc tri
 // rigoureusement inchangé.
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+
+// Nom de famille d'un contact, pour le tri.
+// Les fiches anciennes n'ont parfois qu'un champ « name » non découpé : on
+// retient alors le dernier mot, qui est le nom de famille dans la quasi-
+// totalité des cas (« de la Fontaine » reste mal classé, c'est assumé).
+function contactLastName(c) {
+    if (c.lastName) return c.lastName.trim();
+    const parts = (c.name || '').trim().split(/\s+/);
+    return parts.length > 1 ? parts[parts.length - 1] : (parts[0] || '');
+}
+
+// Tri « Nom » des contacts : nom de famille, puis prénom à égalité.
+// Le champ affiché (name) commence par le PRÉNOM : trier dessus revenait à
+// classer l'annuaire par prénom, alors que le sélecteur annonce « Nom ».
+function compareContactByName(a, b, dir = 1) {
+    const la = contactLastName(a);
+    const lb = contactLastName(b);
+    if (!la && !lb) return 0;
+    if (!la) return 1;    // sans nom exploitable → fin de liste, quel que soit le sens
+    if (!lb) return -1;
+    const r = collator.compare(la, lb);
+    if (r !== 0) return dir * r;
+    return dir * collator.compare((a.firstName || '').trim(), (b.firstName || '').trim());
+}
 
 // Comparaison réutilisable : valeurs vides toujours rejetées en fin de liste.
 function compareField(a, b, field, dir = 1) {
@@ -155,7 +179,9 @@ export const contactsComputed = {
         const dir = this.contactSortDir === 'desc' ? -1 : 1;
         // slice() : allContacts est un computed mis en cache, il ne doit jamais
         // être trié en place — sinon l'ordre fuiterait vers tous ses lecteurs.
-        return all.slice().sort((a, b) => compareField(a, b, field, dir));
+        return all.slice().sort((a, b) => field === 'name'
+            ? compareContactByName(a, b, dir)
+            : compareField(a, b, field, dir));
     },
 
     validMailingContacts() {

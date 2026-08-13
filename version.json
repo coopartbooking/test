@@ -1,4 +1,4 @@
 {
-  "version": "27",
-  "notes": "Recherche globale étendue aux affaires et aux tâches, et recherches plus réactives"
+  "version": "28",
+  "notes": "L'annuaire se trie désormais par nom de famille, plus par prénom"
 }
