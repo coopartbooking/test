@@ -1,4 +1,4 @@
 {
-  "version": "40",
-  "notes": "Plafond d'affichage sur les longues listes — invisible tant que la base est petite"
+  "version": "41",
+  "notes": "Emails d'invitation : la langue forcée empêchait tout envoi depuis des mois"
 }

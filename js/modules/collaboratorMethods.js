@@ -5,9 +5,20 @@ import { getFunctions, httpsCallable }          from "https://www.gstatic.com/fi
 import { getAuth, sendPasswordResetEmail }       from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { firebaseApp }                           from '../firebase.js';
 
-// Langue française pour les emails Firebase
+// AUCUNE langue n'est imposée ici, et c'est délibéré.
+//
+// Ce module forçait « clientAuth.languageCode = 'fr' ». Or le modèle français
+// n'est pas provisionné pour ce projet Firebase : la demande d'envoi était
+// acceptée, la composition de l'email échouait, et le message était abandonné
+// SANS la moindre erreur — ni côté client, ni dans aucun journal. Les
+// invitations aux collaborateurs n'ont donc jamais été délivrées pendant des
+// mois, alors que l'application annonçait « Email envoyé ✓ ».
+//
+// Sans cette ligne, Firebase applique la langue par défaut du projet
+// (Authentication → Templates → Langue du modèle). Le désaccord devient
+// impossible, et le jour où le français y sera disponible les emails
+// passeront en français sans toucher à ce fichier.
 const clientAuth = getAuth(firebaseApp);
-clientAuth.languageCode = 'fr';
 
 // URL de l'application : page sur laquelle le destinataire est renvoyé
 // après avoir défini son mot de passe (bouton "Continuer" dans l'email Firebase).
