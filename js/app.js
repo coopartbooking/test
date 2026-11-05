@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=42';
+import { auth, dbFirestore }                                              from './firebase.js?v=43';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=42';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=42';
-import { planningComputed, planningMethods }    from './planning.js?v=42';
-import { adminMethods }                           from './modules/adminMethods.js?v=42';
-import { mapMethods }                             from './modules/mapMethods.js?v=42';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=42';
-import { importMethods }                         from './modules/importMethods.js?v=42';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=42';
-import { searchMethods }                         from './modules/searchMethods.js?v=42';
-import { projectMethods }                        from './modules/projectMethods.js?v=42';
-import { venueMethods }                          from './modules/venueMethods.js?v=42';
-import { crmMethods }                            from './modules/crmMethods.js?v=42';
-import { appComputed }                           from './modules/appComputed.js?v=42';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=42';
-import { icalMethods }                            from './modules/icalMethods.js?v=42';
-import { updateMethods }                          from './modules/updateMethods.js?v=42';
+import { utilsMethods }                         from './utils.js?v=43';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=43';
+import { planningComputed, planningMethods }    from './planning.js?v=43';
+import { adminMethods }                           from './modules/adminMethods.js?v=43';
+import { mapMethods }                             from './modules/mapMethods.js?v=43';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=43';
+import { importMethods }                         from './modules/importMethods.js?v=43';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=43';
+import { searchMethods }                         from './modules/searchMethods.js?v=43';
+import { projectMethods }                        from './modules/projectMethods.js?v=43';
+import { venueMethods }                          from './modules/venueMethods.js?v=43';
+import { crmMethods }                            from './modules/crmMethods.js?v=43';
+import { appComputed }                           from './modules/appComputed.js?v=43';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=43';
+import { icalMethods }                            from './modules/icalMethods.js?v=43';
+import { updateMethods }                          from './modules/updateMethods.js?v=43';
 
 // Plafond d'affichage des longues listes (annuaire, structures).
 // Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
@@ -175,6 +175,11 @@ createApp({
             // Action planifiée depuis l'onglet Notes d'un projet (devient une tâche liée au projet)
             showProjectActionForm: false,
             projectActionForm: { text: '', type: 'call', dueDate: '', dueTime: '' },
+            // Notes & actions dans la fiche affaire (journal propre à l'affaire)
+            eventNoteText: '',
+            showEventActionForm: false,
+            eventActionForm: { text: '', type: 'call', dueDate: '', dueTime: '' },
+            showEventProjectNotes: false,
             showCrmModal:     false, currentCrmStruct: null, currentCrmContact: null,
             showTemplateModal: false, editTemplateData: {},
             showInactiveProjects: false,
