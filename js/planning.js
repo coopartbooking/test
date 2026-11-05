@@ -171,12 +171,12 @@ export const planningComputed = {
 export const planningMethods = {
     // --- TÂCHES ---
     getTypeIcon(t) {
-        const i = { call: 'fas fa-phone text-blue-500', email: 'fas fa-envelope text-orange-500', admin: 'fas fa-file-contract text-purple-500', meeting: 'fas fa-handshake text-green-500', other: 'fas fa-thumbtack text-slate-500' };
+        const i = { call: 'fas fa-phone text-blue-500', email: 'fas fa-envelope text-orange-500', admin: 'fas fa-file-contract text-purple-500', meeting: 'fas fa-handshake text-green-500', relance: 'fas fa-bell text-orange-500', other: 'fas fa-thumbtack text-slate-500' };
         return i[t] || i.other;
     },
 
     getTypeName(t) {
-        const n = { call: 'Appel', email: 'Email', admin: 'Admin', meeting: 'RDV', other: 'Autre' };
+        const n = { call: 'Appel', email: 'Email', admin: 'Admin', meeting: 'RDV', relance: 'Relance', other: 'Autre' };
         return n[t] || 'Autre';
     },
 
@@ -236,6 +236,8 @@ export const planningMethods = {
                 t.doneDate = new Date().toISOString();
                 t.notes = text;
                 this.saveDB();
+                // Relance d'affaire terminée : proposer la suivante
+                if (t.type === 'relance' && t.relType === 'event') this._proposeNextRelance(t.relId);
             }
         } else {
             t.done = false;
@@ -349,7 +351,10 @@ export const planningMethods = {
             confirmButtonColor: '#ef4444',
         });
         if (!r.isConfirmed) return;
-        this.db.events = this.db.events.filter(e => e.id !== this.editEventData.id);
+        const delId = this.editEventData.id;
+        this.db.events = this.db.events.filter(e => e.id !== delId);
+        // La relance encore ouverte de cette affaire n'a plus de sens
+        this.db.tasks = (this.db.tasks || []).filter(t => !(t.type === 'relance' && !t.done && t.relType === 'event' && String(t.relId) === String(delId)));
         this.saveDB();
         this.showEventModal = false;
     },
@@ -717,11 +722,70 @@ export const planningMethods = {
     },
 
     // Définir une date de relance sur une affaire
+    // --- RELANCES D'AFFAIRE = TÂCHES ---
+    // Depuis la v44, une relance est une tâche ordinaire (db.tasks) :
+    // type 'relance', relType 'event', relId = id de l'affaire.
+    // Elle apparaît donc dans Tâches & Suivi, l'agenda et le pipeline.
+    // Une seule relance ouverte par affaire.
+    getEventRelance(eventId) {
+        if (eventId === null || eventId === undefined || eventId === '') return null;
+        const eid = String(eventId);
+        return (this.db.tasks || []).find(t => !t.done && t.type === 'relance' && t.relType === 'event' && String(t.relId) === eid) || null;
+    },
+
+    isRelanceOverdue(t) {
+        return !!(t && t.dueDate && t.dueDate < this._todayIso());
+    },
+
+    _todayIso() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    },
+
+    _isoIn(days) {
+        const d = new Date();
+        d.setDate(d.getDate() + days);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    },
+
+    _relanceText(e, note) {
+        return note ? 'Relance : ' + note : 'Relancer ' + (e.venueName || e.city || "l'organisateur");
+    },
+
+    // Crée ou met à jour la relance ouverte d'une affaire
+    _upsertRelance(e, date, note) {
+        if (!this.db.tasks) this.db.tasks = [];
+        const existing = this.getEventRelance(e.id);
+        if (existing) {
+            existing.dueDate     = date;
+            existing.relanceNote = note || '';
+            existing.text        = this._relanceText(e, note);
+            return existing;
+        }
+        let id = Date.now();
+        while (this.db.tasks.some(x => x.id === id)) id++;   // plusieurs relances créées dans la même milliseconde (migration)
+        const t = {
+            id:          id,
+            text:        this._relanceText(e, note),
+            type:        'relance',
+            dueDate:     date,
+            dueTime:     '',
+            done:        false,
+            relType:     'event',
+            relId:       e.id,
+            relanceNote: note || '',
+        };
+        this.db.tasks.push(t);
+        return t;
+    },
+
     async setRelanceDate(e, autoDelay = null) {
+        if (!e || !e.id) return Swal.fire('Erreur', "Enregistrez d'abord l'affaire.", 'warning');
+        const current = this.getEventRelance(e.id);
         const delay = autoDelay || this._defaultRelanceDelay(e.stage || 'lead');
-        const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() + delay);
-        const defaultStr = defaultDate.toISOString().slice(0, 10);
+        const defaultStr = current ? current.dueDate : this._isoIn(delay);
+        const noteStr = current ? (current.relanceNote || '') : '';
+        const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
         const r = await Swal.fire({
             title: `Relance — ${e.venueName || 'Affaire'}`,
@@ -732,65 +796,90 @@ export const planningMethods = {
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Note (optionnelle)</label>
-                    <input id="swal-relance-note" class="swal2-input !mt-0" placeholder="Ex: Attendre retour budget...">
+                    <input id="swal-relance-note" class="swal2-input !mt-0" placeholder="Ex: Attendre retour budget..." value="${esc(noteStr)}">
                 </div>
                 <div class="flex gap-2 mt-1">
-                    ${[3,7,14,30].map(d => {
-                        const dt = new Date(); dt.setDate(dt.getDate()+d);
-                        return `<button type="button" onclick="document.getElementById('swal-relance-date').value='${dt.toISOString().slice(0,10)}'"
-                                class="flex-1 text-xs bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-700 px-2 py-1 rounded-lg font-bold transition">+${d}j</button>`;
-                    }).join('')}
+                    ${[3,7,14,30].map(d => `<button type="button" data-days="${d}"
+                                class="flex-1 text-xs bg-slate-100 hover:bg-indigo-100 text-slate-600 hover:text-indigo-700 px-2 py-1 rounded-lg font-bold transition">+${d}j</button>`).join('')}
                 </div>
             </div>`,
             showCancelButton: true,
-            confirmButtonText: 'Définir la relance',
+            confirmButtonText: current ? 'Modifier la relance' : 'Définir la relance',
             cancelButtonText: 'Annuler',
             confirmButtonColor: '#4f46e5',
             focusConfirm: false,
-            preConfirm: () => ({
-                date: document.getElementById('swal-relance-date').value,
-                note: document.getElementById('swal-relance-note').value.trim(),
-            })
+            // SweetAlert2 supprime les onclick : les raccourcis passent par didOpen()
+            didOpen: (popup) => {
+                popup.querySelectorAll('[data-days]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        popup.querySelector('#swal-relance-date').value = this._isoIn(Number(btn.dataset.days));
+                    });
+                });
+            },
+            preConfirm: () => {
+                const date = document.getElementById('swal-relance-date').value;
+                if (!date) return Swal.showValidationMessage('Choisissez une date');
+                return { date, note: document.getElementById('swal-relance-note').value.trim() };
+            }
         });
         if (!r.isConfirmed) return;
 
-        const idx = this.db.events.findIndex(x => x.id === e.id);
-        if (idx === -1) return;
-        this.db.events[idx].relanceDate = r.value.date;
-        this.db.events[idx].relanceNote = r.value.note || '';
-        this.db.events[idx].relanceDone = false;
+        const ev = this.db.events.find(x => x.id === e.id) || e;
+        this._upsertRelance(ev, r.value.date, r.value.note);
         this.saveDB();
         Swal.fire({ title: 'Relance planifiée ✓', html: `Le ${this.formatDate(r.value.date)}`, icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
     },
 
-    // Marquer une relance comme effectuée et proposer la suivante
+    // Relance effectuée (depuis le tableau de bord) : la tâche passe dans l'Historique
     async markRelanceDone(e) {
-        const r = await Swal.fire({
+        const t = this.getEventRelance(e.id);
+        if (!t) return;
+        const { value: text } = await Swal.fire({
             title: 'Relance effectuée ✓',
-            html: `Voulez-vous planifier une prochaine relance pour <strong>${e.venueName || 'cette affaire'}</strong> ?`,
-            icon: 'success',
+            input: 'textarea',
+            inputLabel: 'Un compte-rendu ? (Optionnel)',
+            showCancelButton: true,
+            confirmButtonText: 'Valider',
+            cancelButtonText: 'Annuler',
+            confirmButtonColor: '#10b981',
+        });
+        if (text === undefined) return;
+        t.done     = true;
+        t.doneDate = new Date().toISOString();
+        t.notes    = text;
+        this.saveDB();
+        this._proposeNextRelance(e.id);
+    },
+
+    async _proposeNextRelance(eventId) {
+        const ev = this.db.events.find(x => String(x.id) === String(eventId));
+        if (!ev || ev.stage === 'won' || ev.stage === 'ann') return;
+        const r = await Swal.fire({
+            title: 'Prochaine relance ?',
+            html: `Voulez-vous planifier une prochaine relance pour <strong>${ev.venueName || 'cette affaire'}</strong> ?`,
+            icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Planifier une relance',
             cancelButtonText: 'Non merci',
             confirmButtonColor: '#4f46e5',
         });
+        if (r.isConfirmed) await this.setRelanceDate(ev);
+    },
 
-        const idx = this.db.events.findIndex(x => x.id === e.id);
-        if (idx === -1) return;
-
-        // Enregistrer dans l'historique de l'affaire
-        if (!this.db.events[idx].relanceHistory) this.db.events[idx].relanceHistory = [];
-        this.db.events[idx].relanceHistory.push({
-            date:  new Date().toISOString(),
-            note:  this.db.events[idx].relanceNote || '',
-            by:    this.currentUserName,
+    // Migration : anciennes relances (e.relanceDate) → tâches. Idempotente,
+    // appelée à chaque chargement des données privées. Les affaires confirmées
+    // ou annulées gardent leur ancien champ, invisible comme avant.
+    _migrateRelancesToTasks() {
+        let changed = false;
+        (this.db.events || []).forEach(e => {
+            if (!e.relanceDate || e.relanceDone) return;
+            if (e.stage === 'won' || e.stage === 'ann') return;
+            this._upsertRelance(e, e.relanceDate, e.relanceNote || '');
+            delete e.relanceDate;
+            delete e.relanceNote;
+            changed = true;
         });
-        this.db.events[idx].relanceDone = true;
-        this.db.events[idx].relanceDate = null;
-        this.db.events[idx].relanceNote = '';
-        this.saveDB();
-
-        if (r.isConfirmed) await this.setRelanceDate(this.db.events[idx]);
+        return changed;
     },
 
     // Email de relance pré-rempli

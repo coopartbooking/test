@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=43';
+import { auth, dbFirestore }                                              from './firebase.js?v=44';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=43';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=43';
-import { planningComputed, planningMethods }    from './planning.js?v=43';
-import { adminMethods }                           from './modules/adminMethods.js?v=43';
-import { mapMethods }                             from './modules/mapMethods.js?v=43';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=43';
-import { importMethods }                         from './modules/importMethods.js?v=43';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=43';
-import { searchMethods }                         from './modules/searchMethods.js?v=43';
-import { projectMethods }                        from './modules/projectMethods.js?v=43';
-import { venueMethods }                          from './modules/venueMethods.js?v=43';
-import { crmMethods }                            from './modules/crmMethods.js?v=43';
-import { appComputed }                           from './modules/appComputed.js?v=43';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=43';
-import { icalMethods }                            from './modules/icalMethods.js?v=43';
-import { updateMethods }                          from './modules/updateMethods.js?v=43';
+import { utilsMethods }                         from './utils.js?v=44';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=44';
+import { planningComputed, planningMethods }    from './planning.js?v=44';
+import { adminMethods }                           from './modules/adminMethods.js?v=44';
+import { mapMethods }                             from './modules/mapMethods.js?v=44';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=44';
+import { importMethods }                         from './modules/importMethods.js?v=44';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=44';
+import { searchMethods }                         from './modules/searchMethods.js?v=44';
+import { projectMethods }                        from './modules/projectMethods.js?v=44';
+import { venueMethods }                          from './modules/venueMethods.js?v=44';
+import { crmMethods }                            from './modules/crmMethods.js?v=44';
+import { appComputed }                           from './modules/appComputed.js?v=44';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=44';
+import { icalMethods }                            from './modules/icalMethods.js?v=44';
+import { updateMethods }                          from './modules/updateMethods.js?v=44';
 
 // Plafond d'affichage des longues listes (annuaire, structures).
 // Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
@@ -532,6 +532,8 @@ createApp({
             const lines = [];
             if (overdue.length > 0) lines.push(`<li class="text-red-600 font-bold">⚠ ${overdue.length} tâche(s) en retard</li>`);
             if (today.length  > 0) lines.push(`<li class="text-orange-600">📅 ${today.length} tâche(s) pour aujourd'hui</li>`);
+            const nRel = overdue.concat(today).filter(t => t.type === 'relance').length;
+            if (nRel > 0) lines.push(`<li class="text-slate-500 text-sm">dont ${nRel} relance(s) d'affaire</li>`);
 
             Swal.fire({
                 title: 'Tâches à traiter',
@@ -1142,6 +1144,8 @@ async removeGlobalTag(familyName, tag) {
                             this.db.projects = []; this.db.tasks = []; this.db.events = [];
                         }
                     }
+                    // Anciennes relances d'affaire → tâches (v44, sans effet ensuite)
+                    if (this._migrateRelancesToTasks && this._migrateRelancesToTasks()) this.saveDB();
                     if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
                         this.selectedProjectIds = this.db.projects.map(p => p.id);
                     }
@@ -1151,11 +1155,12 @@ async removeGlobalTag(familyName, tag) {
                         this.$nextTick(() => {
                             setTimeout(() => {
                                 this.checkOverdueTasks();
-                                if ((this.tasksOverdue || []).length > 0) {
+                                const tasksAlert = (this.tasksOverdue || []).length > 0;
+                                if (tasksAlert) {
                                     this.showTasksAlert();
                                 }
-                                // Vérifier les relances en attente
-                                if (!this.relanceAlertShown && (this.affairesToRelance || []).length > 0) {
+                                // Relances en attente (si l'alerte des tâches, qui les inclut, n'est pas déjà affichée)
+                                if (!tasksAlert && !this.relanceAlertShown && (this.affairesToRelance || []).length > 0) {
                                     this.relanceAlertShown = true;
                                     this.showRelanceAlert();
                                 }
