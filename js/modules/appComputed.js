@@ -1,7 +1,7 @@
 // js/modules/appComputed.js — Toutes les computed properties de app.js
 // Spreadées après ...contactsComputed et ...planningComputed
 
-import { normSearch } from '../utils.js?v=43';
+import { normSearch } from '../utils.js?v=44';
 
 // Nombre maximum de résultats affichés par catégorie dans la recherche globale.
 // Au-delà, un compteur « +N autres » invite à préciser la recherche : sans
@@ -32,23 +32,28 @@ export const appComputed = {
 
     // ── RELANCES AUTOMATIQUES ──
 
-    // Affaires à relancer (date de relance dépassée ou dans les 48h)
+    // Affaires à relancer (date de relance dépassée ou dans les 48h).
+    // Depuis la v44 les relances sont des tâches (type 'relance') : on renvoie
+    // l'affaire enrichie de relanceDate / relanceNote pour le tableau de bord.
     affairesToRelance() {
-        const now     = new Date();
-        const in48h   = new Date(now.getTime() + 48 * 3600 * 1000);
-        return (this.db.events || [])
-            .filter(e => {
-                if (!e.relanceDate) return false;
-                if (e.stage === 'won' || e.stage === 'ann') return false;
-                const d = new Date(e.relanceDate);
-                return d <= in48h;
+        const d = new Date(Date.now() + 48 * 3600 * 1000);
+        const limit = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const events = this.db.events || [];
+        return (this.db.tasks || [])
+            .filter(t => !t.done && t.type === 'relance' && t.relType === 'event' && t.dueDate && t.dueDate <= limit)
+            .map(t => {
+                const e = events.find(x => String(x.id) === String(t.relId));
+                if (!e || e.stage === 'won' || e.stage === 'ann') return null;
+                return { ...e, relanceDate: t.dueDate, relanceNote: t.relanceNote || '', _relanceTaskId: t.id };
             })
-            .sort((a, b) => new Date(a.relanceDate) - new Date(b.relanceDate));
+            .filter(Boolean)
+            .sort((a, b) => a.relanceDate.localeCompare(b.relanceDate));
     },
 
     // Affaires en retard de relance (date dépassée)
     affairesRelanceOverdue() {
-        const now = new Date().toISOString().slice(0, 10);
+        const d = new Date();
+        const now = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         return (this.affairesToRelance || []).filter(e => e.relanceDate < now);
     },
 
