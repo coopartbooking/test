@@ -10,7 +10,8 @@ export const planningComputed = {
         return (this.db.tasks || []).slice().sort((a, b) => {
             if (!a.dueDate) return 1;
             if (!b.dueDate) return -1;
-            return new Date(a.dueDate) - new Date(b.dueDate);
+            // Même jour : l'heure départage (les tâches sans heure passent en premier)
+            return (a.dueDate + (a.dueTime || '')).localeCompare(b.dueDate + (b.dueTime || ''));
         });
     },
 
