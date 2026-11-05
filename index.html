@@ -1181,7 +1181,7 @@
                                             <div class="font-bold text-sm text-slate-800 truncate">{{ t.text }}</div>
                                             <div class="text-[10px] font-bold mt-0.5"
                                                  :class="tasksOverdue.includes(t) ? 'text-red-500' : 'text-orange-500'">
-                                                {{ tasksOverdue.includes(t) ? '⚠ ' + formatDate(t.dueDate) : "Aujourd'hui" }}
+                                                {{ tasksOverdue.includes(t) ? '⚠ ' + formatDate(t.dueDate) : "Aujourd'hui" }}<span v-if="t.dueTime"> · {{ t.dueTime }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1430,7 +1430,7 @@
                                     <div class="flex gap-3">
                                         <button @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500 mt-0.5"><i class="far fa-circle text-lg"></i></button>
                                         <div class="flex-1">
-                                            <div class="font-bold text-slate-800 text-sm mb-1">{{ t.text }}</div><div class="text-xs text-red-600 font-bold mb-2">{{ formatDate(t.dueDate) }}</div>
+                                            <div class="font-bold text-slate-800 text-sm mb-1">{{ t.text }}</div><div class="text-xs text-red-600 font-bold mb-2">{{ formatDate(t.dueDate) }}<span v-if="t.dueTime"> · {{ t.dueTime }}</span></div>
                                             <div class="flex items-center justify-between text-xs"><span class="text-slate-500"><i :class="getTypeIcon(t.type)"></i> {{ getTypeName(t.type) }}</span><button v-if="t.relType" @click="openRelated(t)" class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-bold hover:bg-indigo-100 transition truncate max-w-[120px]">{{ getRelatedName(t) }}</button></div>
                                         </div>
                                     </div>
@@ -1448,7 +1448,7 @@
                                     <div class="flex gap-3">
                                         <button @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500 mt-0.5"><i class="far fa-circle text-lg"></i></button>
                                         <div class="flex-1">
-                                            <div class="font-bold text-slate-800 text-sm mb-2">{{ t.text }}</div>
+                                            <div class="font-bold text-slate-800 text-sm mb-2">{{ t.text }}<span v-if="t.dueTime" class="ml-2 text-xs font-bold text-orange-600"><i class="far fa-clock mr-1"></i>{{ t.dueTime }}</span></div>
                                             <div class="flex items-center justify-between text-xs"><span class="text-slate-500"><i :class="getTypeIcon(t.type)"></i> {{ getTypeName(t.type) }}</span><button v-if="t.relType" @click="openRelated(t)" class="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-bold hover:bg-indigo-100 transition truncate max-w-[120px]">{{ getRelatedName(t) }}</button></div>
                                         </div>
                                     </div>
@@ -1466,7 +1466,7 @@
                                     <div class="flex gap-3">
                                         <button @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500 mt-0.5"><i class="far fa-circle text-lg"></i></button>
                                         <div class="flex-1">
-                                            <div class="font-bold text-slate-800 text-sm mb-1">{{ t.text }}</div><div v-if="t.dueDate" class="text-xs text-slate-500 mb-2">{{ formatDate(t.dueDate) }}</div>
+                                            <div class="font-bold text-slate-800 text-sm mb-1">{{ t.text }}</div><div v-if="t.dueDate" class="text-xs text-slate-500 mb-2">{{ formatDate(t.dueDate) }}<span v-if="t.dueTime"> · {{ t.dueTime }}</span></div>
                                             <div class="flex items-center justify-between text-xs mt-2"><span class="text-slate-400"><i :class="getTypeIcon(t.type)"></i> {{ getTypeName(t.type) }}</span><button v-if="t.relType" @click="openRelated(t)" class="text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-bold hover:bg-slate-200 transition truncate max-w-[120px]">{{ getRelatedName(t) }}</button></div>
                                         </div>
                                     </div>
@@ -2881,7 +2881,7 @@
 
     </main>
 
-    <div v-if="showTaskModal" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50">
+    <div v-if="showTaskModal" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-[60]">
         <div class="bg-white rounded-xl shadow-2xl w-[500px] flex flex-col max-h-[90vh]">
             <div class="p-6 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-lg text-slate-800">{{ editTaskData.id ? 'Modifier Tâche' : 'Nouvelle Tâche' }}</h3>
@@ -2897,7 +2897,7 @@
                             <option value="admin">📝 Administratif / Contrat</option><option value="meeting">🤝 Rendez-vous</option><option value="other">📌 Autre</option>
                         </select>
                     </div>
-                    <div><label class="input-label" aria-hidden="true">Date limite (Échéance)</label><input type="date" autocomplete="off" name="editTaskData-dueDate" v-model="editTaskData.dueDate" class="input-field"></div>
+                    <div><label class="input-label" aria-hidden="true">Date limite (Échéance)</label><div class="flex gap-2"><input type="date" autocomplete="off" name="editTaskData-dueDate" v-model="editTaskData.dueDate" class="input-field flex-1 min-w-0"><input type="time" autocomplete="off" name="editTaskData-dueTime" v-model="editTaskData.dueTime" class="input-field w-24" title="Heure (optionnelle)"></div></div>
                 </div>
                 <div class="border-t pt-4 mt-2">
                     <label class="input-label text-indigo-600"><i class="fas fa-link mr-1"></i> Lier cette tâche à...</label>
@@ -3377,9 +3377,38 @@
                 <div class="p-4 border-b border-slate-200 bg-white flex-shrink-0 flex gap-3">
                     <input autocomplete="off" name="projectNoteText" v-model="projectNoteText" @keyup.enter="addProjectNote" class="input-field flex-1 text-sm" placeholder="Ajouter une note... (Entrée pour valider)">
                     <button @click="addProjectNote" :disabled="!projectNoteText.trim()" class="bg-indigo-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition"><i class="fas fa-plus mr-1"></i> Ajouter</button>
+                    <button v-if="canEdit" @click="toggleProjectActionForm" :class="['px-4 py-2 rounded-lg font-bold text-sm transition border', showProjectActionForm ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100']"><i class="fas fa-calendar-plus mr-1"></i> Planifier une action</button>
+                </div>
+                <!-- Formulaire : nouvelle action planifiée (crée une tâche liée au projet) -->
+                <div v-if="showProjectActionForm && canEdit" class="p-4 border-b border-amber-200 bg-amber-50/50 flex-shrink-0 space-y-2">
+                    <input autocomplete="off" name="projectActionText" v-model="projectActionForm.text" @keyup.enter="addProjectAction" class="input-field text-sm" placeholder="Ex: Relancer le programmateur pour le devis...">
+                    <div class="flex gap-2">
+                        <select v-model="projectActionForm.type" class="input-field text-sm flex-1">
+                            <option value="call">📞 Appel</option><option value="email">✉️ Email / Relance</option>
+                            <option value="meeting">🤝 Rendez-vous</option><option value="admin">📝 Administratif</option><option value="other">📌 Autre</option>
+                        </select>
+                        <input type="date" name="projectActionDate" v-model="projectActionForm.dueDate" class="input-field text-sm w-40">
+                        <input type="time" name="projectActionTime" v-model="projectActionForm.dueTime" class="input-field text-sm w-28">
+                        <button @click="addProjectAction" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition"><i class="fas fa-check mr-1"></i> Enregistrer</button>
+                    </div>
                 </div>
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
-                    <div v-if="!(editProjectData.notes||[]).length" class="flex flex-col items-center justify-center h-full text-slate-400"><i class="fas fa-sticky-note text-4xl opacity-20 mb-3"></i><p class="font-bold">Aucune note</p></div>
+                    <!-- Actions à venir liées au projet -->
+                    <div v-if="getProjectActions(editProjectData.id).length" class="mb-5">
+                        <div class="text-[10px] font-black text-slate-400 uppercase mb-2">Actions à venir</div>
+                        <div class="space-y-2">
+                            <div v-for="t in getProjectActions(editProjectData.id)" :key="t.id" :class="['bg-white rounded-xl border p-3 shadow-sm flex items-center gap-3 group', isActionOverdue(t) ? 'border-red-200' : 'border-amber-200']">
+                                <button v-if="canEdit" @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500" title="Marquer comme fait"><i class="far fa-circle text-lg"></i></button>
+                                <i :class="getTypeIcon(t.type)"></i>
+                                <span class="text-sm text-slate-700 flex-1 min-w-0 truncate">{{ t.text }}</span>
+                                <span :class="['text-xs font-bold whitespace-nowrap', isActionOverdue(t) ? 'text-red-600' : 'text-slate-500']">{{ formatDate(t.dueDate) }}<span v-if="t.dueTime"> · {{ t.dueTime }}</span></span>
+                                <button v-if="canEdit" @click="openTaskModal(t)" class="text-slate-300 hover:text-indigo-600 transition" title="Modifier"><i class="fas fa-pen"></i></button>
+                                <button v-if="canEdit" @click="deleteTask(t)" class="text-slate-300 hover:text-red-500 transition" title="Supprimer"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div v-if="(editProjectData.notes||[]).length" class="text-[10px] font-black text-slate-400 uppercase mt-5">Notes</div>
+                    </div>
+                    <div v-if="!(editProjectData.notes||[]).length && !getProjectActions(editProjectData.id).length" class="flex flex-col items-center justify-center h-full text-slate-400"><i class="fas fa-sticky-note text-4xl opacity-20 mb-3"></i><p class="font-bold">Aucune note</p></div>
                     <div class="space-y-3">
                         <div v-for="n in (editProjectData.notes||[]).slice().reverse()" :key="n.id" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm group">
                             <div class="flex justify-between items-start"><p class="text-sm text-slate-700 flex-1">{{ n.text }}</p><button @click="removeProjectNote(n.id)" class="text-slate-200 hover:text-red-500 transition opacity-0 group-hover:opacity-100 ml-3"><i class="fas fa-times"></i></button></div>
@@ -4593,7 +4622,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=41"></script>
+<script type="module" src="./js/app.js?v=42"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
