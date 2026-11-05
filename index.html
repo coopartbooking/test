@@ -3095,6 +3095,62 @@
                         </div>
                     </div>
 
+                    <!-- Notes & actions de l'affaire (journal propre) + notes du projet en lecture seule -->
+                    <div v-if="editEventData.id" class="col-span-2 pt-4 border-t mt-2">
+                        <h4 class="font-bold text-slate-700 mb-3"><i class="fas fa-sticky-note text-amber-500 mr-2"></i> Notes & actions</h4>
+                        <div v-if="canEdit" class="flex gap-2 mb-2">
+                            <input autocomplete="off" name="eventNoteText" v-model="eventNoteText" @keyup.enter="addEventNote" class="input-field flex-1 text-sm" placeholder="Ajouter une note... (Entrée pour valider)">
+                            <button @click.prevent="addEventNote" :disabled="!eventNoteText.trim()" class="bg-indigo-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition"><i class="fas fa-plus mr-1"></i> Ajouter</button>
+                            <button @click.prevent="toggleEventActionForm" :class="['px-4 py-2 rounded-lg font-bold text-sm transition border', showEventActionForm ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100']"><i class="fas fa-calendar-plus mr-1"></i> Planifier une action</button>
+                        </div>
+                        <div v-if="showEventActionForm && canEdit" class="p-3 mb-3 rounded-lg border border-amber-200 bg-amber-50/50 space-y-2">
+                            <input autocomplete="off" name="eventActionText" v-model="eventActionForm.text" @keyup.enter="addEventAction" class="input-field text-sm" placeholder="Ex: Envoyer la fiche technique au régisseur...">
+                            <div class="flex gap-2">
+                                <select v-model="eventActionForm.type" class="input-field text-sm flex-1">
+                                    <option value="call">📞 Appel</option><option value="email">✉️ Email / Relance</option>
+                                    <option value="meeting">🤝 Rendez-vous</option><option value="admin">📝 Administratif</option><option value="other">📌 Autre</option>
+                                </select>
+                                <input type="date" name="eventActionDate" v-model="eventActionForm.dueDate" class="input-field text-sm w-40">
+                                <input type="time" name="eventActionTime" v-model="eventActionForm.dueTime" class="input-field text-sm w-28">
+                                <button @click.prevent="addEventAction" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition"><i class="fas fa-check mr-1"></i> Enregistrer</button>
+                            </div>
+                        </div>
+                        <div v-if="getEventActions(editEventData.id).length" class="mb-3">
+                            <div class="text-[10px] font-black text-slate-400 uppercase mb-1">Actions à venir</div>
+                            <div class="space-y-1.5">
+                                <div v-for="t in getEventActions(editEventData.id)" :key="t.id" :class="['bg-white rounded-lg border p-2.5 flex items-center gap-3', isActionOverdue(t) ? 'border-red-200' : 'border-amber-200']">
+                                    <button v-if="canEdit" @click.prevent="toggleTaskDone(t)" class="text-slate-300 hover:text-green-500" title="Marquer comme fait"><i class="far fa-circle text-lg"></i></button>
+                                    <i :class="getTypeIcon(t.type)"></i>
+                                    <span class="text-sm text-slate-700 flex-1 min-w-0 truncate">{{ t.text }}</span>
+                                    <span :class="['text-xs font-bold whitespace-nowrap', isActionOverdue(t) ? 'text-red-600' : 'text-slate-500']">{{ formatDate(t.dueDate) }}<span v-if="t.dueTime"> · {{ t.dueTime }}</span></span>
+                                    <button v-if="canEdit" @click.prevent="openTaskModal(t)" class="text-slate-300 hover:text-indigo-600 transition" title="Modifier"><i class="fas fa-pen"></i></button>
+                                    <button v-if="canEdit" @click.prevent="deleteTask(t)" class="text-slate-300 hover:text-red-500 transition" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="(editEventData.journal||[]).length" class="space-y-1.5 mb-3">
+                            <div class="text-[10px] font-black text-slate-400 uppercase mb-1">Notes de l'affaire</div>
+                            <div v-for="n in (editEventData.journal||[]).slice().reverse()" :key="n.id" class="bg-white rounded-lg border border-slate-200 p-2.5">
+                                <div class="flex justify-between items-start gap-2"><p class="text-sm text-slate-700 flex-1">{{ n.text }}</p><button v-if="canEdit" @click.prevent="removeEventNote(n.id)" class="text-slate-300 hover:text-red-500 transition" title="Supprimer la note"><i class="fas fa-times"></i></button></div>
+                                <div class="text-[10px] text-slate-400 mt-1"><i class="fas fa-clock mr-1"></i>{{ n.date }}<span v-if="n.user"> · {{ n.user }}</span></div>
+                            </div>
+                        </div>
+                        <div v-if="!(editEventData.journal||[]).length && !getEventActions(editEventData.id).length" class="text-xs text-slate-400 mb-3">Aucune note ni action pour cette affaire.</div>
+                        <div v-if="getProjectNotesFor(editEventData.projectId).length" class="rounded-lg border border-slate-200 bg-slate-50">
+                            <button @click.prevent="showEventProjectNotes = !showEventProjectNotes" class="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-800">
+                                <span><i class="fas fa-music mr-2 text-slate-400"></i>Notes du projet {{ getProjectName(editEventData.projectId) }} ({{ getProjectNotesFor(editEventData.projectId).length }})</span>
+                                <i :class="showEventProjectNotes ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
+                            </button>
+                            <div v-if="showEventProjectNotes" class="px-3 pb-3 space-y-1.5">
+                                <div v-for="n in getProjectNotesFor(editEventData.projectId)" :key="n.id" class="bg-white rounded-lg border border-slate-200 p-2.5">
+                                    <p class="text-sm text-slate-600">{{ n.text }}</p>
+                                    <div class="text-[10px] text-slate-400 mt-1"><i class="fas fa-clock mr-1"></i>{{ n.date }}<span v-if="n.user"> · {{ n.user }}</span></div>
+                                </div>
+                                <p class="text-[10px] text-slate-400">Lecture seule : ces notes se modifient dans la fiche du projet, onglet Notes.</p>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
             <div class="p-4 border-t bg-slate-50 flex justify-between">
@@ -4622,7 +4678,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=42"></script>
+<script type="module" src="./js/app.js?v=43"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
