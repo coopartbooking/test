@@ -1002,6 +1002,7 @@
                                 
                                 <div class="flex justify-between items-center pt-3 border-t border-slate-100">
                                     <span class="text-xs font-bold" :class="e.date ? 'text-indigo-600' : 'text-orange-500'"><i class="far fa-calendar-alt mr-1"></i> {{ e.date ? formatDate(e.date) : 'Date à définir' }}</span>
+                                    <span v-if="getEventRelance(e.id)" class="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" :class="isRelanceOverdue(getEventRelance(e.id)) ? 'text-red-600 bg-red-50' : 'text-orange-600 bg-orange-50'" :title="'Relance : ' + getEventRelance(e.id).text"><i class="fas fa-bell mr-1"></i>{{ formatDate(getEventRelance(e.id).dueDate) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -2893,7 +2894,7 @@
                     <div>
                         <label class="input-label" aria-hidden="true">Type d'action</label>
                         <select v-model="editTaskData.type" class="input-field">
-                            <option value="call">📞 Appel téléphonique</option><option value="email">✉️ Email / Relance</option>
+                            <option value="call">📞 Appel téléphonique</option><option value="email">✉️ Email / Relance</option><option value="relance">🔔 Relance d'affaire</option>
                             <option value="admin">📝 Administratif / Contrat</option><option value="meeting">🤝 Rendez-vous</option><option value="other">📌 Autre</option>
                         </select>
                     </div>
@@ -3090,7 +3091,7 @@
                             <button @click.prevent="generateRoadbook(editEventData)" class="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-sm font-bold shadow-sm transition"><i class="fas fa-map-marked-alt mr-2 text-emerald-500"></i> Feuille de Route</button>
                             <button @click.prevent="setRelanceDate(editEventData)" class="flex-1 bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 py-2 rounded text-sm font-bold shadow-sm transition">
                                 <i class="fas fa-bell mr-2"></i>
-                                {{ editEventData.relanceDate ? 'Relance : ' + formatDate(editEventData.relanceDate) : 'Planifier relance' }}
+                                {{ getEventRelance(editEventData.id) ? 'Relance : ' + formatDate(getEventRelance(editEventData.id).dueDate) : 'Planifier relance' }}
                             </button>
                         </div>
                     </div>
@@ -4678,7 +4679,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=43"></script>
+<script type="module" src="./js/app.js?v=44"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {

@@ -1,4 +1,4 @@
 {
-  "version": "43",
-  "notes": "Fiche affaire : notes, actions planifiées et notes du projet"
+  "version": "44",
+  "notes": "Relances d'affaire transformées en tâches (Tâches & Suivi, pipeline, agenda)"
 }
