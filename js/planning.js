@@ -314,6 +314,15 @@ export const planningMethods = {
         return 'prospect';
     },
 
+    // Libellé et couleur du statut d'une affaire (vue Liste de l'agenda)
+    eventStatusLabel(e) {
+        const st = e ? (e.stage === 'ann' ? 'ann' : (e.stage === 'won' ? 'conf' : e.status)) : '';
+        if (st === 'conf') return { label: 'Confirmé', cls: 'bg-emerald-100 text-emerald-700' };
+        if (st === 'opt')  return { label: 'Option',   cls: 'bg-orange-100 text-orange-700' };
+        if (st === 'ann')  return { label: 'Annulée',  cls: 'bg-red-100 text-red-700' };
+        return { label: 'Prospect', cls: 'bg-slate-100 text-slate-600' };
+    },
+
     // Ce qui manque pour confirmer une affaire : [] si la date et le cachet sont renseignés.
     missingForConfirmation(ev) {
         const missing = [];

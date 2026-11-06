@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=47';
+import { auth, dbFirestore }                                              from './firebase.js?v=48';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=47';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=47';
-import { planningComputed, planningMethods }    from './planning.js?v=47';
-import { adminMethods }                           from './modules/adminMethods.js?v=47';
-import { mapMethods }                             from './modules/mapMethods.js?v=47';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=47';
-import { importMethods }                         from './modules/importMethods.js?v=47';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=47';
-import { searchMethods }                         from './modules/searchMethods.js?v=47';
-import { projectMethods }                        from './modules/projectMethods.js?v=47';
-import { venueMethods }                          from './modules/venueMethods.js?v=47';
-import { crmMethods }                            from './modules/crmMethods.js?v=47';
-import { appComputed }                           from './modules/appComputed.js?v=47';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=47';
-import { icalMethods }                            from './modules/icalMethods.js?v=47';
-import { updateMethods }                          from './modules/updateMethods.js?v=47';
+import { utilsMethods }                         from './utils.js?v=48';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=48';
+import { planningComputed, planningMethods }    from './planning.js?v=48';
+import { adminMethods }                           from './modules/adminMethods.js?v=48';
+import { mapMethods }                             from './modules/mapMethods.js?v=48';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=48';
+import { importMethods }                         from './modules/importMethods.js?v=48';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=48';
+import { searchMethods }                         from './modules/searchMethods.js?v=48';
+import { projectMethods }                        from './modules/projectMethods.js?v=48';
+import { venueMethods }                          from './modules/venueMethods.js?v=48';
+import { crmMethods }                            from './modules/crmMethods.js?v=48';
+import { appComputed }                           from './modules/appComputed.js?v=48';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=48';
+import { icalMethods }                            from './modules/icalMethods.js?v=48';
+import { updateMethods }                          from './modules/updateMethods.js?v=48';
 
 // Plafond d'affichage des longues listes (annuaire, structures).
 // Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
@@ -658,6 +658,9 @@ createApp({
                     campaignHistory: this.db.campaignHistory || [],
                     savedSearches:   this.db.savedSearches   || [],
                     selections:      this.db.selections      || [],
+                    // Modèles de contrat (personnels, comme les modèles d'email).
+                    // Absents de cette écriture avant la v48 : ils disparaissaient à la sauvegarde suivante.
+                    contractTemplates: this.db.contractTemplates || [],
                 });
 
                 // 2. Sauvegarde différentielle des structures (sous-collection) + meta (tags + index)

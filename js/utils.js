@@ -188,7 +188,7 @@ export const utilsMethods = {
             '{{heure}}':          e.time                                 || '--:--',
             '{{cachet}}':         this.formatMoney(e.fee || proj.defaultFee || 0),
             '{{cachetType}}':     proj.feeType                           || 'HT',
-            '{{typeContrat}}':    e.contractType                         || 'Cession',
+            '{{typeContrat}}':    e.contractType === 'coreal' ? 'Co-réalisation' : 'Cession',
             '{{producteur}}':     this.currentUserName || this.currentUser || '',
             '{{teamSize}}':       String(proj.teamSize                   || 1),
             '{{duree}}':          proj.duration                          || '',
