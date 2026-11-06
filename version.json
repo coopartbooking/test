@@ -1,4 +1,4 @@
 {
-  "version": "47",
-  "notes": "Fiche contact : affaires regroupées par état, stade modifiable depuis le badge ; stade Annulée ; règle de stade unique"
+  "version": "48",
+  "notes": "Modèles de contrat enfin enregistrés ; tags réservés aux éditeurs ; type de contrat et statuts en clair"
 }
