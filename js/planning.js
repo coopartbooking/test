@@ -316,7 +316,7 @@ export const planningMethods = {
             if (idx >= 0) this.db.events[idx] = this.editEventData;
         }
         this.saveDB();
-        this.showEventModal = false;
+        this.closeEventModal();
     },
 
     async deleteEvent() {
@@ -335,7 +335,7 @@ export const planningMethods = {
         // La relance encore ouverte de cette affaire n'a plus de sens
         this.db.tasks = (this.db.tasks || []).filter(t => !(t.type === 'relance' && !t.done && t.relType === 'event' && String(t.relId) === String(delId)));
         this.saveDB();
-        this.showEventModal = false;
+        this.closeEventModal();
     },
 
     // --- PIPELINE KANBAN ---
