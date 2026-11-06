@@ -196,6 +196,7 @@ export const utilsMethods = {
             '{{dateAujourdhui}}': new Date().toLocaleDateString('fr-FR'),
             '{{notes}}':          e.notes                                || '',
             '{{contactNom}}':     e.contactName                          || '',
+            '{{clauses}}':        (e.contractClauses || '').trim()       || 'Néant',
             '{{contactEmail}}':   e.contactEmail                         || '',
         };
     },

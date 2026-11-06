@@ -637,8 +637,21 @@ export const planningMethods = {
         const total = recipients.length;
         let current = 0;
 
-        // Stocker l'email courant accessible depuis les boutons onclick
-        window._bobMailQueue = recipients;
+        // Copie dans le presse-papiers : SweetAlert2 supprime les onclick,
+        // les deux boutons sont donc branchés dans didOpen() (v51).
+        const wireCopy = (popup, id, getText, label, okLabel) => {
+            const b = popup.querySelector('#' + id);
+            if (!b) return;
+            b.addEventListener('click', () => {
+                const done = (txt, bg) => {
+                    b.textContent = txt; b.style.background = bg; b.style.color = bg ? 'white' : '';
+                    setTimeout(() => { b.textContent = label; b.style.background = ''; b.style.color = ''; }, 2000);
+                };
+                try {
+                    navigator.clipboard.writeText(getText()).then(() => done(okLabel, '#10b981'), () => done('Copie impossible', '#ef4444'));
+                } catch (err) { done('Copie impossible', '#ef4444'); }
+            });
+        };
 
         const showEmail = (idx) => {
             const r = recipients[idx];
@@ -650,7 +663,7 @@ export const planningMethods = {
                 title: `Email ${idx + 1} / ${total}`,
                 html: `<div style="text-align:left">
                     <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px">
-                        <div><b>A :</b> ${r.name} &lt;${r.email}&gt;</div>
+                        <div><b>À :</b> ${r.name} &lt;${r.email}&gt;</div>
                         <div style="color:#64748b;font-size:11px">${r.struct || ''}</div>
                     </div>
                     <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Objet :</div>
@@ -658,8 +671,8 @@ export const planningMethods = {
                     <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:4px">Message :</div>
                     <div id="swal-mail-body" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;font-size:12px;white-space:pre-wrap;max-height:160px;overflow-y:auto;line-height:1.6;color:#374151">${bodyEscaped}</div>
                     <div style="display:flex;gap:8px;margin-top:12px">
-                        <button id="btn-copy-all" onclick="var r=window._bobMailQueue[${idx}];navigator.clipboard.writeText('A : '+r.email+'\nObjet : '+r.subject+'\n\n'+r.body).then(function(){var b=document.getElementById('btn-copy-all');b.textContent='Copie!';b.style.background='#10b981';b.style.color='white';setTimeout(function(){b.textContent='Tout copier';b.style.background='';b.style.color='';},2000);});" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Tout copier</button>
-                        <button id="btn-copy-body" onclick="var r=window._bobMailQueue[${idx}];navigator.clipboard.writeText(r.body).then(function(){var b=document.getElementById('btn-copy-body');b.textContent='Corps copie!';b.style.background='#10b981';b.style.color='white';setTimeout(function(){b.textContent='Corps seul';b.style.background='';b.style.color='';},2000);});" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Corps seul</button>
+                        <button type="button" id="btn-copy-all" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Tout copier</button>
+                        <button type="button" id="btn-copy-body" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Corps seul</button>
                     </div>
                     <div style="margin-top:12px">
                         <div style="background:#e2e8f0;border-radius:99px;height:4px;overflow:hidden">
@@ -672,11 +685,15 @@ export const planningMethods = {
                 showDenyButton: true,
                 confirmButtonText: isLast ? 'Terminer' : 'Suivant',
                 denyButtonText: 'Ouvrir messagerie',
-                cancelButtonText: 'Arreter',
+                cancelButtonText: 'Arrêter',
                 confirmButtonColor: isLast ? '#10b981' : '#4f46e5',
                 denyButtonColor: '#64748b',
                 allowOutsideClick: false,
                 width: 560,
+                didOpen: (popup) => {
+                    wireCopy(popup, 'btn-copy-all',  () => 'À : ' + r.email + '\nObjet : ' + r.subject + '\n\n' + r.body, 'Tout copier', 'Copié !');
+                    wireCopy(popup, 'btn-copy-body', () => r.body, 'Corps seul', 'Corps copié !');
+                },
             }).then(result => {
                 if (result.isConfirmed) {
                     const next = idx + 1;
@@ -685,8 +702,8 @@ export const planningMethods = {
                     } else {
                         this._saveCampaignHistory(recipients, true, addUnsub);
                         Swal.fire({
-                            title: 'Campagne terminee',
-                            html: `<b>${total}</b> email(s) traites et enregistres dans l'historique.`,
+                            title: 'Campagne terminée',
+                            html: `<b>${total}</b> email(s) traités et enregistrés dans l'historique.`,
                             icon: 'success', confirmButtonColor: '#4f46e5',
                         });
                         this.selectedMailingContacts = [];
@@ -700,7 +717,7 @@ export const planningMethods = {
                         this._saveCampaignHistory(done, true, addUnsub);
                         Swal.fire({
                             title: 'Envoi interrompu',
-                            html: '<b>' + done.length + '</b> email(s) traites sur ' + total + '.',
+                            html: '<b>' + done.length + '</b> email(s) traités sur ' + total + '.',
                             icon: 'info', confirmButtonColor: '#f59e0b',
                         });
                     }
@@ -988,7 +1005,10 @@ La fiche technique sera transmise à la signature du présent contrat.
 Équipe en déplacement : {{teamSize}} personne(s)
 Frais de route : {{fraisRoute}}
 
-# ARTICLE 4 : DISPOSITIONS GÉNÉRALES
+# ARTICLE 4 : CLAUSES PARTICULIÈRES
+{{clauses}}
+
+# ARTICLE 5 : DISPOSITIONS GÉNÉRALES
 Le présent contrat est soumis à la législation française.
 Toute modification devra faire l'objet d'un avenant écrit signé des deux parties.`;
     },
