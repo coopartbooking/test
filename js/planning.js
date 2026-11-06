@@ -147,7 +147,7 @@ export const planningComputed = {
         const conf = events.filter(e => e.status === 'conf' || e.stage === 'won');
         const opt  = events.filter(e => (e.stage === 'option' || e.stage === 'contract' || e.status === 'opt') && e.stage !== 'won');
         return {
-            total: events.length,
+            total: events.filter(e => e.stage !== 'ann' && e.status !== 'ann').length,
             conf: conf.length,
             opt: opt.length,
             ca:    conf.reduce((s, e) => s + (Number(e.fee) || 0), 0),
@@ -303,18 +303,82 @@ export const planningMethods = {
         if (s) { this.editEventData.venueName = s.name; this.editEventData.city = s.city; }
     },
 
-    saveEvent() {
-        if (!this.editEventData.projectId) return Swal.fire('Erreur', 'Projet obligatoire', 'warning');
-        if (this.editEventData.stage === 'won') this.editEventData.status = 'conf';
-        else if (this.editEventData.stage === 'option' || this.editEventData.stage === 'contract') this.editEventData.status = 'opt';
-        else if (this.editEventData.status === 'conf') this.editEventData.stage = 'won';
-        if (!this.editEventData.id) {
-            this.editEventData.id = Date.now();
-            this.db.events.push(this.editEventData);
-        } else {
-            const idx = this.db.events.findIndex(e => e.id === this.editEventData.id);
-            if (idx >= 0) this.db.events[idx] = this.editEventData;
+    // ── STADE D'UNE AFFAIRE : une seule règle ──
+    // Partagée par le formulaire (saveEvent), le glisser-déposer du pipeline (dropEvent)
+    // et le menu de stade de la fiche contact (changeEventStage). Le statut découle du
+    // stade : won → conf, option/contract → opt, ann → ann, sinon prospect.
+    _statusForStage(stage) {
+        if (stage === 'won') return 'conf';
+        if (stage === 'option' || stage === 'contract') return 'opt';
+        if (stage === 'ann') return 'ann';
+        return 'prospect';
+    },
+
+    // Ce qui manque pour confirmer une affaire : [] si la date et le cachet sont renseignés.
+    missingForConfirmation(ev) {
+        const missing = [];
+        if (!ev || !ev.date) missing.push('la date');
+        const fee = ev ? ev.fee : null;
+        if (fee === '' || fee === null || fee === undefined || Number.isNaN(Number(fee))) missing.push('le cachet');
+        return missing;
+    },
+
+    _warnMissingForConfirmation(missing) {
+        return Swal.fire({
+            title: 'Affaire non confirmable',
+            html: 'Pour passer une affaire à <b>Confirmé</b>, renseignez ' + missing.join(' et ') + '.',
+            icon: 'warning',
+            confirmButtonColor: '#4f46e5',
+        });
+    },
+
+    // Une affaire annulée n'a plus de relance à faire (même raisonnement que deleteEvent)
+    _removeOpenRelance(eventId) {
+        this.db.tasks = (this.db.tasks || []).filter(t => !(t.type === 'relance' && !t.done && t.relType === 'event' && String(t.relId) === String(eventId)));
+    },
+
+    // Change le stade d'une affaire de db.events (menu de la fiche contact, glisser-déposer).
+    // Retourne true si le stade a été appliqué, false s'il est refusé ou inchangé.
+    changeEventStage(ev, stage) {
+        if (!ev || !stage) return false;
+        const status = this._statusForStage(stage);
+        if (ev.stage === stage && ev.status === status) return false;
+        if (stage === 'won') {
+            const missing = this.missingForConfirmation(ev);
+            if (missing.length) { this._warnMissingForConfirmation(missing); return false; }
         }
+        ev.stage  = stage;
+        ev.status = status;
+        if (stage === 'ann') this._removeOpenRelance(ev.id);
+        this.saveDB();
+        return true;
+    },
+
+    saveEvent() {
+        const d = this.editEventData;
+        if (!d.projectId) return Swal.fire('Erreur', 'Projet obligatoire', 'warning');
+        // Le stade pilote le statut, mais seulement s'il change. Une affaire ancienne ou
+        // importée dont stade et statut ne concordent pas est normalisée comme avant
+        // (statut « conf » → stade « won ») sans être rétrogradée à l'insu de l'utilisateur.
+        const prev = d.id ? this.db.events.find(e => e.id === d.id) : null;
+        if (!prev || prev.stage !== d.stage) {
+            if (d.stage === 'won') {
+                const missing = this.missingForConfirmation(d);
+                if (missing.length) return this._warnMissingForConfirmation(missing);
+            }
+            d.status = this._statusForStage(d.stage);
+        }
+        else if (d.stage === 'won') d.status = 'conf';
+        else if (d.stage === 'option' || d.stage === 'contract') d.status = 'opt';
+        else if (d.status === 'conf') d.stage = 'won';
+        if (!d.id) {
+            d.id = Date.now();
+            this.db.events.push(d);
+        } else {
+            const idx = this.db.events.findIndex(e => e.id === d.id);
+            if (idx >= 0) this.db.events[idx] = d;
+        }
+        if (d.stage === 'ann') this._removeOpenRelance(d.id);
         this.saveDB();
         this.closeEventModal();
     },
@@ -362,14 +426,8 @@ export const planningMethods = {
     dropEvent(evt, targetStageId) {
         if (!this.draggedEventId) return;
         const ev = this.db.events.find(x => x.id === this.draggedEventId);
-        if (ev) {
-            ev.stage = targetStageId;
-            if (targetStageId === 'won') ev.status = 'conf';
-            else if (targetStageId === 'option' || targetStageId === 'contract') ev.status = 'opt';
-            else if (ev.status === 'conf') ev.status = 'opt';
-            this.saveDB();
-        }
         this.draggedEventId = null;
+        if (ev) this.changeEventStage(ev, targetStageId);
     },
 
     // --- PROJETS ---
