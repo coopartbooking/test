@@ -1,4 +1,4 @@
 {
-  "version": "44",
-  "notes": "Relances d'affaire transformées en tâches (Tâches & Suivi, pipeline, agenda)"
+  "version": "45",
+  "notes": "Affaire créée depuis la fiche contact (contact lié), modal Affaire identique partout"
 }
