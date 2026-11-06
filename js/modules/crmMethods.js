@@ -83,6 +83,42 @@ export const crmMethods = {
         });
     },
 
+    // ── Stade d'une affaire : affichage et menu de la fiche contact ──
+    eventStageChoices() {
+        return [
+            { id: 'lead',      label: 'À contacter',    dot: '#94a3b8' },
+            { id: 'contacted', label: 'Contact établi', dot: '#60a5fa' },
+            { id: 'nego',      label: 'En négociation', dot: '#c084fc' },
+            { id: 'option',    label: 'Option posée',   dot: '#fb923c' },
+            { id: 'contract',  label: 'Contrat envoyé', dot: '#facc15' },
+            { id: 'won',       label: 'Confirmé',       dot: '#10b981' },
+            { id: 'ann',       label: 'Annulée',        dot: '#e11d48' },
+        ];
+    },
+
+    // Libellé et couleurs d'une affaire. « Confirmé » = statut conf OU stade won, comme ailleurs.
+    eventStageInfo(e) {
+        const st = e.stage || 'lead';
+        if (st === 'ann' || e.status === 'ann')
+            return { id: 'ann', label: 'Annulée', detail: '', hex: '#fb7185', sq: 'bg-rose-400', badge: 'bg-rose-100 text-rose-700', icon: 'fas fa-ban' };
+        if (e.status === 'conf' || st === 'won')
+            return { id: 'won', label: 'Confirmé', detail: '', hex: '#10b981', sq: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700', icon: 'fas fa-check' };
+        if (st === 'option')
+            return { id: 'option', label: 'Option', detail: '', hex: '#fb923c', sq: 'bg-orange-400', badge: 'bg-orange-100 text-orange-700', icon: 'fas fa-hourglass-half' };
+        if (st === 'contract')
+            return { id: 'contract', label: 'Option', detail: 'Contrat envoyé', hex: '#fb923c', sq: 'bg-orange-400', badge: 'bg-orange-100 text-orange-700', icon: 'fas fa-hourglass-half' };
+        if (st === 'nego')
+            return { id: 'nego', label: 'Négo', detail: '', hex: '#c084fc', sq: 'bg-purple-400', badge: 'bg-purple-100 text-purple-700', icon: 'fas fa-hourglass-half' };
+        if (st === 'contacted')
+            return { id: 'contacted', label: 'Prospect', detail: 'Contact établi', hex: '#94a3b8', sq: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600', icon: 'fas fa-hourglass-half' };
+        return { id: 'lead', label: 'Prospect', detail: 'À contacter', hex: '#94a3b8', sq: 'bg-slate-400', badge: 'bg-slate-100 text-slate-600', icon: 'fas fa-hourglass-half' };
+    },
+
+    pickCrmStage(e, stage) {
+        this.crmStageMenuFor = null;
+        this.changeEventStage(e, stage);
+    },
+
     // Rouvre la fiche d'un contact (même enchaînement que openCrmFromContact, sans changer d'onglet)
     reopenCrmContact({ structId, contactId }) {
         const s = this.db.structures.find(x => x.id === structId);

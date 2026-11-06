@@ -359,6 +359,32 @@ export const appComputed = {
             .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     },
 
+    // Les mêmes affaires, regroupées pour la fiche contact : En cours (du plus en amont
+    // au plus avancé, puis par date, sans date en dernier), Confirmées et Annulées
+    // (récentes d'abord). « Confirmé » suit la règle ailleurs dans Bob : statut conf OU stade won.
+    contactEventSections() {
+        const list  = this.contactEvents;
+        const isAnn = e => e.stage === 'ann' || e.status === 'ann';
+        const isWon = e => !isAnn(e) && (e.stage === 'won' || e.status === 'conf');
+        const rank  = { lead: 0, contacted: 1, nego: 2, option: 3, contract: 4 };
+        const dateAsc  = (a, b) => (a.date ? (b.date ? a.date.localeCompare(b.date) : -1) : (b.date ? 1 : 0));
+        const dateDesc = (a, b) => (a.date ? (b.date ? b.date.localeCompare(a.date) : -1) : (b.date ? 1 : 0));
+        const enCours    = list.filter(e => !isAnn(e) && !isWon(e))
+            .sort((a, b) => ((rank[a.stage || 'lead'] ?? 0) - (rank[b.stage || 'lead'] ?? 0)) || dateAsc(a, b));
+        const confirmees = list.filter(isWon).sort(dateDesc);
+        const annulees   = list.filter(isAnn).sort(dateDesc);
+        const plural = (n, one, many) => (n > 1 ? many : one);
+        const sections = [
+            { key: 'enCours',    label: 'En cours',   chipLabel: 'en cours',                                             items: enCours,
+              chip: 'bg-indigo-50 text-indigo-700',   pill: 'bg-indigo-50 text-indigo-700',   collapsible: false },
+            { key: 'confirmees', label: 'Confirmées', chipLabel: plural(confirmees.length, 'confirmée', 'confirmées'),   items: confirmees,
+              chip: 'bg-emerald-100 text-emerald-700', pill: 'bg-emerald-100 text-emerald-700', collapsible: false },
+            { key: 'annulees',   label: 'Annulées',   chipLabel: plural(annulees.length, 'annulée', 'annulées'),         items: annulees,
+              chip: 'bg-slate-100 text-slate-600',     pill: 'bg-slate-100 text-slate-600',     collapsible: true },
+        ];
+        return sections.filter(x => x.items.length);
+    },
+
     venueRegions() {
         const regions = new Set();
         this.db.structures.forEach(s => { if (s.region) regions.add(s.region); });
