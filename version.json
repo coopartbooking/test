@@ -1,4 +1,4 @@
 {
-  "version": "46",
-  "notes": "Après une affaire créée depuis la fiche contact, retour à la fiche (enregistrer, annuler, supprimer)"
+  "version": "47",
+  "notes": "Fiche contact : affaires regroupées par état, stade modifiable depuis le badge ; stade Annulée ; règle de stade unique"
 }
