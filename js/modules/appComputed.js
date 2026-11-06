@@ -338,10 +338,25 @@ export const appComputed = {
     },
 
     // ── Recherche venue dans modal affaire ──
+    // Les contacts privés d'un autre utilisateur sont exclus (même règle que
+    // allContacts et visibleCrmContacts) : sans cela, leur nom et leur fonction
+    // apparaissaient parmi les contacts proposés pour l'affaire.
     venueContacts() {
         if (!this.editEventData.venueId) return [];
         const s = this.db.structures.find(x => x.id === this.editEventData.venueId);
-        return s ? (s.contacts || []) : [];
+        return s ? (s.contacts || []).filter(c => !(c.isPrivate && c.owner && c.owner !== this.currentUser)) : [];
+    },
+
+    // ── Fiche contact : affaires liées à ce contact ──
+    // db.events est le document personnel de l'utilisateur (users/{uid}) : on ne
+    // voit ici que ses propres affaires, jamais celles des autres collaborateurs.
+    contactEvents() {
+        const c = this.currentCrmContact;
+        if (!c || !c.id) return [];
+        return (this.db.events || [])
+            .filter(e => e.contactId && String(e.contactId) === String(c.id))
+            .slice()
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     },
 
     venueRegions() {

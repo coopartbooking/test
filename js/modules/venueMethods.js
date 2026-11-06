@@ -69,25 +69,38 @@ export const venueMethods = {
         return depts[dept] ? `${dept} - ${depts[dept]}` : null;
     },
 
-    // Wrapper openEventModal pour réinitialiser la recherche venue
-    openEventModal(ev, data) {
+    // Point d'entrée UNIQUE du modal Affaire (création comme détails) :
+    //   openEventModal(date)        → nouvelle affaire vierge (date = jour cliqué, facultatif)
+    //   openEventModal(null, data)  → affaire existante, ou nouvelle affaire préremplie (data.id vide)
+    // Réinitialise aussi la recherche de structure.
+    // L'ancienne version de planning.js, masquée par celle-ci depuis le découpage en
+    // modules (elle cherchait un « _openEventModal » qui n'existe nulle part), a été
+    // supprimée : le jour cliqué et le projet n'étaient jamais appliqués.
+    openEventModal(date, data) {
         this.venueSearch        = '';
         this.venueSearchResults = [];
         this.showVenueDropdown  = false;
         this.showVenueBrowser   = false;
-        // Appel du module planning
-        if (this.$options.methods._openEventModal) {
-            this.$options.methods._openEventModal.call(this, ev, data);
+        if (data) {
+            this.editEventData = JSON.parse(JSON.stringify(data));
         } else {
-            // Fallback direct
-            this.editEventData = data ? JSON.parse(JSON.stringify(data)) : {
-                id:'', projectId:'', stage:'lead', venueId:'', venueName:'', city:'',
-                date:'', time:'', fee:'', feeType:'HT', contractType:'cession',
+            // Date : appliquée seulement depuis le planning. Depuis le pipeline, le bouton
+            // « Nouveau » envoie la date du jour, or une prospection n'a pas encore de date.
+            let d = '';
+            if (date && this.tab !== 'pipeline') {
+                const x = new Date(date);
+                if (!isNaN(x)) d = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+            }
+            // Projet : présélectionné seulement s'il n'y en a qu'un (comme openEventFromContact)
+            const only = this.db.projects.length === 1 ? this.db.projects[0] : null;
+            this.editEventData = {
+                id:'', projectId: only ? only.id : '', stage:'lead', venueId:'', venueName:'', city:'',
+                date: d, time:'', fee: only ? (only.defaultFee || '') : '', feeType: only ? (only.feeType || 'HT') : 'HT', contractType:'cession',
                 capacity:'', ticketPrice:'', corealPercentage:'', tourExpenses:'', estFillRate:'',
                 status:'prospect', notes:'', contactId:'', contactName:''
             };
-            this.showEventModal = true;
         }
+        this.showEventModal = true;
     },
 
     openCrmViewFromProject(s) {

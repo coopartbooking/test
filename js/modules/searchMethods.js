@@ -113,6 +113,9 @@ export const searchMethods = {
             contractType: 'cession',
             status:       'prospect',
             notes:        `Contact : ${c.name}${c.role ? ' (' + c.role + ')' : ''}`,
+            // Lien réel vers le contact (présélectionné dans le modal Affaire)
+            contactId:    c.id || '',
+            contactName:  c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
         };
         this.tab = 'planning';
         this.$nextTick(() => { this.openEventModal(null, prefilled); });

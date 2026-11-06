@@ -40,6 +40,46 @@ export const crmMethods = {
         this.$nextTick(() => { setTimeout(() => { this.initMiniMap(); }, 400); });
     },
 
+    // ── Affaires depuis la fiche contact ──
+    // La fiche CRM travaille sur une COPIE de la structure (currentCrmStruct) : tant
+    // qu'elle n'est pas enregistrée, db.structures ne connaît ni le contact ni ses
+    // modifications. Le modal Affaire passe par-dessus la fiche, qu'il faut fermer :
+    // on valide donc le contact puis on enregistre la structure avant de partir,
+    // comme le fait goToTasksFromCrm. Retourne { struct, contact } tels qu'enregistrés,
+    // ou null si une étape a été refusée (nom manquant, doublon annulé…).
+    async _commitCrmContactBeforeLeaving() {
+        const cc = this.currentCrmContact;
+        if (!cc || !this.currentCrmStruct) return null;
+        const contactId = cc.id;
+        const structId  = this.currentCrmStruct.id;
+        this.saveCrmContact();                      // applique le contact à la copie
+        if (this.currentCrmContact) return null;    // refusé (nom manquant) : message déjà affiché
+        await this.saveCrmStruct(true);
+        if (this.showCrmModal) return null;         // enregistrement refusé : la fiche reste ouverte
+        const struct  = this.db.structures.find(x => x.id === structId);
+        const contact = struct && (struct.contacts || []).find(x => x.id === contactId);
+        return contact ? { struct, contact } : null;
+    },
+
+    async openEventFromCrmContact() {
+        const r = await this._commitCrmContactBeforeLeaving();
+        if (!r) return;
+        const { struct, contact } = r;
+        this.openEventFromContact({
+            ...contact,
+            name:       `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.name || '',
+            structId:   struct.id,
+            structName: struct.name,
+            structCity: struct.city,
+        });
+    },
+
+    async openEventFromCrmEvent(ev) {
+        const r = await this._commitCrmContactBeforeLeaving();
+        if (!r) return;
+        this.$nextTick(() => { this.openEventModal(null, ev); });
+    },
+
     async saveCrmStruct(silent = false) {
         // Sanitiser les champs texte libres avant sauvegarde
         this.currentCrmStruct.name    = this.sanitizeText(this.currentCrmStruct.name, 200);
