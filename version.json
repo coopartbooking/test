@@ -1,4 +1,4 @@
 {
-  "version": "50",
-  "notes": "Modèles de contrat : confirmation avant suppression ; {{notes}} retiré des variables proposées"
+  "version": "51",
+  "notes": "Clauses particulières dans la fiche affaire ({{clauses}}) ; boutons de copie des campagnes réparés"
 }

@@ -3082,6 +3082,13 @@
                                 <input type="number" autocomplete="off" name="editEventData-fee" v-model="editEventData.fee" class="input-field w-1/3">
                             </div>
                         </div>
+
+                        <!-- Clauses propres à cette affaire, reprises dans le contrat par {{clauses}} (v51) -->
+                        <div class="mt-4">
+                            <label class="input-label" aria-hidden="true">Clauses particulières du contrat</label>
+                            <textarea name="editEventData-contractClauses" v-model="editEventData.contractClauses" rows="3" class="input-field text-sm" placeholder="Ex : catering pour 4 personnes, montage la veille à partir de 14 h..."></textarea>
+                            <p class="text-[10px] text-slate-400 mt-1">Reprises dans le contrat par la variable <code v-pre>{{clauses}}</code> (« Néant » si vide). Évitez les lignes tout en majuscules : le PDF en ferait des titres.</p>
+                        </div>
                     </div>
                     
                     <!-- Éditions et notes : visibles aussi à la création (même modal que « Détails de l'Affaire »),
@@ -4634,7 +4641,7 @@
                 <div class="bg-indigo-50 rounded-xl p-4 mb-4 border border-indigo-100">
                     <div class="text-xs font-black text-indigo-700 uppercase mb-2">Variables disponibles</div>
                     <div class="flex flex-wrap gap-1.5">
-                        <code v-for="v in ['{{artiste}}','{{lieu}}','{{ville}}','{{date}}','{{heure}}','{{cachet}}','{{cachetType}}','{{producteur}}','{{teamSize}}','{{duree}}','{{fraisRoute}}','{{dateAujourdhui}}','{{contactNom}}']"
+                        <code v-for="v in ['{{artiste}}','{{lieu}}','{{ville}}','{{date}}','{{heure}}','{{cachet}}','{{cachetType}}','{{producteur}}','{{teamSize}}','{{duree}}','{{fraisRoute}}','{{dateAujourdhui}}','{{contactNom}}','{{clauses}}']"
                               :key="v" class="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">{{ v }}</code>
                     </div>
                 </div>
@@ -4756,7 +4763,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=50"></script>
+<script type="module" src="./js/app.js?v=51"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
