@@ -296,28 +296,7 @@ export const planningMethods = {
     },
 
     // --- ÉVÉNEMENTS ---
-    openEventModal(date = null, event = null) {
-        if (event) {
-            this.editEventData = JSON.parse(JSON.stringify(event));
-        } else {
-            const firstProject = this.db.projects[0];
-            const projectId = firstProject ? firstProject.id : '';
-            let dDate = '';
-            if (date) {
-                const d = new Date(date);
-                dDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            }
-            this.editEventData = {
-                id: null, projectId, date: dDate, time: '',
-                venueId: '', venueName: '', city: '',
-                status: 'opt', stage: 'lead', contractType: 'cession',
-                fee: firstProject ? firstProject.defaultFee : 0,
-                capacity: null, ticketPrice: null, corealPercentage: null,
-                tourExpenses: null, estFillRate: 80,
-            };
-        }
-        this.showEventModal = true;
-    },
+    // openEventModal() est défini dans modules/venueMethods.js (point d'entrée unique).
 
     updateVenueInfoFromSelect() {
         const s = this.db.structures.find(x => x.id === this.editEventData.venueId);

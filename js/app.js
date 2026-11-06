@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=44';
+import { auth, dbFirestore }                                              from './firebase.js?v=45';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=44';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=44';
-import { planningComputed, planningMethods }    from './planning.js?v=44';
-import { adminMethods }                           from './modules/adminMethods.js?v=44';
-import { mapMethods }                             from './modules/mapMethods.js?v=44';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=44';
-import { importMethods }                         from './modules/importMethods.js?v=44';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=44';
-import { searchMethods }                         from './modules/searchMethods.js?v=44';
-import { projectMethods }                        from './modules/projectMethods.js?v=44';
-import { venueMethods }                          from './modules/venueMethods.js?v=44';
-import { crmMethods }                            from './modules/crmMethods.js?v=44';
-import { appComputed }                           from './modules/appComputed.js?v=44';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=44';
-import { icalMethods }                            from './modules/icalMethods.js?v=44';
-import { updateMethods }                          from './modules/updateMethods.js?v=44';
+import { utilsMethods }                         from './utils.js?v=45';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=45';
+import { planningComputed, planningMethods }    from './planning.js?v=45';
+import { adminMethods }                           from './modules/adminMethods.js?v=45';
+import { mapMethods }                             from './modules/mapMethods.js?v=45';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=45';
+import { importMethods }                         from './modules/importMethods.js?v=45';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=45';
+import { searchMethods }                         from './modules/searchMethods.js?v=45';
+import { projectMethods }                        from './modules/projectMethods.js?v=45';
+import { venueMethods }                          from './modules/venueMethods.js?v=45';
+import { crmMethods }                            from './modules/crmMethods.js?v=45';
+import { appComputed }                           from './modules/appComputed.js?v=45';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=45';
+import { icalMethods }                            from './modules/icalMethods.js?v=45';
+import { updateMethods }                          from './modules/updateMethods.js?v=45';
 
 // Plafond d'affichage des longues listes (annuaire, structures).
 // Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
