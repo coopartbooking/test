@@ -993,6 +993,24 @@ Le présent contrat est soumis à la législation française.
 Toute modification devra faire l'objet d'un avenant écrit signé des deux parties.`;
     },
 
+    // Suppression d'un modèle de contrat, avec confirmation (avant la v50 : immédiate)
+    async deleteContractTemplate(i) {
+        const tpl = (this.db.contractTemplates || [])[i];
+        if (!tpl) return;
+        const r = await Swal.fire({
+            title: 'Supprimer ce modèle ?',
+            text: 'Le modèle « ' + (tpl.name || 'sans nom') + ' » sera définitivement supprimé.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Supprimer',
+            cancelButtonText: 'Annuler',
+        });
+        if (!r.isConfirmed) return;
+        this.db.contractTemplates.splice(i, 1);
+        this.saveDB();
+    },
+
     saveContractTemplate() {
         const tpl = this.editingContractTpl;
         if (!tpl) return;
