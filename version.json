@@ -1,4 +1,4 @@
 {
-  "version": "49",
-  "notes": "Lecteurs : plus de fausse « Erreur de sauvegarde » à chaque enregistrement"
+  "version": "50",
+  "notes": "Modèles de contrat : confirmation avant suppression ; {{notes}} retiré des variables proposées"
 }
