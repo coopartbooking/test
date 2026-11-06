@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=48';
+import { auth, dbFirestore }                                              from './firebase.js?v=49';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,22 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=48';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=48';
-import { planningComputed, planningMethods }    from './planning.js?v=48';
-import { adminMethods }                           from './modules/adminMethods.js?v=48';
-import { mapMethods }                             from './modules/mapMethods.js?v=48';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=48';
-import { importMethods }                         from './modules/importMethods.js?v=48';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=48';
-import { searchMethods }                         from './modules/searchMethods.js?v=48';
-import { projectMethods }                        from './modules/projectMethods.js?v=48';
-import { venueMethods }                          from './modules/venueMethods.js?v=48';
-import { crmMethods }                            from './modules/crmMethods.js?v=48';
-import { appComputed }                           from './modules/appComputed.js?v=48';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=48';
-import { icalMethods }                            from './modules/icalMethods.js?v=48';
-import { updateMethods }                          from './modules/updateMethods.js?v=48';
+import { utilsMethods }                         from './utils.js?v=49';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=49';
+import { planningComputed, planningMethods }    from './planning.js?v=49';
+import { adminMethods }                           from './modules/adminMethods.js?v=49';
+import { mapMethods }                             from './modules/mapMethods.js?v=49';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=49';
+import { importMethods }                         from './modules/importMethods.js?v=49';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=49';
+import { searchMethods }                         from './modules/searchMethods.js?v=49';
+import { projectMethods }                        from './modules/projectMethods.js?v=49';
+import { venueMethods }                          from './modules/venueMethods.js?v=49';
+import { crmMethods }                            from './modules/crmMethods.js?v=49';
+import { appComputed }                           from './modules/appComputed.js?v=49';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=49';
+import { icalMethods }                            from './modules/icalMethods.js?v=49';
+import { updateMethods }                          from './modules/updateMethods.js?v=49';
 
 // Plafond d'affichage des longues listes (annuaire, structures).
 // Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
@@ -664,7 +664,11 @@ createApp({
                 });
 
                 // 2. Sauvegarde différentielle des structures (sous-collection) + meta (tags + index)
-                await this._saveStructuresDiff();
+                // Réservée aux éditeurs : les règles Firestore refusent l'écriture de
+                // shared/meta et structures aux lecteurs, ce qui affichait « Erreur de
+                // sauvegarde » à chaque enregistrement alors que leurs données personnelles
+                // (étape 1) étaient bien enregistrées.
+                if (this.canEdit) await this._saveStructuresDiff();
 
                 this.saveStatus = 'saved';
                 this.saveStatusMessage = 'Synchronisé · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
