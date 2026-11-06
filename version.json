@@ -1,4 +1,4 @@
 {
-  "version": "45",
-  "notes": "Affaire créée depuis la fiche contact (contact lié), modal Affaire identique partout"
+  "version": "46",
+  "notes": "Après une affaire créée depuis la fiche contact, retour à la fiche (enregistrer, annuler, supprimer)"
 }

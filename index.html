@@ -2928,7 +2928,7 @@
         <div class="bg-white rounded-xl shadow-2xl w-[600px] flex flex-col max-h-[90vh]">
             <div class="p-6 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-lg text-slate-800">{{ editEventData.id ? 'Détails de l\'Affaire / Date' : 'Nouvelle Affaire' }}</h3>
-                <button @click="showEventModal=false"><i class="fas fa-times text-slate-400 hover:text-slate-800"></i></button>
+                <button @click="closeEventModal()"><i class="fas fa-times text-slate-400 hover:text-slate-800"></i></button>
             </div>
             <div class="p-6 overflow-y-auto space-y-4">
                 <div class="grid grid-cols-2 gap-4">
@@ -3161,7 +3161,7 @@
             </div>
             <div class="p-4 border-t bg-slate-50 flex justify-between">
                 <button v-if="editEventData.id" @click="deleteEvent" class="text-red-500 hover:text-red-700 text-sm font-bold px-4">Supprimer</button><div v-else></div>
-                <div class="flex gap-2"><button @click="showEventModal=false" class="text-slate-500 hover:text-slate-700 px-4 py-2 font-bold text-sm">Annuler</button><button @click="saveEvent" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow">Enregistrer</button></div>
+                <div class="flex gap-2"><button @click="closeEventModal()" class="text-slate-500 hover:text-slate-700 px-4 py-2 font-bold text-sm">Annuler</button><button @click="saveEvent" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow">Enregistrer</button></div>
             </div>
         </div>
     </div>
@@ -4707,7 +4707,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=45"></script>
+<script type="module" src="./js/app.js?v=46"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
