@@ -71,13 +71,29 @@ export const crmMethods = {
             structId:   struct.id,
             structName: struct.name,
             structCity: struct.city,
-        });
+        }, { keepTab: true, returnTo: { structId: struct.id, contactId: contact.id } });
     },
 
     async openEventFromCrmEvent(ev) {
         const r = await this._commitCrmContactBeforeLeaving();
         if (!r) return;
-        this.$nextTick(() => { this.openEventModal(null, ev); });
+        this.$nextTick(() => {
+            this.openEventModal(null, ev);
+            this.eventReturnTo = { structId: r.struct.id, contactId: r.contact.id };
+        });
+    },
+
+    // Rouvre la fiche d'un contact (même enchaînement que openCrmFromContact, sans changer d'onglet)
+    reopenCrmContact({ structId, contactId }) {
+        const s = this.db.structures.find(x => x.id === structId);
+        if (!s) return;
+        this.$nextTick(() => {
+            this.openCrmView(s);
+            setTimeout(() => {
+                const contact = this.currentCrmStruct?.contacts?.find(x => x.id === contactId);
+                if (contact) this.openCrmContact(contact);
+            }, 200);
+        });
     },
 
     async saveCrmStruct(silent = false) {

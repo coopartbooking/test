@@ -81,6 +81,7 @@ export const venueMethods = {
         this.venueSearchResults = [];
         this.showVenueDropdown  = false;
         this.showVenueBrowser   = false;
+        this.eventReturnTo      = null;   // posé après coup par les entrées qui viennent d'une fiche contact
         if (data) {
             this.editEventData = JSON.parse(JSON.stringify(data));
         } else {
@@ -101,6 +102,16 @@ export const venueMethods = {
             };
         }
         this.showEventModal = true;
+    },
+
+    // Ferme le modal Affaire (enregistrer, annuler, supprimer, croix). Si l'affaire avait été
+    // ouverte depuis la fiche d'un contact (eventReturnTo), on rouvre cette fiche : on revient
+    // là d'où l'on vient au lieu d'atterrir sur un autre écran.
+    closeEventModal() {
+        this.showEventModal = false;
+        const back = this.eventReturnTo;
+        this.eventReturnTo = null;
+        if (back) this.reopenCrmContact(back);
     },
 
     openCrmViewFromProject(s) {

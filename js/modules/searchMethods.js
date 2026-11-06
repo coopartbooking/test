@@ -97,7 +97,9 @@ export const searchMethods = {
         });
     },
 
-    openEventFromContact(c) {
+    // opts.keepTab : ne pas basculer sur Planning (appel depuis la fiche contact)
+    // opts.returnTo : { structId, contactId } → rouvrir cette fiche à la fermeture du modal
+    openEventFromContact(c, opts = {}) {
         const s = this.db.structures.find(x => x.id === c.structId);
         const prefilled = {
             id:           '',
@@ -117,8 +119,11 @@ export const searchMethods = {
             contactId:    c.id || '',
             contactName:  c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
         };
-        this.tab = 'planning';
-        this.$nextTick(() => { this.openEventModal(null, prefilled); });
+        if (!opts.keepTab) this.tab = 'planning';
+        this.$nextTick(() => {
+            this.openEventModal(null, prefilled);
+            this.eventReturnTo = opts.returnTo || null;
+        });
     },
 
     sendToMailing(contacts) {
