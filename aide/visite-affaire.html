@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bob : gérer une affaire, pas à pas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page: #e6eaf2;
+  --page-ink: #1e293b;
+  --page-muted: #5b6b82;
+  --panel: #ffffff;
+  --panel-line: #d6dce7;
+  --accent: #4f46e5;
+  --accent-soft: #eef0ff;
+  --accent-ink: #ffffff;
+  --ring: #6366f1;
+  --dim: rgba(15, 23, 42, 0.42);
+  --rail-off: #c9d1de;
+
+  /* Bob lui-même (réplique, toujours claire comme l'application) */
+  --b-side: #0f172a; --b-side-hover: #1e293b; --b-side-text: #cbd5e1; --b-side-label: #64748b;
+  --b-body: #f1f5f9; --b-white: #ffffff; --b-line: #e2e8f0; --b-ink: #1e293b; --b-muted: #64748b; --b-faint: #94a3b8;
+  --b-indigo: #4f46e5; --b-indigo-50: #eef2ff; --b-indigo-200: #c7d2fe; --b-indigo-800: #3730a3;
+  --b-orange: #f97316; --b-orange-50: #fff7ed; --b-orange-200: #fed7aa; --b-orange-700: #c2410c;
+  --b-rose: #f43f5e; --b-green: #10b981; --b-green-50: #ecfdf5; --b-red: #ef4444; --b-kanban: #f4f7fa;
+
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #111a2e; --page-ink: #e5e9f2; --page-muted: #96a3b9;
+    --panel: #18233a; --panel-line: #2a3853; --accent: #818cf8; --accent-soft: #232d4d; --accent-ink: #0f172a;
+    --rail-off: #33415c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #111a2e; --page-ink: #e5e9f2; --page-muted: #96a3b9;
+  --panel: #18233a; --panel-line: #2a3853; --accent: #818cf8; --accent-soft: #232d4d; --accent-ink: #0f172a;
+  --rail-off: #33415c; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; background: var(--page); color: var(--page-ink); font-family: "Figtree", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.tour { max-width: 1440px; margin: 0 auto; padding: 20px 20px 28px; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.tour-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.tour-head h1 { margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.01em; }
+.tour-head p { margin: 0; color: var(--page-muted); font-size: 0.95rem; }
+.stage { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 340px; } }
+
+/* Cadre de la réplique */
+.frame { width: 100%; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px -18px rgba(15, 23, 42, 0.45), 0 0 0 1px var(--panel-line); background: var(--b-body); position: relative; }
+.frame-scale { position: relative; }
+.bob { position: absolute; top: 0; left: 0; width: 1040px; height: 640px; transform-origin: 0 0; display: flex; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--b-ink); font-size: 13px; overflow: hidden; background: var(--b-body); user-select: none; -webkit-user-select: none; }
+.ico { width: 1em; height: 1em; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
+
+/* Barre latérale de Bob */
+.b-side { width: 206px; background: var(--b-side); color: var(--b-side-text); display: flex; flex-direction: column; flex-shrink: 0; }
+.b-logo { padding: 18px 20px 10px; display: flex; align-items: center; gap: 10px; color: var(--b-white); font-weight: 800; font-size: 16px; }
+.b-logo span { width: 28px; height: 28px; border-radius: 8px; background: var(--b-indigo); display: grid; place-items: center; font-size: 14px; }
+.b-navh { padding: 16px 20px 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--b-side-label); }
+.b-nav { display: flex; align-items: center; gap: 10px; padding: 8px 20px 8px 17px; border-left: 3px solid transparent; cursor: pointer; font-size: 12.5px; }
+.b-nav .ico { font-size: 14px; }
+.b-nav:hover, .b-nav.on { background: var(--b-side-hover); color: var(--b-white); }
+.b-nav.on { border-left-color: #6366f1; }
+.b-badge { margin-left: auto; background: var(--b-orange); color: var(--b-white); border-radius: 99px; padding: 0 7px; font-size: 10px; font-weight: 700; }
+
+.b-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.b-top { height: 54px; background: var(--b-white); border-bottom: 1px solid var(--b-line); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; flex-shrink: 0; }
+.b-top h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.b-btn { border: 0; border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.b-btn.indigo { background: var(--b-indigo); color: var(--b-white); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.b-btn.ghost { background: transparent; color: var(--b-muted); }
+.b-btn.line { background: var(--b-white); color: var(--b-ink); border: 1px solid #cbd5e1; flex: 1; justify-content: center; }
+.b-btn.orange { background: var(--b-orange-50); color: var(--b-orange-700); border: 1px solid var(--b-orange-200); flex: 1; justify-content: center; }
+.b-btn.rose { background: var(--b-rose); color: var(--b-white); }
+.b-btn.grey { background: #6e7881; color: var(--b-white); }
+.b-content { flex: 1; overflow: hidden; padding: 16px 18px; background: var(--b-white); position: relative; }
+
+/* Tableau de bord */
+.b-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.b-kpi { border: 1px solid var(--b-line); border-radius: 14px; padding: 14px; background: var(--b-white); }
+.b-kpi small { color: var(--b-muted); font-size: 11px; font-weight: 700; }
+.b-kpi b { display: block; font-size: 24px; margin-top: 4px; }
+.b-dash-note { margin-top: 16px; border: 1px dashed var(--b-line); border-radius: 14px; padding: 18px; color: var(--b-faint); font-size: 12px; }
+
+/* Pipeline */
+.b-pipehead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.b-pipehead h3 { margin: 0; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.b-pipehead h3 .ico { color: var(--b-indigo); }
+.b-fake-input { border: 1px solid var(--b-line); border-radius: 6px; padding: 6px 10px; color: var(--b-faint); font-size: 11.5px; display: inline-flex; gap: 6px; align-items: center; width: 150px; }
+.b-board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; height: calc(100% - 42px); }
+.b-col { border: 1px solid var(--b-line); border-radius: 12px; background: var(--b-kanban); display: flex; flex-direction: column; min-width: 0; transition: background-color .15s, border-color .15s; }
+.b-col.over { background: var(--b-indigo-50); border-color: #818cf8; }
+.b-colh { padding: 8px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #334155; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--b-line); gap: 4px; }
+.b-colh i { display: inline-block; width: 7px; height: 7px; border-radius: 99px; margin-right: 5px; }
+.b-colh em { font-style: normal; background: var(--b-white); border: 1px solid var(--b-line); border-radius: 99px; padding: 0 6px; color: var(--b-muted); }
+.b-cards { padding: 7px; display: flex; flex-direction: column; gap: 7px; }
+.b-card { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 8px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: grab; touch-action: none; }
+.b-card.won { border-color: #a7f3d0; }
+.b-card.new { border-color: #a5b4fc; }
+.b-card.lift { opacity: .35; }
+.b-tag { display: inline-block; color: var(--b-white); font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-card .v { font-weight: 700; font-size: 11.5px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-card .c { color: var(--b-muted); font-size: 10.5px; margin-top: 2px; }
+.b-card .f { font-size: 10.5px; font-weight: 700; margin-top: 5px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 6px; }
+.b-card .f > span:first-child { white-space: nowrap; }
+.b-card .r { color: var(--b-orange-700); font-size: 10px; display: inline-flex; gap: 3px; align-items: center; }
+.ghost-card { position: absolute; pointer-events: none; z-index: 95; width: 118px; transform: rotate(-2deg); box-shadow: 0 12px 24px -6px rgba(15,23,42,.35); cursor: grabbing; }
+
+/* Fenêtre affaire */
+.b-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; z-index: 40; }
+.b-modal { width: 590px; max-height: 590px; background: var(--b-white); border-radius: 12px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); display: flex; flex-direction: column; overflow: hidden; }
+.b-mh { padding: 14px 18px; border-bottom: 1px solid var(--b-line); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+.b-mh h3 { margin: 0; font-size: 15px; }
+.b-mb { padding: 14px 18px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; align-content: start; }
+.b-mb .full { grid-column: 1 / -1; }
+.b-mb .sep { border-top: 1px solid var(--b-line); padding-top: 10px; }
+.b-lab { display: block; font-size: 10px; font-weight: 800; color: var(--b-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.b-lab b { color: var(--b-red); } .b-lab b.i { color: var(--b-indigo); }
+.b-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: var(--b-white); color: var(--b-ink); font-family: inherit; min-height: 32px; }
+.b-field.stage { background: var(--b-indigo-50); border-color: var(--b-indigo-200); color: var(--b-indigo-800); font-weight: 700; }
+.b-field.empty { color: var(--b-faint); }
+.b-venue { display: flex; align-items: center; gap: 9px; background: var(--b-indigo-50); border: 1px solid var(--b-indigo-200); border-radius: 8px; padding: 7px 10px; }
+.b-venue .ico { color: var(--b-indigo); }
+.b-venue b { display: block; color: var(--b-indigo-800); font-size: 12.5px; } .b-venue small { color: #6366f1; font-size: 11px; }
+.b-browse { font-size: 9.5px; font-weight: 700; background: var(--b-indigo-50); color: var(--b-indigo-800); border-radius: 4px; padding: 3px 8px; display: inline-flex; gap: 4px; align-items: center; }
+.b-rowlab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.b-fin { background: #f8fafc; border: 1px solid var(--b-line); border-radius: 10px; padding: 12px; }
+.b-fin h4, .b-ed h4 { margin: 0 0 10px; font-size: 12.5px; color: #334155; display: flex; gap: 7px; align-items: center; }
+.b-g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .b-g2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.b-coreal { background: #eef2f6; border: 1px solid var(--b-line); border-radius: 6px; padding: 10px; margin-top: 10px; display: grid; gap: 8px; }
+.b-sum { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: var(--b-muted); display: grid; gap: 3px; }
+.b-sum div { display: flex; justify-content: space-between; }
+.b-sum .tot { border-top: 1px solid var(--b-line); padding-top: 5px; font-weight: 700; color: #334155; font-size: 12px; }
+.b-sum .tot span:last-child { color: var(--b-green); } .b-sum .pm { color: var(--b-orange); font-weight: 700; }
+.b-use { justify-self: end; font-size: 10px; font-weight: 700; background: var(--b-indigo-200); color: var(--b-indigo-800); border: 0; border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.b-ed { border-top: 1px solid var(--b-line); padding-top: 12px; }
+.b-ed .row { display: flex; gap: 10px; }
+.b-mf { padding: 11px 18px; border-top: 1px solid var(--b-line); background: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+.b-del { color: var(--b-red); font-weight: 700; font-size: 12px; padding: 0 8px; background: none; border: 0; }
+
+/* Boîtes de dialogue façon SweetAlert2 */
+.b-swal-wrap { position: absolute; inset: 0; background: rgba(15,23,42,.4); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.b-swal { width: 380px; background: var(--b-white); border-radius: 8px; padding: 22px 22px 18px; text-align: center; box-shadow: 0 20px 50px -10px rgba(0,0,0,.4); }
+.b-swal h3 { margin: 0 0 10px; font-size: 19px; color: #545454; font-weight: 600; }
+.b-swal p { margin: 0 0 18px; color: #545454; font-size: 13.5px; }
+.b-swal .acts { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.b-swal .acts .b-btn { padding: 9px 15px; font-size: 13px; border-radius: 5px; }
+.b-swal .form { text-align: left; display: grid; gap: 10px; }
+.b-swal .quick { display: flex; gap: 6px; } .b-swal .quick button { flex: 1; border: 0; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; border-radius: 7px; padding: 5px; cursor: pointer; }
+.b-swal .quick button:hover { background: var(--b-indigo-50); color: var(--b-indigo-800); }
+.b-swal .err { background: #f0f0f0; color: #545454; font-size: 12px; padding: 7px; border-radius: 4px; margin-top: 10px; }
+
+.b-toast { position: absolute; bottom: 14px; right: 14px; z-index: 100; background: var(--b-white); border-radius: 8px; box-shadow: 0 10px 30px -8px rgba(15,23,42,.35); padding: 10px 14px; font-size: 12.5px; font-weight: 600; display: flex; gap: 8px; align-items: center; border-left: 4px solid var(--b-green); animation: toastIn .25s ease-out; }
+.b-toast .ico { color: var(--b-green); }
+@keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Projecteur */
+.spot { position: absolute; z-index: 90; pointer-events: none; border-radius: 10px; box-shadow: 0 0 0 3px var(--ring), 0 0 0 9999px var(--dim); transition: top .35s cubic-bezier(.3,.7,.2,1), left .35s cubic-bezier(.3,.7,.2,1), width .35s cubic-bezier(.3,.7,.2,1), height .35s cubic-bezier(.3,.7,.2,1), opacity .2s; }
+.spot::after { content: ""; position: absolute; inset: -3px; border-radius: inherit; box-shadow: 0 0 0 0 rgba(99,102,241,.55); animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,.55); } 100% { box-shadow: 0 0 0 14px rgba(99,102,241,0); } }
+.spot.off { opacity: 0; }
+.flash { animation: flash .9s ease-out; }
+@keyframes flash { 0% { background-color: #e0e7ff; } 100% { background-color: transparent; } }
+
+/* Panneau de guidage */
+.guide { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 14px; padding: 20px 20px 18px; display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
+.g-count { color: var(--page-muted); font-size: 0.85rem; font-weight: 600; }
+.g-title { margin: 0; font-size: 1.32rem; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+.g-body { display: grid; gap: 9px; font-size: 0.97rem; line-height: 1.55; color: var(--page-ink); }
+.g-body p { margin: 0; }
+.g-body strong { font-weight: 700; }
+.g-do { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-weight: 600; font-size: 0.93rem; line-height: 1.45; }
+.g-do .ico { font-size: 1.15rem; color: var(--accent); margin-top: 1px; }
+.g-do.done .ico { color: #10b981; }
+.g-tip { font-size: 0.88rem; color: var(--page-muted); line-height: 1.5; margin: 0; }
+.g-nav { margin-top: auto; display: flex; gap: 8px; justify-content: space-between; padding-top: 6px; }
+.g-btn { border-radius: 9px; padding: 10px 16px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--panel-line); background: transparent; color: var(--page-ink); }
+.g-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.g-btn:disabled { opacity: .4; cursor: default; }
+.g-recap { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; counter-reset: r; }
+.g-recap button { all: unset; cursor: pointer; display: flex; gap: 10px; padding: 5px 6px; border-radius: 7px; font-size: 0.93rem; }
+.g-recap button:hover, .g-recap button:focus-visible { background: var(--accent-soft); }
+.g-recap span { color: var(--page-muted); font-variant-numeric: tabular-nums; min-width: 1.4em; }
+
+.rail { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rail button { all: unset; cursor: pointer; height: 30px; min-width: 30px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 0.85rem; color: var(--page-muted); background: transparent; border: 1px solid var(--rail-off); font-variant-numeric: tabular-nums; }
+.rail button.seen { color: var(--page-ink); border-color: var(--page-muted); }
+.rail button.cur { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.rail button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.rail-hint { color: var(--page-muted); font-size: 0.85rem; margin-left: auto; }
+@media (max-width: 720px) { .rail-hint { display: none; } .tour { padding: 14px 12px 22px; } .tour-head h1 { font-size: 1.3rem; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spot, .spot::after, .b-toast, .flash { transition: none !important; animation: none !important; }
+}
+
+/* Mes Projets */
+.b-btn.slate { background: #1e293b; color: var(--b-white); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.b-pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.b-pcard { border: 1px solid var(--b-line); border-radius: 14px; overflow: hidden; background: var(--b-white); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.b-pcard .hd { height: 92px; display: grid; place-items: center; color: rgba(255,255,255,.5); font-size: 38px; }
+.b-pcard .bd { padding: 12px 14px; }
+.b-pcard h4 { margin: 0 0 3px; font-size: 15px; }
+.b-pcard .genre { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--b-muted); }
+.b-pcard .ft { margin-top: 14px; padding-top: 10px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; }
+.b-pcard .ft span:first-child { color: var(--b-faint); font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
+.b-pcard .ft b { color: #334155; }
+.b-pcard .ft small { color: var(--b-faint); font-size: 9.5px; }
+
+/* Fiche projet */
+.b-pmodal { width: 720px; max-height: 590px; background: var(--b-white); border-radius: 12px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); display: flex; flex-direction: column; overflow: hidden; }
+.b-pban { height: 84px; position: relative; flex-shrink: 0; }
+.b-pban .grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.55), transparent); display: flex; align-items: flex-end; padding: 0 22px 12px; color: var(--b-white); }
+.b-pban small { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .8; margin-bottom: 2px; }
+.b-pban h3 { margin: 0; font-size: 21px; }
+.b-pban .close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 99px; background: rgba(0,0,0,.2); color: rgba(255,255,255,.85); display: grid; place-items: center; }
+.b-ptabs { display: flex; border-bottom: 1px solid var(--b-line); flex-shrink: 0; }
+.b-ptab { padding: 9px 13px; font-size: 11px; font-weight: 700; color: var(--b-muted); border-bottom: 2px solid transparent; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.b-ptab.on { border-bottom-color: var(--b-indigo); color: #4338ca; background: var(--b-indigo-50); }
+.b-ptab em { font-style: normal; background: #e2e8f0; color: #475569; font-size: 9.5px; padding: 0 5px; border-radius: 99px; }
+.b-pbody { flex: 1; overflow-y: auto; background: #f8fafc; padding: 16px 18px; }
+.b-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.b-stat { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 12px; padding: 11px 12px; }
+.b-stat small { display: block; font-size: 10px; font-weight: 700; color: var(--b-muted); text-transform: uppercase; letter-spacing: .04em; }
+.b-stat b { display: block; font-size: 19px; margin-top: 3px; }
+.b-stat.green b { color: #059669; } .b-stat.orange b { color: #ea580c; } .b-stat.indigo b { color: #4f46e5; }
+.b-box { margin-top: 12px; background: var(--b-white); border: 1px solid var(--b-line); border-radius: 12px; padding: 12px 14px; font-size: 12px; }
+.b-box h5 { margin: 0 0 8px; font-size: 12px; color: #334155; }
+.b-box .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px; color: var(--b-muted); }
+.b-box .kv b { color: var(--b-ink); }
+.b-afhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.b-afhead h4 { margin: 0; font-size: 13px; color: #334155; }
+.b-afrow { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.b-afrow .sq { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--b-white); font-size: 13px; flex-shrink: 0; }
+.b-afrow .t { flex: 1; min-width: 0; } .b-afrow .t b { display: block; font-size: 12.5px; } .b-afrow .t small { color: var(--b-muted); font-size: 11px; }
+.b-afrow .m { text-align: right; } .b-afrow .m b { color: #4f46e5; font-size: 12.5px; display: block; } .b-afrow .m small { color: var(--b-faint); font-size: 9.5px; }
+.b-field.pre { background: #f8fafc; }
+
+/* Tâches & Suivi */
+.b-tboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: 100%; }
+.b-tcol { border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; border: 1px solid; min-width: 0; }
+.b-tcol.late { background: #fef2f2; border-color: #fee2e2; } .b-tcol.today { background: #fff7ed; border-color: #ffedd5; }
+.b-tcol.next { background: #f8fafc; border-color: var(--b-line); } .b-tcol.hist { background: #f0fdf4; border-color: #dcfce7; }
+.b-tcol h4 { margin: 0 0 4px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.b-tcol.late h4 { color: #991b1b; } .b-tcol.today h4 { color: #9a3412; } .b-tcol.next h4 { color: #334155; } .b-tcol.hist h4 { color: #065f46; }
+.b-tcol h4 span { display: inline-flex; gap: 6px; align-items: center; }
+.b-tcol h4 em { font-style: normal; font-size: 10px; padding: 0 7px; border-radius: 99px; }
+.b-tcol.late h4 em { background: #fecaca; } .b-tcol.today h4 em { background: #fed7aa; } .b-tcol.next h4 em { background: #e2e8f0; } .b-tcol.hist h4 em { background: #bbf7d0; }
+.b-task { background: var(--b-white); border-radius: 8px; padding: 9px 10px; border: 1px solid var(--b-line); box-shadow: 0 1px 2px rgba(0,0,0,.05); display: flex; gap: 8px; }
+.b-tcol.late .b-task { border-color: #fecaca; } .b-tcol.today .b-task { border-color: #fed7aa; } .b-tcol.hist .b-task { border-color: #bbf7d0; }
+.b-task .ck { color: #cbd5e1; font-size: 15px; cursor: pointer; flex-shrink: 0; margin-top: 1px; background: none; border: 0; padding: 0; line-height: 1; }
+.b-task .ck:hover { color: var(--b-green); }
+.b-task .tx { flex: 1; min-width: 0; }
+.b-task .tx b { display: block; font-size: 11.5px; line-height: 1.35; }
+.b-task .tx .d { font-size: 10.5px; font-weight: 700; margin-top: 3px; }
+.b-tcol.late .d { color: #dc2626; } .b-tcol.next .d { color: var(--b-muted); font-weight: 400; }
+.b-task .tm { color: #ea580c; font-size: 10px; font-weight: 700; display: inline-flex; gap: 3px; align-items: center; margin-left: 4px; }
+.b-task .ln { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 6px; font-size: 10px; color: var(--b-muted); }
+.b-task .ln span:first-child { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.b-task .rel { color: #4f46e5; background: var(--b-indigo-50); padding: 1px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.b-task.done .tx b { color: var(--b-muted); text-decoration: line-through; }
+.b-task .cr { margin-top: 6px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 4px; padding: 5px 6px; font-size: 10px; font-style: italic; color: #475569; }
+.b-task.fresh { animation: flash 1s ease-out; }
+.b-tmodal { width: 480px; background: var(--b-white); border-radius: 12px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); overflow: hidden; }
+.b-tmodal .b-mb { grid-template-columns: 1fr 1fr; }
+.b-swal textarea.b-field { min-height: 70px; resize: none; }
+.b-swal .lbl { display: block; text-align: center; font-size: 13px; color: #545454; margin: 6px 0 8px; }
+.b-btn.green { background: #10b981; color: var(--b-white); }
+.b-dash-hi { font-size: 12px; color: var(--b-muted); margin: -4px 0 12px; }
+.b-kpis.four { grid-template-columns: repeat(4, 1fr); }
+
+.rail-sep { width: 1px; height: 22px; background: var(--rail-off); margin: 0 4px; }
+.g-count { display: flex; gap: 10px; align-items: baseline; }
+.g-partlab { color: var(--accent); font-weight: 700; }
+.g-recap .g-part { color: var(--accent); font-weight: 700; font-size: 0.85rem; padding: 8px 6px 2px; }
+.b-cal { border: 1px solid var(--b-line); border-radius: 12px; overflow: hidden; background: var(--b-white); }
+.b-cal-row { display: grid; grid-template-columns: 90px 60px 170px 1fr 90px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--b-line); font-size: 12px; }
+.b-cal-row.head { border-top: 0; background: #f8fafc; font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--b-muted); letter-spacing: .04em; }
+.b-cal-row.mine { background: var(--b-indigo-50); }
+.b-cal-row em { font-style: normal; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; }
+.b-btn.amber { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.b-nsec { font-size: 9.5px; font-weight: 800; color: var(--b-faint); text-transform: uppercase; margin: 2px 0 6px; }
+.b-note { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; }
+.b-note p { margin: 0; font-size: 12px; color: #334155; }
+.b-note small { display: inline-flex; gap: 4px; align-items: center; color: var(--b-faint); font-size: 10px; margin-top: 4px; }
+.b-note.fresh { animation: flash 1s ease-out; }
+.b-pnotes { margin-top: 8px; border: 1px solid var(--b-line); border-radius: 8px; background: #f8fafc; padding: 0 10px; }
+.b-pnotes button { all: unset; cursor: pointer; display: flex; justify-content: space-between; width: 100%; padding: 8px 0; font-size: 11px; font-weight: 700; color: #475569; gap: 6px; }
+
+.b-cchips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.b-cchips .b-lab { width: 100%; }
+.b-cchips span:not(.b-lab) { font-size: 11px; font-weight: 700; border: 1px solid var(--b-line); border-radius: 8px; padding: 4px 9px; color: #475569; background: var(--b-white); display: inline-flex; gap: 4px; align-items: center; }
+.b-cchips span.on { background: var(--b-indigo); border-color: var(--b-indigo); color: var(--b-white); }
+.b-lock { display: flex; gap: 8px; align-items: center; border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 8px; padding: 9px 12px; font-size: 11.5px; color: var(--b-muted); }
+</style>
+</head>
+<body>
+<main class="tour">
+  <header class="tour-head">
+    <h1>Gérer une affaire dans Bob</h1>
+    <p>Du projet à la date confirmée, en passant par le pipeline et les tâches. Rien n’est enregistré dans votre base.</p>
+  </header>
+
+  <div class="stage">
+    <div class="frame" id="frame">
+      <div class="frame-scale" id="scaleBox">
+        <div class="bob" id="bob" aria-label="Réplique de l’application Bob"></div>
+      </div>
+    </div>
+
+    <aside class="guide" id="guide" aria-live="polite"></aside>
+  </div>
+
+  <nav class="rail" id="rail" aria-label="Étapes de la visite"></nav>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Icônes ---------- */
+  const P = {
+    chart: '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/>',
+    tasks: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
+    building: '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M10 21v-4h4v4"/>',
+    book: '<path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 16a3.5 3.5 0 0 1 7 0"/>',
+    music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+    columns: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    calday: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="7" y="13" width="4" height="4" rx=".5"/>',
+    map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+    send: '<path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4z"/>',
+    cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+    shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+    file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/>',
+    check: '<path d="m5 12 5 5L20 7"/>',
+    checkc: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    circle: '<circle cx="12" cy="12" r="9"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    pointer: '<path d="M9 11V5a1.5 1.5 0 0 1 3 0v5"/><path d="M12 10V9a1.5 1.5 0 0 1 3 0v2"/><path d="M15 11a1.5 1.5 0 0 1 3 0v3a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-2L9 14"/>',
+    move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
+    left: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+    right: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    pdf: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M8.5 16v-3h1.2a1 1 0 0 1 0 2H8.5M13 13v3h.8a1.5 1.5 0 0 0 0-3zM17 13h-1.5v3M15.5 14.5H17"/>',
+    euro: '<path d="M18 7a6 6 0 1 0 0 10"/><path d="M4 10h9M4 14h9"/>',
+    star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    bars: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    note: '<path d="M4 4h16v11l-5 5H4z"/><path d="M15 20v-5h5"/>',
+    warn: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+    dcheck: '<path d="m2 12 5 5L18 6"/><path d="m11 16 1 1L23 6"/>',
+    hour: '<path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    pin: '<path d="M12 17v5M8 3h8l-1 6 3 3v2H6v-2l3-3z"/>'
+  };
+  P.link = '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>';
+  P.lock = '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>';
+  const I = (n) => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>';
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* ---------- Données de démonstration ---------- */
+  const PROJ = {
+    oiseaux: { name: "Les Oiseaux de passage", color: "#db2777", genre: "Théâtre jeune public", duration: "55 min", fee: "2 200 €" },
+    ressac: { name: "Duo Ressac", color: "#0284c7", genre: "Musique", duration: "1 h 15", fee: "1 500 €" },
+    fil: { name: "Compagnie du Fil", color: "#059669", genre: "Marionnettes", duration: "45 min", fee: "1 900 €" }
+  };
+  const COLS = [
+    { id: "lead", name: "À contacter", dot: "#94a3b8" },
+    { id: "contacted", name: "Contact établi", dot: "#60a5fa" },
+    { id: "nego", name: "En négociation", dot: "#c084fc" },
+    { id: "option", name: "Option posée", dot: "#fb923c" },
+    { id: "contract", name: "Contrat envoyé", dot: "#facc15" },
+    { id: "won", name: "Confirmé", dot: "#10b981" }
+  ];
+  const OTHER_CARDS = [
+    { proj: "ressac", venue: "Espace Lumière", city: "Brioude", date: "14/03/2027", fee: "1 800 €", stage: "contacted" },
+    { proj: "oiseaux", venue: "MJC des Tilleuls", city: "Craponne-sur-Arzon", date: "22/01/2027", fee: "2 400 €", stage: "option" },
+    { proj: "ressac", venue: "Salle polyvalente", city: "Retournac", date: "05/12/2026", fee: "1 500 €", stage: "won" }
+  ];
+  const TYPES = { relance: ["bell", "Relance", "#f97316"], call: ["phone", "Appel", "#3b82f6"], email: ["mail", "Email", "#f97316"], admin: ["file", "Admin", "#a855f7"], meeting: ["book", "RDV", "#22c55e"], other: ["pin", "Autre", "#64748b"] };
+
+  const today = new Date();
+  const plusDays = (d) => { const x = new Date(today); x.setDate(x.getDate() + d); return x; };
+  const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const fr = (isoStr) => { const [y, m, d] = isoStr.split("-"); return d + "/" + m + "/" + y; };
+  const money = (v) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v || 0).replace(/\u202f/g, "\u00a0");
+
+  const fin = { type: "cession", fee: 2200, capacity: 180, price: 14, part: 70, frais: 900, fill: 75 };
+  const TASK_TEXT = "Envoyer la fiche technique au Petit Théâtre";
+  let evNotes = [];
+  function addEvNote() {
+    const inp = document.getElementById("ev-note");
+    const txt = (inp && inp.value.trim()) || "Le régisseur demande la fiche technique avant le 15 décembre.";
+    const d = new Date();
+    evNotes.push({ text: txt, date: d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }), user: "Vous" });
+    S.fresh = "evnote"; renderKeepScroll(); setTimeout(advance, 900);
+  }
+
+  /* ---------- État ---------- */
+  let S = {};
+  const base = () => ({
+    tab: "dashboard", swal: null, modal: false, filled: false, saved: false, fromProject: false,
+    stage: "lead", modalStage: "lead", relance: null, contract: false,
+    proj: false, projTab: "resume",
+    taskModal: false, taskFilled: false, task: null,
+    phase: 0, toast: null, swalErr: false, scrollEd: false, pnotes: false, fresh: null
+  });
+  const rel = (p) => p.relance || iso(plusDays(7));
+  const afterSave = { saved: true, filled: true, fromProject: true };
+
+  /* ---------- Étapes ---------- */
+  const STEPS = [
+    {
+      part: "Le projet", title: "Ouvrir Mes Projets",
+      body: "<p>Tout part du projet : le spectacle ou l’artiste que vous diffusez. Ses affaires, ses contacts et ses notes sont réunis dans sa fiche.</p>",
+      doText: "Cliquez sur Mes Projets dans le menu.",
+      setup: () => ({}),
+      target: () => '[data-act="nav-projects"]',
+      act: { "nav-projects": () => advance() }
+    },
+    {
+      part: "Le projet", title: "Ouvrir la fiche du projet",
+      body: "<p>Chaque carte rappelle le genre, la durée et le cachet de base du spectacle. Le bouton <strong>Projet</strong>, en haut à droite, en crée un nouveau.</p>",
+      doText: "Cliquez sur la carte Les Oiseaux de passage.",
+      setup: () => ({ tab: "projects" }),
+      target: () => '[data-act="open-proj"]',
+      act: { "open-proj": () => advance() }
+    },
+    {
+      part: "Le projet", title: "Le résumé du projet",
+      body: "<p>L’onglet <strong>Résumé</strong> donne le chiffre d’affaires confirmé, les dates confirmées et en cours, le taux de confirmation et la prochaine date.</p><p>Les autres onglets réunissent la présentation de l’artiste, ses affaires, les structures et contacts liés, et les notes.</p>",
+      doText: "Cliquez sur l’onglet Affaires.",
+      setup: () => ({ tab: "projects", proj: true, projTab: "resume" }),
+      target: () => '[data-act="ptab-affaires"]',
+      act: { "ptab-affaires": () => advance() }
+    },
+    {
+      part: "Le projet", title: "Créer l’affaire depuis le projet",
+      body: "<p>L’onglet <strong>Affaires</strong> liste toutes les affaires du projet, avec leur stade et leur cachet.</p><p>En créant l’affaire d’ici, le projet est déjà renseigné. Depuis le Pipeline, le bouton Nouveau fait la même chose, en choisissant le projet à la main.</p>",
+      doText: "Cliquez sur Nouvelle affaire.",
+      setup: () => ({ tab: "projects", proj: true, projTab: "affaires" }),
+      target: () => '[data-act="new-affaire"]',
+      act: { "new-affaire": () => advance() }
+    },
+    {
+      part: "L’affaire", title: "Renseigner l’essentiel",
+      body: "<p>Le projet est déjà choisi et le stade part de « À contacter ».</p><p>Pour le <strong>lieu</strong>, tapez un nom, une ville, un tag ou une région, ou bien utilisez <strong>Parcourir</strong>. Ses contacts s’affichent alors dessous : cliquez sur la personne avec qui vous négociez, l’affaire apparaîtra dans sa fiche contact.</p><p>La <strong>date</strong> reste facultative tant que vous êtes en prospection.</p>",
+      doText: "Cliquez dans la zone entourée pour remplir l’exemple.",
+      setup: () => ({ tab: "projects", modal: true, fromProject: true }),
+      target: () => '[data-zone="essentiel"]',
+      act: { "fill": () => { S.filled = true; render(); flash('[data-zone="essentiel"]'); setTimeout(advance, 650); } }
+    },
+    {
+      part: "L’affaire", title: "Les conditions financières",
+      body: "<p>En <strong>cession</strong>, vous indiquez le cachet convenu.</p><p>En <strong>co-réalisation</strong>, saisissez jauge, prix du billet, part prod, frais de plateau et remplissage estimé : Bob calcule le point mort et la recette estimée. « Utiliser comme Cachet » reporte cette recette dans le cachet final.</p><p>Dessous, <strong>Clauses particulières du contrat</strong> accueille ce qui est propre à cette date : catering, horaires de montage… Le contrat les reprend par la variable <code>{{clauses}}</code>.</p>",
+      doText: "Essayez de passer le type de contrat en co-réalisation et de modifier les chiffres, puis faites Suivant.",
+      free: true,
+      setup: () => ({ tab: "projects", modal: true, filled: true, fromProject: true }),
+      target: () => '[data-zone="fin"]',
+      act: {}
+    },
+    {
+      part: "L’affaire", title: "Enregistrer",
+      body: "<p>Les boutons <strong>Contrat</strong>, <strong>Feuille de Route</strong> et <strong>Planifier relance</strong>, ainsi que la partie <strong>Notes & actions</strong>, sont grisées tant que l’affaire n’est pas enregistrée : elles s’activent dès le premier enregistrement.</p><p>Comme l’affaire a été créée depuis un projet, Bob affiche ensuite les Agendas partagés.</p>",
+      doText: "Cliquez sur Enregistrer.",
+      setup: () => ({ tab: "projects", modal: true, filled: true, fromProject: true }),
+      target: () => '[data-act="save"]',
+      act: { "save": () => { S.saved = true; S.modal = false; S.tab = "planning"; toast("Affaire enregistrée"); setTimeout(advance, 450); } }
+    },
+    {
+      part: "L’affaire", title: "Retrouver l’affaire dans le pipeline",
+      body: "<p>Vous voici sur les <strong>Agendas partagés</strong>, où la nouvelle date apparaît déjà (ici en vue Liste).</p><p>Le <strong>Pipeline Commercial</strong> rassemble les affaires de tous vos projets, avec une colonne par stade de négociation. L’affaire y est dans « À contacter ».</p>",
+      doText: "Cliquez sur Pipeline Commercial dans le menu.",
+      setup: () => Object.assign({ tab: "planning" }, afterSave),
+      target: () => '[data-act="nav-pipeline"]',
+      act: { "nav-pipeline": () => advance() }
+    },
+    {
+      part: "L’affaire", title: "Faire avancer l’affaire",
+      body: "<p>À chaque évolution, glissez la carte vers la colonne suivante. Vous pouvez aussi changer le <strong>Stade de négociation</strong> dans la fiche.</p><p>Dans l’agenda, « Option posée » et « Contrat envoyé » s’affichent comme options, « Confirmé » comme date ferme.</p><p>Si l’affaire tombe à l’eau, choisissez le stade <strong>Annulée</strong> dans la fiche : elle quitte le pipeline et sa relance est supprimée.</p>",
+      doText: "Glissez la carte « Le Petit Théâtre » jusqu’à la colonne En négociation.",
+      drag: true,
+      setup: () => Object.assign({ tab: "pipeline", stage: "lead" }, afterSave),
+      target: () => '[data-card="new"]',
+      act: {}
+    },
+    {
+      part: "L’affaire", title: "Planifier une relance",
+      body: "<p>Un clic sur une carte rouvre sa fiche. Tout en bas, la zone <strong>Éditions (PDF)</strong> regroupe le contrat, la feuille de route et la relance.</p>",
+      doText: "Cliquez sur Planifier relance.",
+      setup: () => Object.assign({ tab: "pipeline", stage: "nego", modalStage: "nego", modal: true, scrollEd: true }, afterSave),
+      target: () => '[data-act="relance"]',
+      act: { "relance": () => advance() }
+    },
+    {
+      part: "L’affaire", title: "Fixer la date de relance",
+      body: "<p>Choisissez une date précise ou un raccourci (+3 j, +7 j, +14 j, +30 j) et ajoutez une note pour vous souvenir de ce que vous attendez.</p><p>La relance devient une <strong>tâche</strong> liée à l’affaire : elle apparaît dans Tâches & Suivi, dans l’agenda, et sur la carte du pipeline avec une cloche, rouge si elle est en retard.</p>",
+      doText: "Cliquez sur Définir la relance.",
+      setup: () => Object.assign({ tab: "pipeline", stage: "nego", modalStage: "nego", modal: true, scrollEd: true, swal: "relance" }, afterSave),
+      target: () => '[data-act="relance-ok"]',
+      act: { "relance-ok": () => { const d = document.getElementById("rel-date"); S.relance = (d && d.value) || iso(plusDays(7)); advance(); } }
+    },
+    {
+      part: "L’affaire", title: "Générer le contrat",
+      body: "<p>Choisissez un modèle : Bob y place automatiquement le projet, le lieu, la date, le cachet et les autres variables, puis télécharge le PDF.</p><p>Les modèles se créent et se modifient dans <strong>Paramètres</strong>, rubrique <strong>Modèles de contrats</strong>.</p>",
+      doText: () => S.phase === 0 ? "Cliquez sur Contrat." : "Choisissez un modèle, puis Générer le PDF.",
+      setup: (p) => Object.assign({ tab: "pipeline", stage: "nego", modalStage: "nego", modal: true, scrollEd: true, relance: rel(p) }, afterSave),
+      target: () => S.phase === 0 ? '[data-act="contrat"]' : '[data-zone="tpl"]',
+      act: {
+        "contrat": () => { S.phase = 1; S.swal = "contrat"; S.swalErr = false; render(); },
+        "contrat-ok": () => {
+          const v = document.getElementById("tpl").value;
+          if (!v) { S.swalErr = true; render(); return; }
+          S.swal = null; S.contract = true; toast("Contrat PDF téléchargé"); setTimeout(advance, 500);
+        }
+      },
+      next: () => { if (S.phase === 0) return STEPS[step].act.contrat(); const t = document.getElementById("tpl"); if (t && !t.value) t.value = "1"; STEPS[step].act["contrat-ok"](); }
+    },
+    {
+      part: "L’affaire", title: "Notes & actions",
+      body: "<p>Sous les éditions, la partie <strong>Notes & actions</strong> garde la mémoire de l’affaire : chaque note est datée, signée et enregistrée tout de suite.</p><p><strong>Planifier une action</strong> crée une tâche liée à l’affaire. Le bandeau <strong>Notes du projet</strong> se déplie pour relire les notes du projet sans quitter l’affaire.</p>",
+      doText: "Écrivez une note puis Ajouter (ou Entrée). Avec le champ vide, la visite en écrit une pour vous.",
+      setup: (p) => Object.assign({ tab: "pipeline", stage: "nego", modalStage: "nego", modal: true, scrollEd: true, relance: rel(p), contract: true }, afterSave),
+      target: () => '[data-zone="evnotes"]',
+      act: { "ev-add-note": () => addEvNote() }
+    },
+    {
+      part: "Les tâches", title: "Ouvrir Tâches & Suivi",
+      body: "<p>Les tâches, ce sont les choses à faire : appeler, envoyer un dossier, préparer un document. Bob les range seul en quatre colonnes : <strong>En retard</strong>, <strong>Aujourd’hui</strong>, <strong>À venir</strong> et <strong>Historique</strong>.</p><p>Votre relance y est déjà, dans À venir, avec sa cloche. Le compteur des tâches urgentes apparaît aussi sur le tableau de bord.</p>",
+      doText: "Cliquez sur Tâches & Suivi dans le menu.",
+      setup: (p) => Object.assign({ tab: "pipeline", stage: "nego", relance: rel(p), contract: true }, afterSave),
+      target: () => '[data-act="nav-tasks"]',
+      act: { "nav-tasks": () => advance() }
+    },
+    {
+      part: "Les tâches", title: "Créer une tâche",
+      body: "<p>Le bouton <strong>Tâche</strong>, en haut à droite, ouvre une nouvelle tâche.</p><p>Dans une fiche projet, l’onglet Notes propose aussi « Planifier une action » : la tâche est alors directement liée au projet.</p>",
+      doText: "Cliquez sur Tâche.",
+      setup: (p) => Object.assign({ tab: "tasks", stage: "nego", relance: rel(p), contract: true }, afterSave),
+      target: () => '[data-act="new-task"]',
+      act: { "new-task": () => advance() }
+    },
+    {
+      part: "Les tâches", title: "Remplir la tâche",
+      body: "<p>Décrivez l’action, choisissez son type et son échéance ; l’heure est facultative.</p><p>Avec <strong>Lier cette tâche à…</strong> → <strong>Affaire / Date</strong>, vous la rattachez à l’affaire : le nom du lieu s’affiche sur la tâche, et un clic dessus rouvre l’affaire.</p>",
+      doText: () => S.phase === 0 ? "Cliquez dans la zone entourée pour remplir l’exemple." : "Cliquez sur Enregistrer.",
+      setup: (p) => Object.assign({ tab: "tasks", stage: "nego", relance: rel(p), contract: true, taskModal: true }, afterSave),
+      target: () => S.phase === 0 ? '[data-zone="task"]' : '[data-act="task-save"]',
+      act: {
+        "task-fill": () => { if (S.phase) return; S.taskFilled = true; S.phase = 1; render(); flash('[data-zone="task"]'); },
+        "task-save": () => {
+          if (!S.taskFilled) { S.taskFilled = true; S.phase = 1; render(); flash('[data-zone="task"]'); return; }
+          S.taskModal = false; S.task = { done: false, notes: "" }; render(); setTimeout(advance, 500);
+        }
+      },
+      next: () => { if (S.phase === 0) return STEPS[step].act["task-fill"](); STEPS[step].act["task-save"](); }
+    },
+    {
+      part: "Les tâches", title: "Marquer la tâche comme faite",
+      body: "<p>La tâche du jour se range dans <strong>Aujourd’hui</strong>. Une fois faite, cochez le rond : Bob propose d’écrire un court compte-rendu, puis la range dans l’Historique.</p>",
+      doText: () => S.phase === 0 ? "Cliquez sur le rond devant la tâche." : "Écrivez un compte-rendu si vous voulez, puis Valider.",
+      setup: (p) => Object.assign({ tab: "tasks", stage: "nego", relance: rel(p), contract: true, task: { done: false, notes: "" } }, afterSave),
+      target: () => S.phase === 0 ? '[data-act="task-done"]' : '[data-zone="done"]',
+      act: {
+        "task-done": () => { S.phase = 1; S.swal = "done"; render(); },
+        "done-ok": () => {
+          const t = document.getElementById("cr"); S.task = { done: true, notes: (t && t.value.trim()) || "Fiche technique envoyée, accusé de réception reçu." };
+          S.swal = null; render(); setTimeout(advance, 700);
+        }
+      },
+      next: () => { if (S.phase === 0) return STEPS[step].act["task-done"](); STEPS[step].act["done-ok"](); }
+    },
+    {
+      part: "La confirmation", title: "Confirmer la date",
+      body: "<p>Quand l’organisateur a dit oui, rouvrez l’affaire depuis le pipeline, passez le stade à <strong>Confirmé</strong> et enregistrez. Il faut une <strong>date</strong> et un <strong>cachet</strong> : sans eux, Bob refuse avec « Affaire non confirmable ».</p><p>La date devient ferme dans <strong>Agendas partagés</strong> et dans votre abonnement iCal, et la carte rejoint la dernière colonne.</p>",
+      doText: () => S.phase === 0 ? "Dans Stade de négociation, choisissez Confirmé." : "Cliquez sur Enregistrer.",
+      setup: (p) => Object.assign({ tab: "pipeline", stage: "nego", modalStage: "nego", modal: true, relance: rel(p), contract: true, task: p.task || { done: true, notes: "" } }, afterSave),
+      target: () => S.phase === 0 ? '[data-zone="stage"]' : '[data-act="save"]',
+      act: { "save": () => {
+        if (S.modalStage !== "won") { S.modalStage = "won"; render(); flash('[data-zone="stage"]'); setTimeout(() => { S.phase = 1; render(); }, 500); return; }
+        S.stage = "won"; S.modal = false; toast("Affaire enregistrée"); setTimeout(advance, 450);
+      } }
+    },
+    {
+      part: "Récapitulatif", title: "C’est fait", final: true, body: "",
+      setup: (p) => Object.assign({ tab: "pipeline", stage: "won", relance: rel(p), contract: true, task: p.task || { done: true, notes: "" } }, afterSave),
+      target: () => '[data-card="new"]',
+      act: {}
+    }
+  ];
+
+  let step = 0;
+  const seen = new Set([0]);
+  const bob = document.getElementById("bob");
+
+  /* ---------- Réplique : barre latérale ---------- */
+  function nav(icon, label, key, color, badge) {
+    const on = S.tab === key;
+    const act = key ? ' data-act="nav-' + key + '"' : "";
+    return '<div class="b-nav' + (on ? " on" : "") + '"' + act + '><span style="color:' + (color || "inherit") + '">' + I(icon) + "</span> " + label + (badge || "") + "</div>";
+  }
+  function sidebar() {
+    const urgent = S.task && !S.task.done ? 1 : 0;
+    return '<div class="b-side"><div class="b-logo"><span>' + I("music") + "</span> Bob</div>" +
+      '<div class="b-navh">Pilotage</div>' + nav("chart", "Tableau de bord", "dashboard") + nav("tasks", "Tâches & Suivi", "tasks", null, urgent ? '<span class="b-badge" style="background:#f97316">' + urgent + "</span>" : "") +
+      '<div class="b-navh">Données</div>' + nav("building", "Structures & Lieux") + nav("book", "Annuaire Pro") + nav("music", "Mes Projets", "projects") +
+      '<div class="b-navh">Production</div>' + nav("columns", "Pipeline Commercial", "pipeline", "#facc15") + nav("calendar", "Agendas partagés", "planning") +
+      nav("map", "Carte & Invitations", null, "#34d399") + nav("send", "Campagnes Email", null, "#60a5fa") + nav("cog", "Paramètres", null, "#94a3b8") + nav("shield", "Administration", null, "#f87171") +
+      "</div>";
+  }
+  const TITLES = { dashboard: "Tableau de bord", projects: "Mes Projets", pipeline: "Pipeline Commercial", tasks: "Tâches & Suivi", planning: "Agendas partagés" };
+  function topBtn() {
+    if (S.tab === "pipeline" || S.tab === "planning") return '<button class="b-btn indigo" data-act="new">' + I("plus") + " Nouveau</button>";
+    if (S.tab === "tasks") return '<button class="b-btn slate" data-act="new-task">' + I("plus") + " Tâche</button>";
+    if (S.tab === "projects") return '<button class="b-btn slate">' + I("plus") + " Projet</button>";
+    return "<span></span>";
+  }
+
+  /* ---------- Vues ---------- */
+  function dashHTML() {
+    const urgent = S.task && !S.task.done ? 1 : 0;
+    return '<p class="b-dash-hi">Bonjour — ' + today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + "</p>" +
+      '<div class="b-kpis four"><div class="b-kpi"><small>CA Confirmé</small><b>' + money(1500) + '</b></div><div class="b-kpi"><small>Dates confirmées</small><b>1</b></div>' +
+      '<div class="b-kpi"><small>En négociation</small><b>2</b></div><div class="b-kpi"><small>Tâches urgentes</small><b style="color:#dc2626">' + (1 + urgent) + "</b></div></div>" +
+      '<div class="b-dash-note">Prochaines dates, relances et activité récente s’affichent ici.</div>';
+  }
+
+  function projectsHTML() {
+    return '<div class="b-pgrid">' + Object.entries(PROJ).map(([k, p]) =>
+      '<div class="b-pcard"' + (k === "oiseaux" ? ' data-act="open-proj"' : "") + '><div class="hd" style="background:' + p.color + '">' + I("music") + "</div>" +
+      '<div class="bd"><h4>' + esc(p.name) + '</h4><div class="genre">' + p.genre + "</div>" +
+      '<div class="ft"><span>' + I("clock") + " " + p.duration + "</span><b>" + I("euro") + " " + p.fee + " <small>HT</small></b></div></div></div>").join("") + "</div>";
+  }
+
+  function card(c, isNew) {
+    const p = PROJ[c.proj];
+    const relance = isNew && S.relance ? '<span class="r">' + I("bell") + fr(S.relance) + "</span>" : "";
+    return '<div class="b-card' + (c.stage === "won" ? " won" : "") + (isNew ? " new" : "") + '"' + (isNew ? ' data-card="new"' : "") + ">" +
+      '<span class="b-tag" style="background:' + p.color + '">' + I("music") + " " + esc(p.name) + "</span>" +
+      '<div class="v">' + esc(c.venue) + "</div>" +
+      '<div class="c">' + esc(c.city) + " · " + c.date + "</div>" +
+      '<div class="f"><span>' + c.fee + "</span>" + relance + "</div></div>";
+  }
+  function mine() { return S.saved ? { proj: "oiseaux", venue: "Le Petit Théâtre", city: "Yssingeaux", date: "13/02/2027", fee: money(fin.fee), stage: S.stage } : null; }
+
+  function boardHTML() {
+    const m = mine();
+    return '<div class="b-pipehead"><h3>' + I("columns") + " Suivi des Négociations</h3>" +
+      '<div style="display:flex;gap:8px"><span class="b-fake-input">' + I("search") + " Lieu, ville, contact…</span>" +
+      '<span class="b-fake-input">Tous les projets</span></div></div>' +
+      '<div class="b-board">' + COLS.map((col) => {
+        const items = OTHER_CARDS.filter((c) => c.stage === col.id);
+        const has = m && m.stage === col.id;
+        return '<div class="b-col" data-col="' + col.id + '"><div class="b-colh"><span><i style="background:' + col.dot + '"></i>' + col.name + "</span><em>" + (items.length + (has ? 1 : 0)) + "</em></div>" +
+          '<div class="b-cards">' + (has ? card(m, true) : "") + items.map((c) => card(c, false)).join("") + "</div></div>";
+      }).join("") + "</div>";
+  }
+
+  function planningHTML() {
+    const rows = [
+      { d: "05/12/2026", h: "20:30", p: "ressac", v: "Salle polyvalente, Retournac", st: "Confirmé", c: "#047857", bg: "#d1fae5" },
+      { d: "22/01/2027", h: "15:00", p: "oiseaux", v: "MJC des Tilleuls, Craponne-sur-Arzon", st: "Option", c: "#c2410c", bg: "#ffedd5" },
+      { d: "13/02/2027", h: "20:30", p: "oiseaux", v: "Le Petit Théâtre, Yssingeaux", st: "Prospect", c: "#475569", bg: "#f1f5f9", mine: true },
+      { d: "14/03/2027", h: "", p: "ressac", v: "Espace Lumière, Brioude", st: "Prospect", c: "#475569", bg: "#f1f5f9" }
+    ].filter((r) => !r.mine || S.saved);
+    return '<div class="b-pipehead"><div style="display:flex;gap:6px"><span class="b-fake-input" style="width:auto">' + I("calendar") + ' Mois</span><span class="b-fake-input" style="width:auto;background:var(--b-indigo-50);color:var(--b-indigo-800);border-color:var(--b-indigo-200)">' + I("list") + ' Liste</span><span class="b-fake-input" style="width:auto">' + I("link") + " Mon lien d’agenda</span></div>" +
+      '<span class="b-fake-input" style="width:auto">Filtres Artistes : tous</span></div>' +
+      '<div class="b-cal"><div class="b-cal-row head"><span>Date</span><span>Heure</span><span>Projet</span><span>Lieu</span><span>Statut</span></div>' +
+      rows.map((r) => '<div class="b-cal-row' + (r.mine ? " mine" : "") + '"><span>' + r.d + "</span><span>" + (r.h || "—") + '</span><span><span class="b-tag" style="background:' + PROJ[r.p].color + '">' + esc(PROJ[r.p].name) + "</span></span><span>" + esc(r.v) + '</span><span><em style="color:' + r.c + ";background:" + r.bg + '">' + r.st + "</em></span></div>").join("") + "</div>";
+  }
+
+  function taskCard(t, col) {
+    const ty = TYPES[t.type];
+    const link = t.rel ? '<span class="rel">' + esc(t.rel) + "</span>" : "";
+    if (col === "hist") {
+      return '<div class="b-task done"><span style="color:#10b981;font-size:14px">' + I("checkc") + '</span><div class="tx"><b>' + esc(t.text) + "</b>" +
+        (t.notes ? '<div class="cr">« ' + esc(t.notes) + " »</div>" : "") + "</div></div>";
+    }
+    const time = t.time ? (col === "today" ? '<span class="tm">' + I("clock") + t.time + "</span>" : " · " + t.time) : "";
+    return '<div class="b-task' + (t.fresh ? " fresh" : "") + '"><button class="ck"' + (t.mine ? ' data-act="task-done"' : "") + ' aria-label="Marquer comme fait">' + I("circle") + "</button>" +
+      '<div class="tx"><b>' + esc(t.text) + (col === "today" ? time : "") + "</b>" +
+      (col !== "today" ? '<div class="d">' + t.date + time + "</div>" : "") +
+      '<div class="ln"><span><span style="color:' + ty[2] + '">' + I(ty[0]) + "</span>" + ty[1] + "</span>" + link + "</div></div></div>";
+  }
+  function tasksHTML() {
+    const late = [{ text: "Rappeler la MJC des Tilleuls pour l’option", type: "call", date: fr(iso(plusDays(-2))), rel: "MJC des Tilleuls" }];
+    const todayT = [], next = [{ text: "Envoyer le dossier de presse à l’Espace Lumière", type: "email", date: fr(iso(plusDays(6))), rel: "Espace Lumière" }];
+    const hist = [{ text: "Valider la jauge avec Retournac", notes: "OK pour 120 places." }];
+    if (S.task && !S.task.done) todayT.push({ text: TASK_TEXT, type: "email", time: "14:00", rel: "13/02/2027 - Le Petit Théâtre", mine: true, fresh: STEPS[step].title === "Marquer la tâche comme faite" && S.phase === 0 });
+    if (S.task && S.task.done) hist.unshift({ text: TASK_TEXT, notes: S.task.notes });
+    if (S.relance) {
+      const r = { text: "Relancer Le Petit Théâtre", type: "relance", date: fr(S.relance), rel: "13/02/2027 - Le Petit Théâtre" };
+      if (S.relance < iso(today)) late.unshift(r); else if (S.relance === iso(today)) todayT.unshift(r); else next.unshift(r);
+    }
+    const col = (cls, icon, label, list, key) => '<div class="b-tcol ' + cls + '"><h4><span>' + I(icon) + " " + label + "</span><em>" + list.length + "</em></h4>" + list.map((t) => taskCard(t, key)).join("") + "</div>";
+    return '<div class="b-tboard">' + col("late", "warn", "En retard", late, "late") + col("today", "calday", "Aujourd’hui", todayT, "today") +
+      col("next", "calendar", "À venir", next, "next") + col("hist", "dcheck", "Historique", hist, "hist") + "</div>";
+  }
+
+  /* ---------- Fiche projet ---------- */
+  function projModalHTML() {
+    const p = PROJ.oiseaux;
+    const tabs = [["artiste", "star", "Artiste"], ["resume", "bars", "Résumé"], ["affaires", "calendar", "Affaires", 1], ["structures", "building", "Structures", 1], ["contacts", "book", "Contacts", 2], ["notes", "note", "Notes", 0]];
+    let body = "";
+    if (S.projTab === "resume") {
+      body = '<div class="b-stats"><div class="b-stat green"><small>CA Confirmé</small><b>' + money(0) + '</b></div><div class="b-stat"><small>Confirmées</small><b>0</b></div>' +
+        '<div class="b-stat orange"><small>En cours</small><b>1</b></div><div class="b-stat"><small>Annulées</small><b>0</b></div>' +
+        '<div class="b-stat indigo"><small>Taux conf.</small><b>0%</b></div><div class="b-stat"><small>Prochaine date</small><b style="font-size:13px">MJC des Tilleuls<br><span style="font-weight:400;color:var(--b-muted)">22/01/2027</span></b></div></div>' +
+        '<div class="b-box"><h5>Logistique & Vente</h5><div class="kv"><span>Cachet : <b>' + p.fee + ' HT</b></span><span>Durée : <b>' + p.duration + "</b></span><span>Équipe : <b>3 pers.</b></span></div></div>";
+    } else {
+      body = '<div class="b-afhead"><h4>1 affaire(s)</h4><button class="b-btn indigo" data-act="new-affaire">' + I("plus") + " Nouvelle affaire</button></div>" +
+        '<div class="b-afrow"><div class="sq" style="background:#fb923c">' + I("hour") + '</div><div class="t"><b>MJC des Tilleuls</b><small>Craponne-sur-Arzon · 2027-01-22</small></div><div class="m"><b>' + money(2400) + "</b><small>HT</small></div></div>";
+    }
+    return '<div class="b-overlay"><div class="b-pmodal"><div class="b-pban" style="background:' + p.color + '"><div class="grad"><div><small>' + I("music") + " " + p.genre + "</small><h3>" + esc(p.name) + '</h3></div></div><span class="close">' + I("x") + "</span></div>" +
+      '<div class="b-ptabs">' + tabs.map(([k, ic, l, n]) => '<span class="b-ptab' + (S.projTab === k ? " on" : "") + '" data-act="ptab-' + k + '">' + I(ic) + " " + l + (n !== undefined ? "<em>" + n + "</em>" : "") + "</span>").join("") + "</div>" +
+      '<div class="b-pbody">' + body + "</div></div></div>";
+  }
+
+  /* ---------- Fiche affaire ---------- */
+  function finHTML() {
+    const est = fin.capacity * (fin.fill / 100) * fin.price * (fin.part / 100);
+    const pb = fin.price * (fin.part / 100);
+    const pm = pb > 0 ? Math.ceil(fin.frais / pb) : 0;
+    let h = '<div class="b-fin full" data-zone="fin"><h4>' + I("euro") + " Conditions Financières</h4>" +
+      '<label class="b-lab" for="ctype">Type de contrat</label><select id="ctype" class="b-field" data-input="type">' +
+      '<option value="cession"' + (fin.type === "cession" ? " selected" : "") + ">Cession (Cachet Fixe)</option>" +
+      '<option value="coreal"' + (fin.type === "coreal" ? " selected" : "") + ">Co-réalisation / Pourcentage (Billetterie)</option></select>";
+    if (fin.type === "cession") {
+      h += '<div style="margin-top:10px"><label class="b-lab" for="cfee">Cachet de cession convenu (€)</label><input id="cfee" type="number" class="b-field" style="width:33%" data-input="fee" value="' + fin.fee + '"></div>';
+    } else {
+      h += '<div class="b-coreal"><div class="b-g3">' +
+        '<div><label class="b-lab" for="ccap">Jauge</label><input id="ccap" type="number" class="b-field" data-input="capacity" value="' + fin.capacity + '"></div>' +
+        '<div><label class="b-lab" for="cpri">Prix Billet (€)</label><input id="cpri" type="number" class="b-field" data-input="price" value="' + fin.price + '"></div>' +
+        '<div><label class="b-lab" for="cpar">Part Prod (%)</label><input id="cpar" type="number" class="b-field" data-input="part" value="' + fin.part + '"></div></div>' +
+        '<div class="b-g2"><div><label class="b-lab" for="cfra">Frais de plateau (€)</label><input id="cfra" type="number" class="b-field" data-input="frais" value="' + fin.frais + '"></div>' +
+        '<div><label class="b-lab" for="cfil">Estim. Remplissage (%)</label><input id="cfil" type="number" class="b-field" data-input="fill" value="' + fin.fill + '"></div></div>' +
+        '<div class="b-sum"><div><span>Recette max potentielle :</span><span id="o-max">' + money(fin.capacity * fin.price) + "</span></div>" +
+        '<div><span><b>Point mort</b> (Bénéfice = 0) :</span><span class="pm" id="o-pm">' + pm + " billets</span></div>" +
+        '<div class="tot"><span>Recette estimée :</span><span id="o-est">' + money(est) + "</span></div></div>" +
+        '<button class="b-use" data-act="use">Utiliser comme Cachet</button>' +
+        '<div style="border-top:1px solid var(--b-line);padding-top:8px"><label class="b-lab" for="cfin">Cachet final enregistré (€)</label><input id="cfin" type="number" class="b-field" style="width:33%" data-input="fee" value="' + Math.round(fin.fee) + '"></div></div>';
+    }
+    h += '<div style="margin-top:10px"><label class="b-lab" for="cclauses">Clauses particulières du contrat</label><textarea id="cclauses" class="b-field" rows="2" style="resize:none" placeholder="Ex : catering pour 4 personnes, montage la veille à partir de 14 h...">' + (S.filled ? "Catering pour 3 personnes. Montage la veille à partir de 14 h." : "") + '</textarea><small style="display:block;font-size:10px;color:var(--b-faint);margin-top:3px">Reprises dans le contrat par la variable {{clauses}} (« Néant » si vide).</small></div>';
+    return h + "</div>";
+  }
+  function modalHTML() {
+    const f = S.filled, pre = S.fromProject;
+    const title = S.saved ? "Détails de l’Affaire / Date" : "Nouvelle Affaire";
+    const stageOpts = COLS.concat([{ id: "ann", name: "Annulée" }]).map((c) => '<option value="' + c.id + '"' + (S.modalStage === c.id ? " selected" : "") + ">" + c.name + "</option>").join("");
+    let h = '<div class="b-overlay"><div class="b-modal"><div class="b-mh"><h3>' + title + "</h3>" + '<span style="color:var(--b-faint)">' + I("x") + "</span></div>" +
+      '<div class="b-mb" id="mbody">' +
+      '<div class="full" data-zone="essentiel" data-act="fill" style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;border-radius:8px">' +
+        '<div><span class="b-lab">Artiste / Projet <b>*</b></span><div class="b-field' + (pre || f ? "" : " empty") + '">' + (pre || f ? PROJ.oiseaux.name : "Sélectionner…") + "</div></div>" +
+        '<div data-zone="stage"><label class="b-lab" for="mstage">Stade de négociation <b class="i">*</b></label><select id="mstage" class="b-field stage" data-input="stage">' + stageOpts + "</select></div>" +
+        '<div class="full sep"><div class="b-rowlab"><span class="b-lab" style="margin:0">Lieu / Structure organisatrice</span><span class="b-browse">' + I("list") + " Parcourir</span></div>" +
+          (f ? '<div class="b-venue">' + I("building") + "<div><b>Le Petit Théâtre</b><small>Yssingeaux</small></div></div>" +
+               '<div class="b-cchips"><span class="b-lab" style="margin:8px 0 4px">Contacts de cette structure</span><span class="on">' + I("check") + ' Inès Royer · Chargée de programmation</span><span>Yann Peyrard · Régisseur</span></div>'
+             : '<div class="b-field empty" style="display:flex;gap:6px;align-items:center">' + I("search") + " Nom, ville, tag ou région…</div>") +
+        "</div>" +
+        '<div class="sep"><span class="b-lab">Date (Optionnelle en prospection)</span><div class="b-field' + (f ? "" : " empty") + '">' + (f ? "13/02/2027" : "jj/mm/aaaa") + "</div></div>" +
+        '<div class="sep"><span class="b-lab">Heure (ex: 20:30)</span><div class="b-field' + (f ? "" : " empty") + '">' + (f ? "20:30" : "--:--") + "</div></div>" +
+      "</div>" + finHTML();
+    if (!S.saved) {
+      h += '<div class="full b-lock">' + I("lock") + " Enregistrez l’affaire pour activer les éditions, les notes et les actions.</div>" +
+        '<div class="b-ed full" style="opacity:.5"><h4><span style="color:#ef4444">' + I("pdf") + '</span> Éditions (PDF)</h4><div class="row"><span class="b-btn line">' + I("file") + ' Contrat</span><span class="b-btn line">' + I("route") + ' Feuille de Route</span><span class="b-btn orange">' + I("bell") + " Planifier relance</span></div></div>";
+    }
+    if (S.saved) {
+      const r = S.relance ? "Relance : " + fr(S.relance) : "Planifier relance";
+      h += '<div class="b-ed full" id="editions"><h4><span style="color:#ef4444">' + I("pdf") + "</span> Éditions (PDF)</h4>" +
+        '<div class="row"><button class="b-btn line" data-act="contrat"><span style="color:var(--b-indigo)">' + I("file") + "</span> Contrat</button>" +
+        '<button class="b-btn line"><span style="color:#10b981">' + I("route") + "</span> Feuille de Route</button>" +
+        '<button class="b-btn orange" data-act="relance">' + I("bell") + " " + r + "</button></div></div>";
+      h += '<div class="b-ed full" id="evnotes"><h4><span style="color:#f59e0b">' + I("note") + '</span> Notes & actions</h4>' +
+        '<div data-zone="evnotes" style="display:flex;gap:6px;border-radius:8px"><input id="ev-note" class="b-field" style="flex:1" placeholder="Ajouter une note... (Entrée pour valider)" autocomplete="off">' +
+        '<button class="b-btn indigo" data-act="ev-add-note">' + I("plus") + ' Ajouter</button><button class="b-btn amber">' + I("calendar") + " Planifier une action</button></div>" +
+        (evNotes.length ? '<div class="b-nsec" style="margin-top:10px">Notes de l’affaire</div>' + evNotes.slice().reverse().map((n, i) => '<div class="b-note' + (i === 0 && S.fresh === "evnote" ? " fresh" : "") + '"><p>' + esc(n.text) + "</p><small>" + I("clock") + n.date + " · " + esc(n.user) + "</small></div>").join("") : '<p style="font-size:11px;color:var(--b-faint);margin:8px 0">Aucune note ni action pour cette affaire.</p>') +
+        '<div class="b-pnotes"><button data-act="toggle-pnotes">' + I("music") + " Notes du projet Les Oiseaux de passage (1) <span>" + (S.pnotes ? "▲" : "▼") + "</span></button>" +
+        (S.pnotes ? '<div class="b-note"><p>La MJC des Tilleuls veut une représentation scolaire en plus.</p><small>' + I("clock") + '28/10/2026 10:12 · Pierre</small></div><p style="font-size:10px;color:var(--b-faint);margin:4px 0 0">Lecture seule : ces notes se modifient dans la fiche du projet, onglet Notes.</p>' : "") + "</div></div>";
+    }
+    h += "</div>" + '<div class="b-mf">' + (S.saved ? '<button class="b-del">Supprimer</button>' : "<div></div>") +
+      '<div style="display:flex;gap:6px"><button class="b-btn ghost">Annuler</button><button class="b-btn indigo" data-act="save">Enregistrer</button></div></div></div></div>';
+    return h;
+  }
+
+  /* ---------- Fenêtre Tâche ---------- */
+  function taskModalHTML() {
+    const f = S.taskFilled;
+    const v = (txt, ph) => '<div class="b-field' + (f ? "" : " empty") + '">' + (f ? txt : ph) + "</div>";
+    return '<div class="b-overlay"><div class="b-tmodal"><div class="b-mh"><h3>Nouvelle Tâche</h3><span style="color:var(--b-faint)">' + I("x") + "</span></div>" +
+      '<div class="b-mb"><div class="full" data-zone="task" data-act="task-fill" style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;border-radius:8px">' +
+        '<div class="full"><span class="b-lab">Action à réaliser <b>*</b></span>' + v(TASK_TEXT, "Ex : Rappeler le programmateur…") + "</div>" +
+        '<div><span class="b-lab">Type d’action</span><div class="b-field">' + (f ? "✉️ Email / Relance" : "📞 Appel téléphonique") + "</div></div>" +
+        '<div><span class="b-lab">Date limite (Échéance)</span><div style="display:flex;gap:6px">' + v(fr(iso(today)), "jj/mm/aaaa").replace('class="b-field', 'style="flex:1" class="b-field') + v("14:00", "--:--").replace('class="b-field', 'style="width:70px" class="b-field') + "</div></div>" +
+        '<div class="full"><span class="b-lab">Lier cette tâche à…</span><div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px"><div class="b-field">' + (f ? "Affaire / Date" : "-- Aucun --") + "</div>" + v("13/02/2027 - Le Petit Théâtre", "Sélectionnez…") + "</div></div>" +
+      "</div></div>" +
+      '<div class="b-mf"><div></div><div style="display:flex;gap:6px"><button class="b-btn ghost">Annuler</button><button class="b-btn indigo" data-act="task-save">Enregistrer</button></div></div></div></div>';
+  }
+
+  /* ---------- Boîtes de dialogue ---------- */
+  function swalHTML() {
+    if (S.swal === "new") return "";
+    if (S.swal === "relance") {
+      const quick = [3, 7, 14, 30].map((d) => '<button type="button" data-quick="' + iso(plusDays(d)) + '">+' + d + "j</button>").join("");
+      return '<div class="b-swal-wrap"><div class="b-swal"><h3>Relance — Le Petit Théâtre</h3><div class="form">' +
+        '<div><label class="b-lab" for="rel-date">Date de relance</label><input id="rel-date" type="date" class="b-field" value="' + iso(plusDays(7)) + '"></div>' +
+        '<div><label class="b-lab" for="rel-note">Note (optionnelle)</label><input id="rel-note" class="b-field" placeholder="Ex: Attendre retour budget..."></div>' +
+        '<div class="quick">' + quick + "</div></div>" +
+        '<div class="acts"><button class="b-btn indigo" data-act="relance-ok">Définir la relance</button><button class="b-btn grey">Annuler</button></div></div></div>';
+    }
+    if (S.swal === "contrat") {
+      return '<div class="b-swal-wrap"><div class="b-swal" data-zone="tpl"><h3>Choisir un modèle de contrat</h3>' +
+        '<select id="tpl" class="b-field" aria-label="Modèle de contrat"><option value="">-- Choisir un modèle --</option><option value="1">Contrat de cession</option><option value="2">Contrat de co-réalisation</option></select>' +
+        (S.swalErr ? '<div class="err">Choisissez un modèle</div>' : "") +
+        '<div class="acts"><button class="b-btn indigo" data-act="contrat-ok">Générer le PDF</button><button class="b-btn grey">Annuler</button></div></div></div>';
+    }
+    if (S.swal === "done") {
+      return '<div class="b-swal-wrap"><div class="b-swal" data-zone="done"><h3>Tâche terminée !</h3><label class="lbl" for="cr">Un compte-rendu ? (Optionnel)</label>' +
+        '<textarea id="cr" class="b-field" placeholder="Ex : fiche envoyée, en attente de retour du régisseur"></textarea>' +
+        '<div class="acts"><button class="b-btn green" data-act="done-ok">Valider</button><button class="b-btn grey">Annuler</button></div></div></div>';
+    }
+    return "";
+  }
+
+  function render() {
+    const view = S.tab === "pipeline" ? boardHTML() : S.tab === "projects" ? projectsHTML() : S.tab === "tasks" ? tasksHTML() : S.tab === "planning" ? planningHTML() : dashHTML();
+    bob.innerHTML = sidebar() +
+      '<div class="b-main"><div class="b-top"><h2>' + TITLES[S.tab] + "</h2>" + topBtn() + "</div>" +
+      '<div class="b-content"' + (S.tab === "projects" || S.tab === "tasks" ? ' style="background:var(--b-body)"' : "") + ">" + view + "</div></div>" +
+      (S.proj ? projModalHTML() : "") + (S.modal ? modalHTML() : "") + (S.taskModal ? taskModalHTML() : "") + swalHTML() +
+      (S.toast ? '<div class="b-toast">' + I("check") + " " + S.toast + "</div>" : "") +
+      '<div class="spot off" id="spot"></div>';
+    const mb = document.getElementById("mbody");
+    if (mb) { if (S.scrollEd) mb.scrollTop = mb.scrollHeight; mb.addEventListener("scroll", placeSpot, { passive: true }); }
+    const evn = document.getElementById("ev-note");
+    if (evn) evn.addEventListener("keydown", (e) => { if (e.key === "Enter" && STEPS[step].act["ev-add-note"]) { e.preventDefault(); addEvNote(); } });
+    requestAnimationFrame(placeSpot);
+    renderGuide();
+  }
+
+  /* ---------- Projecteur ---------- */
+  function placeSpot() {
+    const spot = document.getElementById("spot");
+    if (!spot) return;
+    const sel = STEPS[step].target && STEPS[step].target();
+    const el = sel ? bob.querySelector(sel) : null;
+    if (!el) { spot.classList.add("off"); return; }
+    const b = bob.getBoundingClientRect(), r = el.getBoundingClientRect(), s = scale || 1, pad = 5;
+    const x = Math.max(3, (r.left - b.left) / s - pad), y = Math.max(3, (r.top - b.top) / s - pad);
+    const x2 = Math.min(1037, (r.right - b.left) / s + pad), y2 = Math.min(637, (r.bottom - b.top) / s + pad);
+    spot.style.left = x + "px"; spot.style.top = y + "px";
+    spot.style.width = Math.max(0, x2 - x) + "px"; spot.style.height = Math.max(0, y2 - y) + "px";
+    spot.classList.remove("off");
+  }
+  function flash(sel) { const el = bob.querySelector(sel); if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); } }
+  let toastTimer = null;
+  function toast(msg) { S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; const t = bob.querySelector(".b-toast"); if (t) t.remove(); }, 2200); }
+
+  /* ---------- Panneau de guidage ---------- */
+  const guide = document.getElementById("guide");
+  const rail = document.getElementById("rail");
+  function renderGuide() {
+    const st = STEPS[step];
+    let h = '<div class="g-count"><span class="g-partlab">' + st.part + "</span><span>Étape " + (step + 1) + " sur " + STEPS.length + "</span></div>" + '<h2 class="g-title">' + st.title + "</h2>";
+    if (st.final) {
+      let lastPart = "";
+      h += '<div class="g-body"><p>Le projet a sa nouvelle affaire, confirmée, avec sa relance, son contrat et sa tâche faite. Pour revoir une étape :</p></div><ol class="g-recap">' +
+        STEPS.slice(0, -1).map((s, i) => { const head = s.part !== lastPart ? '<li class="g-part">' + s.part + "</li>" : ""; lastPart = s.part; return head + '<li><button data-go="' + i + '"><span>' + (i + 1) + "</span>" + s.title + "</button></li>"; }).join("") + "</ol>";
+    } else {
+      const doText = typeof st.doText === "function" ? st.doText() : st.doText;
+      h += '<div class="g-body">' + st.body + "</div>" + '<div class="g-do">' + I(st.drag ? "move" : "pointer") + "<span>" + doText + "</span></div>" +
+        (st.free ? "" : '<p class="g-tip">Vous pouvez aussi faire Suivant : la visite le fera à votre place.</p>');
+    }
+    h += '<div class="g-nav"><button class="g-btn" data-nav="prev"' + (step === 0 ? " disabled" : "") + ">" + I("left") + " Précédent</button>" +
+      (st.final ? '<button class="g-btn primary" data-go="0">Recommencer</button>' : '<button class="g-btn primary" data-nav="next">Suivant ' + I("right") + "</button>") + "</div>";
+    guide.innerHTML = h;
+    let lp = "";
+    rail.innerHTML = STEPS.map((s, i) => { const gap = s.part !== lp && i > 0 ? '<span class="rail-sep" aria-hidden="true"></span>' : ""; lp = s.part;
+      return gap + '<button data-go="' + i + '" class="' + (i === step ? "cur" : seen.has(i) ? "seen" : "") + '" aria-label="Étape ' + (i + 1) + " : " + s.title + '"' + (i === step ? ' aria-current="step"' : "") + ' title="' + s.part + " : " + s.title + '">' + (i + 1) + "</button>"; }).join("") +
+      '<span class="rail-hint">Flèches ← → du clavier pour naviguer</span>';
+  }
+
+  /* ---------- Navigation ---------- */
+  function go(i) {
+    step = Math.max(0, Math.min(STEPS.length - 1, i));
+    seen.add(step);
+    if (step <= STEPS.findIndex((x) => x.title === "Notes & actions")) evNotes = [];
+    const prev = S;
+    S = Object.assign(base(), { toast: prev.toast }, STEPS[step].setup(prev));
+    render();
+  }
+  function advance() { go(step + 1); }
+  function next() {
+    const st = STEPS[step];
+    if (st.free || st.final) return advance();
+    if (st.drag) return autoDrag();
+    if (st.next) return st.next();
+    const k = Object.keys(st.act)[0];
+    if (k) st.act[k](); else advance();
+  }
+  guide.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.nav === "prev") go(step - 1);
+    else if (b.dataset.nav === "next") next();
+    else if (b.dataset.go !== undefined) go(Number(b.dataset.go));
+  });
+  rail.addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) go(Number(b.dataset.go)); });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest && e.target.closest("input, select, textarea")) return;
+    if (e.key === "ArrowRight") next(); else if (e.key === "ArrowLeft") go(step - 1);
+  });
+
+  /* ---------- Clics et saisies dans la réplique ---------- */
+  bob.addEventListener("click", (e) => {
+    const q = e.target.closest("[data-quick]");
+    if (q) { const d = document.getElementById("rel-date"); if (d) d.value = q.dataset.quick; return; }
+    const a = e.target.closest("[data-act]");
+    if (!a) return;
+    const act = a.dataset.act;
+    if (act === "use") { fin.fee = Math.round(fin.capacity * (fin.fill / 100) * fin.price * (fin.part / 100)); const f = document.getElementById("cfin"); if (f) { f.value = fin.fee; flash("#cfin"); } return; }
+    if (act === "fill" && e.target.closest("select")) return;
+    if (act === "toggle-pnotes") { S.pnotes = !S.pnotes; renderKeepScroll(); return; }
+    const st = STEPS[step];
+    if (st.act[act]) st.act[act]();
+  });
+  bob.addEventListener("input", (e) => {
+    const k = e.target.dataset.input; if (!k) return;
+    if (k === "type") { fin.type = e.target.value; renderKeepScroll(); return; }
+    if (k === "stage") { S.modalStage = e.target.value; if (STEPS[step].title === "Confirmer la date" && S.modalStage === "won") { S.phase = 1; render(); } return; }
+    fin[k] = Number(e.target.value) || 0;
+    const est = fin.capacity * (fin.fill / 100) * fin.price * (fin.part / 100), pb = fin.price * (fin.part / 100);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set("o-max", money(fin.capacity * fin.price)); set("o-est", money(est)); set("o-pm", (pb > 0 ? Math.ceil(fin.frais / pb) : 0) + " billets");
+  });
+  function renderKeepScroll() { const mb = document.getElementById("mbody"); const top = mb ? mb.scrollTop : 0; render(); const nb = document.getElementById("mbody"); if (nb) nb.scrollTop = top; placeSpot(); }
+
+  /* ---------- Glisser-déposer (souris et tactile) ---------- */
+  let drag = null;
+  bob.addEventListener("pointerdown", (e) => {
+    const c = e.target.closest('[data-card="new"]');
+    if (!c || !STEPS[step].drag) return;
+    e.preventDefault();
+    const r = c.getBoundingClientRect();
+    const g = c.cloneNode(true); g.classList.add("ghost-card"); g.removeAttribute("data-card");
+    bob.appendChild(g); c.classList.add("lift");
+    const sp = document.getElementById("spot"); if (sp) sp.classList.add("off");
+    drag = { el: c, ghost: g, dx: (e.clientX - r.left) / scale, dy: (e.clientY - r.top) / scale };
+    moveGhost(e);
+    if (c.setPointerCapture) c.setPointerCapture(e.pointerId);
+  });
+  function colAt(x, y) { for (const el of document.elementsFromPoint(x, y)) { const col = el.closest && el.closest("[data-col]"); if (col) return col; } return null; }
+  function moveGhost(e) {
+    const b = bob.getBoundingClientRect();
+    drag.ghost.style.left = ((e.clientX - b.left) / scale - drag.dx) + "px";
+    drag.ghost.style.top = ((e.clientY - b.top) / scale - drag.dy) + "px";
+    bob.querySelectorAll(".b-col.over").forEach((c) => c.classList.remove("over"));
+    drag.ghost.style.display = "none"; const col = colAt(e.clientX, e.clientY); drag.ghost.style.display = "";
+    if (col) col.classList.add("over");
+  }
+  bob.addEventListener("pointermove", (e) => { if (drag) moveGhost(e); });
+  bob.addEventListener("pointerup", (e) => {
+    if (!drag) return;
+    drag.ghost.style.display = "none";
+    const col = colAt(e.clientX, e.clientY);
+    drag.ghost.remove(); drag.el.classList.remove("lift");
+    bob.querySelectorAll(".b-col.over").forEach((c) => c.classList.remove("over"));
+    drag = null;
+    if (!col) { placeSpot(); return; }
+    const id = col.dataset.col;
+    if (id === "nego") { S.stage = "nego"; render(); flash('[data-card="new"]'); setTimeout(advance, 700); }
+    else if (id !== S.stage) { S.stage = id; render(); const d = guide.querySelector(".g-do span"); if (d) d.textContent = "Pour suivre l’exemple, posez-la sur « En négociation »."; }
+    else placeSpot();
+  });
+  bob.addEventListener("pointercancel", () => { if (drag) { drag.ghost.remove(); drag.el.classList.remove("lift"); drag = null; placeSpot(); } });
+  function autoDrag() {
+    const c = bob.querySelector('[data-card="new"]'), target = bob.querySelector('[data-col="nego"] .b-cards');
+    if (!c || !target || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { S.stage = "nego"; render(); setTimeout(advance, 300); return; }
+    const b = bob.getBoundingClientRect(), r = c.getBoundingClientRect(), t = target.getBoundingClientRect();
+    const g = c.cloneNode(true); g.classList.add("ghost-card"); g.removeAttribute("data-card");
+    g.style.left = (r.left - b.left) / scale + "px"; g.style.top = (r.top - b.top) / scale + "px";
+    g.style.transition = "left .8s cubic-bezier(.4,.1,.2,1), top .8s cubic-bezier(.4,.1,.2,1)";
+    bob.appendChild(g); c.classList.add("lift");
+    const sp = document.getElementById("spot"); if (sp) sp.classList.add("off");
+    requestAnimationFrame(() => requestAnimationFrame(() => { g.style.left = (t.left - b.left) / scale + 4 + "px"; g.style.top = (t.top - b.top) / scale + 4 + "px"; }));
+    setTimeout(() => { S.stage = "nego"; render(); flash('[data-card="new"]'); setTimeout(advance, 600); }, 850);
+  }
+
+  /* ---------- Mise à l’échelle ---------- */
+  let scale = 1;
+  const frame = document.getElementById("frame"), box = document.getElementById("scaleBox");
+  function fit() { scale = Math.min(1.15, frame.clientWidth / 1040); bob.style.transform = "scale(" + scale + ")"; box.style.height = 640 * scale + "px"; placeSpot(); }
+  new ResizeObserver(fit).observe(frame);
+  window.addEventListener("resize", fit);
+
+  go(0);
+  fit();
+})();
+
+</script>
+</body>
+</html>

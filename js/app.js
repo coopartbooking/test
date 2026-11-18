@@ -8,7 +8,7 @@
 // app.js — Point d'entrée Vue.js — Coop'Art Booking
 
 // --- IMPORTS FIREBASE ---
-import { auth, dbFirestore }                                              from './firebase.js?v=51';
+import { auth, dbFirestore }                                              from './firebase.js?v=52';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
          onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,22 +16,23 @@ import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc
 const { createApp, nextTick } = Vue;
 
 // --- IMPORTS MODULES ---
-import { utilsMethods }                         from './utils.js?v=51';
-import { contactsComputed, contactsMethods }    from './contacts.js?v=51';
-import { planningComputed, planningMethods }    from './planning.js?v=51';
-import { adminMethods }                           from './modules/adminMethods.js?v=51';
-import { mapMethods }                             from './modules/mapMethods.js?v=51';
-import { annuaireMethods }                       from './modules/annuaireMethods.js?v=51';
-import { importMethods }                         from './modules/importMethods.js?v=51';
-import { gouvMethods }                           from './modules/gouvMethods.js?v=51';
-import { searchMethods }                         from './modules/searchMethods.js?v=51';
-import { projectMethods }                        from './modules/projectMethods.js?v=51';
-import { venueMethods }                          from './modules/venueMethods.js?v=51';
-import { crmMethods }                            from './modules/crmMethods.js?v=51';
-import { appComputed }                           from './modules/appComputed.js?v=51';
-import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=51';
-import { icalMethods }                            from './modules/icalMethods.js?v=51';
-import { updateMethods }                          from './modules/updateMethods.js?v=51';
+import { utilsMethods }                         from './utils.js?v=52';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=52';
+import { planningComputed, planningMethods }    from './planning.js?v=52';
+import { adminMethods }                           from './modules/adminMethods.js?v=52';
+import { mapMethods }                             from './modules/mapMethods.js?v=52';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=52';
+import { importMethods }                         from './modules/importMethods.js?v=52';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=52';
+import { searchMethods }                         from './modules/searchMethods.js?v=52';
+import { projectMethods }                        from './modules/projectMethods.js?v=52';
+import { venueMethods }                          from './modules/venueMethods.js?v=52';
+import { crmMethods }                            from './modules/crmMethods.js?v=52';
+import { appComputed }                           from './modules/appComputed.js?v=52';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=52';
+import { icalMethods }                            from './modules/icalMethods.js?v=52';
+import { updateMethods }                          from './modules/updateMethods.js?v=52';
+import { helpMethods, HELP_TOURS }                from './modules/helpMethods.js?v=52';
 
 // Plafond d'affichage des longues listes (annuaire, structures).
 // Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
@@ -53,6 +54,9 @@ createApp({
         return {
             // Navigation & auth
             pageTitle: 'Tableau de bord',
+            // Aide : fenêtre des pages d'aide (null = fermée) et liste des visites
+            helpViewer: null,
+            helpTours: HELP_TOURS,
             currentUser: null,
             currentUserName: '',
             tab: 'dashboard',
@@ -448,6 +452,7 @@ createApp({
         ...collaboratorMethods,
         ...icalMethods,
         ...updateMethods,
+        ...helpMethods,
 
         // --- AUTHENTIFICATION FIREBASE ---
         async handleAuth() {
@@ -1032,6 +1037,11 @@ async removeGlobalTag(familyName, tag) {
     mounted() {
         // Surveillance des nouvelles versions déployées (indépendante de la connexion)
         this.startUpdateChecker();
+
+        // Échap ferme la fenêtre d'aide
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.helpViewer) this.closeHelp();
+        });
 
         // Franchissement du seuil de 1024 px (rotation de la tablette) : on
         // revient à l'état automatique, pour que le CSS reprenne la main. Sans

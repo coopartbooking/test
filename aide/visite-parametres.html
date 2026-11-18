@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bob : les Paramètres, pas à pas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page: #e6eaf2;
+  --page-ink: #1e293b;
+  --page-muted: #5b6b82;
+  --panel: #ffffff;
+  --panel-line: #d6dce7;
+  --accent: #4f46e5;
+  --accent-soft: #eef0ff;
+  --accent-ink: #ffffff;
+  --ring: #6366f1;
+  --dim: rgba(15, 23, 42, 0.42);
+  --rail-off: #c9d1de;
+
+  /* Bob lui-même (réplique, toujours claire comme l'application) */
+  --b-side: #0f172a; --b-side-hover: #1e293b; --b-side-text: #cbd5e1; --b-side-label: #64748b;
+  --b-body: #f1f5f9; --b-white: #ffffff; --b-line: #e2e8f0; --b-ink: #1e293b; --b-muted: #64748b; --b-faint: #94a3b8;
+  --b-indigo: #4f46e5; --b-indigo-50: #eef2ff; --b-indigo-200: #c7d2fe; --b-indigo-800: #3730a3;
+  --b-orange: #f97316; --b-orange-50: #fff7ed; --b-orange-200: #fed7aa; --b-orange-700: #c2410c;
+  --b-rose: #f43f5e; --b-green: #10b981; --b-green-50: #ecfdf5; --b-red: #ef4444; --b-kanban: #f4f7fa;
+
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #111a2e; --page-ink: #e5e9f2; --page-muted: #96a3b9;
+    --panel: #18233a; --panel-line: #2a3853; --accent: #818cf8; --accent-soft: #232d4d; --accent-ink: #0f172a;
+    --rail-off: #33415c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #111a2e; --page-ink: #e5e9f2; --page-muted: #96a3b9;
+  --panel: #18233a; --panel-line: #2a3853; --accent: #818cf8; --accent-soft: #232d4d; --accent-ink: #0f172a;
+  --rail-off: #33415c; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+body { margin: 0; background: var(--page); color: var(--page-ink); font-family: "Figtree", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.tour { max-width: 1440px; margin: 0 auto; padding: 20px 20px 28px; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.tour-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.tour-head h1 { margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.01em; }
+.tour-head p { margin: 0; color: var(--page-muted); font-size: 0.95rem; }
+.stage { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 340px; } }
+
+/* Cadre de la réplique */
+.frame { width: 100%; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px -18px rgba(15, 23, 42, 0.45), 0 0 0 1px var(--panel-line); background: var(--b-body); position: relative; }
+.frame-scale { position: relative; }
+.bob { position: absolute; top: 0; left: 0; width: 1040px; height: 640px; transform-origin: 0 0; display: flex; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--b-ink); font-size: 13px; overflow: hidden; background: var(--b-body); user-select: none; -webkit-user-select: none; }
+.ico { width: 1em; height: 1em; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
+
+/* Barre latérale de Bob */
+.b-side { width: 206px; background: var(--b-side); color: var(--b-side-text); display: flex; flex-direction: column; flex-shrink: 0; }
+.b-logo { padding: 18px 20px 10px; display: flex; align-items: center; gap: 10px; color: var(--b-white); font-weight: 800; font-size: 16px; }
+.b-logo span { width: 28px; height: 28px; border-radius: 8px; background: var(--b-indigo); display: grid; place-items: center; font-size: 14px; }
+.b-navh { padding: 16px 20px 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--b-side-label); }
+.b-nav { display: flex; align-items: center; gap: 10px; padding: 8px 20px 8px 17px; border-left: 3px solid transparent; cursor: pointer; font-size: 12.5px; }
+.b-nav .ico { font-size: 14px; }
+.b-nav:hover, .b-nav.on { background: var(--b-side-hover); color: var(--b-white); }
+.b-nav.on { border-left-color: #6366f1; }
+.b-badge { margin-left: auto; background: var(--b-orange); color: var(--b-white); border-radius: 99px; padding: 0 7px; font-size: 10px; font-weight: 700; }
+
+.b-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.b-top { height: 54px; background: var(--b-white); border-bottom: 1px solid var(--b-line); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; flex-shrink: 0; }
+.b-top h2 { margin: 0; font-size: 15px; font-weight: 700; }
+.b-btn { border: 0; border-radius: 6px; padding: 7px 13px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.b-btn.indigo { background: var(--b-indigo); color: var(--b-white); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.b-btn.ghost { background: transparent; color: var(--b-muted); }
+.b-btn.line { background: var(--b-white); color: var(--b-ink); border: 1px solid #cbd5e1; flex: 1; justify-content: center; }
+.b-btn.orange { background: var(--b-orange-50); color: var(--b-orange-700); border: 1px solid var(--b-orange-200); flex: 1; justify-content: center; }
+.b-btn.rose { background: var(--b-rose); color: var(--b-white); }
+.b-btn.grey { background: #6e7881; color: var(--b-white); }
+.b-content { flex: 1; overflow: hidden; padding: 16px 18px; background: var(--b-white); position: relative; }
+
+/* Tableau de bord */
+.b-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.b-kpi { border: 1px solid var(--b-line); border-radius: 14px; padding: 14px; background: var(--b-white); }
+.b-kpi small { color: var(--b-muted); font-size: 11px; font-weight: 700; }
+.b-kpi b { display: block; font-size: 24px; margin-top: 4px; }
+.b-dash-note { margin-top: 16px; border: 1px dashed var(--b-line); border-radius: 14px; padding: 18px; color: var(--b-faint); font-size: 12px; }
+
+/* Pipeline */
+.b-pipehead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.b-pipehead h3 { margin: 0; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.b-pipehead h3 .ico { color: var(--b-indigo); }
+.b-fake-input { border: 1px solid var(--b-line); border-radius: 6px; padding: 6px 10px; color: var(--b-faint); font-size: 11.5px; display: inline-flex; gap: 6px; align-items: center; width: 150px; }
+.b-board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; height: calc(100% - 42px); }
+.b-col { border: 1px solid var(--b-line); border-radius: 12px; background: var(--b-kanban); display: flex; flex-direction: column; min-width: 0; transition: background-color .15s, border-color .15s; }
+.b-col.over { background: var(--b-indigo-50); border-color: #818cf8; }
+.b-colh { padding: 8px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #334155; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--b-line); gap: 4px; }
+.b-colh i { display: inline-block; width: 7px; height: 7px; border-radius: 99px; margin-right: 5px; }
+.b-colh em { font-style: normal; background: var(--b-white); border: 1px solid var(--b-line); border-radius: 99px; padding: 0 6px; color: var(--b-muted); }
+.b-cards { padding: 7px; display: flex; flex-direction: column; gap: 7px; }
+.b-card { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 8px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: grab; touch-action: none; }
+.b-card.won { border-color: #a7f3d0; }
+.b-card.new { border-color: #a5b4fc; }
+.b-card.lift { opacity: .35; }
+.b-tag { display: inline-block; color: var(--b-white); font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-card .v { font-weight: 700; font-size: 11.5px; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.b-card .c { color: var(--b-muted); font-size: 10.5px; margin-top: 2px; }
+.b-card .f { font-size: 10.5px; font-weight: 700; margin-top: 5px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 6px; }
+.b-card .f > span:first-child { white-space: nowrap; }
+.b-card .r { color: var(--b-orange-700); font-size: 10px; display: inline-flex; gap: 3px; align-items: center; }
+.ghost-card { position: absolute; pointer-events: none; z-index: 95; width: 118px; transform: rotate(-2deg); box-shadow: 0 12px 24px -6px rgba(15,23,42,.35); cursor: grabbing; }
+
+/* Fenêtre affaire */
+.b-overlay { position: absolute; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; z-index: 40; }
+.b-modal { width: 590px; max-height: 590px; background: var(--b-white); border-radius: 12px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); display: flex; flex-direction: column; overflow: hidden; }
+.b-mh { padding: 14px 18px; border-bottom: 1px solid var(--b-line); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+.b-mh h3 { margin: 0; font-size: 15px; }
+.b-mb { padding: 14px 18px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; align-content: start; }
+.b-mb .full { grid-column: 1 / -1; }
+.b-mb .sep { border-top: 1px solid var(--b-line); padding-top: 10px; }
+.b-lab { display: block; font-size: 10px; font-weight: 800; color: var(--b-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.b-lab b { color: var(--b-red); } .b-lab b.i { color: var(--b-indigo); }
+.b-field { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: var(--b-white); color: var(--b-ink); font-family: inherit; min-height: 32px; }
+.b-field.stage { background: var(--b-indigo-50); border-color: var(--b-indigo-200); color: var(--b-indigo-800); font-weight: 700; }
+.b-field.empty { color: var(--b-faint); }
+.b-venue { display: flex; align-items: center; gap: 9px; background: var(--b-indigo-50); border: 1px solid var(--b-indigo-200); border-radius: 8px; padding: 7px 10px; }
+.b-venue .ico { color: var(--b-indigo); }
+.b-venue b { display: block; color: var(--b-indigo-800); font-size: 12.5px; } .b-venue small { color: #6366f1; font-size: 11px; }
+.b-browse { font-size: 9.5px; font-weight: 700; background: var(--b-indigo-50); color: var(--b-indigo-800); border-radius: 4px; padding: 3px 8px; display: inline-flex; gap: 4px; align-items: center; }
+.b-rowlab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.b-fin { background: #f8fafc; border: 1px solid var(--b-line); border-radius: 10px; padding: 12px; }
+.b-fin h4, .b-ed h4 { margin: 0 0 10px; font-size: 12.5px; color: #334155; display: flex; gap: 7px; align-items: center; }
+.b-g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .b-g2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.b-coreal { background: #eef2f6; border: 1px solid var(--b-line); border-radius: 6px; padding: 10px; margin-top: 10px; display: grid; gap: 8px; }
+.b-sum { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 6px; padding: 8px 10px; font-size: 11px; color: var(--b-muted); display: grid; gap: 3px; }
+.b-sum div { display: flex; justify-content: space-between; }
+.b-sum .tot { border-top: 1px solid var(--b-line); padding-top: 5px; font-weight: 700; color: #334155; font-size: 12px; }
+.b-sum .tot span:last-child { color: var(--b-green); } .b-sum .pm { color: var(--b-orange); font-weight: 700; }
+.b-use { justify-self: end; font-size: 10px; font-weight: 700; background: var(--b-indigo-200); color: var(--b-indigo-800); border: 0; border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.b-ed { border-top: 1px solid var(--b-line); padding-top: 12px; }
+.b-ed .row { display: flex; gap: 10px; }
+.b-mf { padding: 11px 18px; border-top: 1px solid var(--b-line); background: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
+.b-del { color: var(--b-red); font-weight: 700; font-size: 12px; padding: 0 8px; background: none; border: 0; }
+
+/* Boîtes de dialogue façon SweetAlert2 */
+.b-swal-wrap { position: absolute; inset: 0; background: rgba(15,23,42,.4); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.b-swal { width: 380px; background: var(--b-white); border-radius: 8px; padding: 22px 22px 18px; text-align: center; box-shadow: 0 20px 50px -10px rgba(0,0,0,.4); }
+.b-swal h3 { margin: 0 0 10px; font-size: 19px; color: #545454; font-weight: 600; }
+.b-swal p { margin: 0 0 18px; color: #545454; font-size: 13.5px; }
+.b-swal .acts { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.b-swal .acts .b-btn { padding: 9px 15px; font-size: 13px; border-radius: 5px; }
+.b-swal .form { text-align: left; display: grid; gap: 10px; }
+.b-swal .quick { display: flex; gap: 6px; } .b-swal .quick button { flex: 1; border: 0; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; border-radius: 7px; padding: 5px; cursor: pointer; }
+.b-swal .quick button:hover { background: var(--b-indigo-50); color: var(--b-indigo-800); }
+.b-swal .err { background: #f0f0f0; color: #545454; font-size: 12px; padding: 7px; border-radius: 4px; margin-top: 10px; }
+
+.b-toast { position: absolute; bottom: 14px; right: 14px; z-index: 100; background: var(--b-white); border-radius: 8px; box-shadow: 0 10px 30px -8px rgba(15,23,42,.35); padding: 10px 14px; font-size: 12.5px; font-weight: 600; display: flex; gap: 8px; align-items: center; border-left: 4px solid var(--b-green); animation: toastIn .25s ease-out; }
+.b-toast .ico { color: var(--b-green); }
+@keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Projecteur */
+.spot { position: absolute; z-index: 90; pointer-events: none; border-radius: 10px; box-shadow: 0 0 0 3px var(--ring), 0 0 0 9999px var(--dim); transition: top .35s cubic-bezier(.3,.7,.2,1), left .35s cubic-bezier(.3,.7,.2,1), width .35s cubic-bezier(.3,.7,.2,1), height .35s cubic-bezier(.3,.7,.2,1), opacity .2s; }
+.spot::after { content: ""; position: absolute; inset: -3px; border-radius: inherit; box-shadow: 0 0 0 0 rgba(99,102,241,.55); animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,.55); } 100% { box-shadow: 0 0 0 14px rgba(99,102,241,0); } }
+.spot.off { opacity: 0; }
+.flash { animation: flash .9s ease-out; }
+@keyframes flash { 0% { background-color: #e0e7ff; } 100% { background-color: transparent; } }
+
+/* Panneau de guidage */
+.guide { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 14px; padding: 20px 20px 18px; display: flex; flex-direction: column; gap: 12px; min-height: 100%; }
+.g-count { color: var(--page-muted); font-size: 0.85rem; font-weight: 600; }
+.g-title { margin: 0; font-size: 1.32rem; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+.g-body { display: grid; gap: 9px; font-size: 0.97rem; line-height: 1.55; color: var(--page-ink); }
+.g-body p { margin: 0; }
+.g-body strong { font-weight: 700; }
+.g-do { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-weight: 600; font-size: 0.93rem; line-height: 1.45; }
+.g-do .ico { font-size: 1.15rem; color: var(--accent); margin-top: 1px; }
+.g-do.done .ico { color: #10b981; }
+.g-tip { font-size: 0.88rem; color: var(--page-muted); line-height: 1.5; margin: 0; }
+.g-nav { margin-top: auto; display: flex; gap: 8px; justify-content: space-between; padding-top: 6px; }
+.g-btn { border-radius: 9px; padding: 10px 16px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--panel-line); background: transparent; color: var(--page-ink); }
+.g-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.g-btn:disabled { opacity: .4; cursor: default; }
+.g-recap { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; counter-reset: r; }
+.g-recap button { all: unset; cursor: pointer; display: flex; gap: 10px; padding: 5px 6px; border-radius: 7px; font-size: 0.93rem; }
+.g-recap button:hover, .g-recap button:focus-visible { background: var(--accent-soft); }
+.g-recap span { color: var(--page-muted); font-variant-numeric: tabular-nums; min-width: 1.4em; }
+
+.rail { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rail button { all: unset; cursor: pointer; height: 30px; min-width: 30px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 0.85rem; color: var(--page-muted); background: transparent; border: 1px solid var(--rail-off); font-variant-numeric: tabular-nums; }
+.rail button.seen { color: var(--page-ink); border-color: var(--page-muted); }
+.rail button.cur { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.rail button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.rail-hint { color: var(--page-muted); font-size: 0.85rem; margin-left: auto; }
+@media (max-width: 720px) { .rail-hint { display: none; } .tour { padding: 14px 12px 22px; } .tour-head h1 { font-size: 1.3rem; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spot, .spot::after, .b-toast, .flash { transition: none !important; animation: none !important; }
+}
+
+/* Mes Projets */
+.b-btn.slate { background: #1e293b; color: var(--b-white); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.b-pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.b-pcard { border: 1px solid var(--b-line); border-radius: 14px; overflow: hidden; background: var(--b-white); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.b-pcard .hd { height: 92px; display: grid; place-items: center; color: rgba(255,255,255,.5); font-size: 38px; }
+.b-pcard .bd { padding: 12px 14px; }
+.b-pcard h4 { margin: 0 0 3px; font-size: 15px; }
+.b-pcard .genre { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--b-muted); }
+.b-pcard .ft { margin-top: 14px; padding-top: 10px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; }
+.b-pcard .ft span:first-child { color: var(--b-faint); font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
+.b-pcard .ft b { color: #334155; }
+.b-pcard .ft small { color: var(--b-faint); font-size: 9.5px; }
+
+/* Fiche projet */
+.b-pmodal { width: 720px; max-height: 590px; background: var(--b-white); border-radius: 12px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); display: flex; flex-direction: column; overflow: hidden; }
+.b-pban { height: 84px; position: relative; flex-shrink: 0; }
+.b-pban .grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.55), transparent); display: flex; align-items: flex-end; padding: 0 22px 12px; color: var(--b-white); }
+.b-pban small { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .8; margin-bottom: 2px; }
+.b-pban h3 { margin: 0; font-size: 21px; }
+.b-pban .close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 99px; background: rgba(0,0,0,.2); color: rgba(255,255,255,.85); display: grid; place-items: center; }
+.b-ptabs { display: flex; border-bottom: 1px solid var(--b-line); flex-shrink: 0; }
+.b-ptab { padding: 9px 13px; font-size: 11px; font-weight: 700; color: var(--b-muted); border-bottom: 2px solid transparent; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.b-ptab.on { border-bottom-color: var(--b-indigo); color: #4338ca; background: var(--b-indigo-50); }
+.b-ptab em { font-style: normal; background: #e2e8f0; color: #475569; font-size: 9.5px; padding: 0 5px; border-radius: 99px; }
+.b-pbody { flex: 1; overflow-y: auto; background: #f8fafc; padding: 16px 18px; }
+.b-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.b-stat { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 12px; padding: 11px 12px; }
+.b-stat small { display: block; font-size: 10px; font-weight: 700; color: var(--b-muted); text-transform: uppercase; letter-spacing: .04em; }
+.b-stat b { display: block; font-size: 19px; margin-top: 3px; }
+.b-stat.green b { color: #059669; } .b-stat.orange b { color: #ea580c; } .b-stat.indigo b { color: #4f46e5; }
+.b-box { margin-top: 12px; background: var(--b-white); border: 1px solid var(--b-line); border-radius: 12px; padding: 12px 14px; font-size: 12px; }
+.b-box h5 { margin: 0 0 8px; font-size: 12px; color: #334155; }
+.b-box .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px; color: var(--b-muted); }
+.b-box .kv b { color: var(--b-ink); }
+.b-afhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.b-afhead h4 { margin: 0; font-size: 13px; color: #334155; }
+.b-afrow { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 12px; padding: 11px 13px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.b-afrow .sq { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--b-white); font-size: 13px; flex-shrink: 0; }
+.b-afrow .t { flex: 1; min-width: 0; } .b-afrow .t b { display: block; font-size: 12.5px; } .b-afrow .t small { color: var(--b-muted); font-size: 11px; }
+.b-afrow .m { text-align: right; } .b-afrow .m b { color: #4f46e5; font-size: 12.5px; display: block; } .b-afrow .m small { color: var(--b-faint); font-size: 9.5px; }
+.b-field.pre { background: #f8fafc; }
+
+/* Tâches & Suivi */
+.b-tboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: 100%; }
+.b-tcol { border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; border: 1px solid; min-width: 0; }
+.b-tcol.late { background: #fef2f2; border-color: #fee2e2; } .b-tcol.today { background: #fff7ed; border-color: #ffedd5; }
+.b-tcol.next { background: #f8fafc; border-color: var(--b-line); } .b-tcol.hist { background: #f0fdf4; border-color: #dcfce7; }
+.b-tcol h4 { margin: 0 0 4px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.b-tcol.late h4 { color: #991b1b; } .b-tcol.today h4 { color: #9a3412; } .b-tcol.next h4 { color: #334155; } .b-tcol.hist h4 { color: #065f46; }
+.b-tcol h4 span { display: inline-flex; gap: 6px; align-items: center; }
+.b-tcol h4 em { font-style: normal; font-size: 10px; padding: 0 7px; border-radius: 99px; }
+.b-tcol.late h4 em { background: #fecaca; } .b-tcol.today h4 em { background: #fed7aa; } .b-tcol.next h4 em { background: #e2e8f0; } .b-tcol.hist h4 em { background: #bbf7d0; }
+.b-task { background: var(--b-white); border-radius: 8px; padding: 9px 10px; border: 1px solid var(--b-line); box-shadow: 0 1px 2px rgba(0,0,0,.05); display: flex; gap: 8px; }
+.b-tcol.late .b-task { border-color: #fecaca; } .b-tcol.today .b-task { border-color: #fed7aa; } .b-tcol.hist .b-task { border-color: #bbf7d0; }
+.b-task .ck { color: #cbd5e1; font-size: 15px; cursor: pointer; flex-shrink: 0; margin-top: 1px; background: none; border: 0; padding: 0; line-height: 1; }
+.b-task .ck:hover { color: var(--b-green); }
+.b-task .tx { flex: 1; min-width: 0; }
+.b-task .tx b { display: block; font-size: 11.5px; line-height: 1.35; }
+.b-task .tx .d { font-size: 10.5px; font-weight: 700; margin-top: 3px; }
+.b-tcol.late .d { color: #dc2626; } .b-tcol.next .d { color: var(--b-muted); font-weight: 400; }
+.b-task .tm { color: #ea580c; font-size: 10px; font-weight: 700; display: inline-flex; gap: 3px; align-items: center; margin-left: 4px; }
+.b-task .ln { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 6px; font-size: 10px; color: var(--b-muted); }
+.b-task .ln span:first-child { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.b-task .rel { color: #4f46e5; background: var(--b-indigo-50); padding: 1px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.b-task.done .tx b { color: var(--b-muted); text-decoration: line-through; }
+.b-task .cr { margin-top: 6px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 4px; padding: 5px 6px; font-size: 10px; font-style: italic; color: #475569; }
+.b-task.fresh { animation: flash 1s ease-out; }
+.b-tmodal { width: 480px; background: var(--b-white); border-radius: 12px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); overflow: hidden; }
+.b-tmodal .b-mb { grid-template-columns: 1fr 1fr; }
+.b-swal textarea.b-field { min-height: 70px; resize: none; }
+.b-swal .lbl { display: block; text-align: center; font-size: 13px; color: #545454; margin: 6px 0 8px; }
+.b-btn.green { background: #10b981; color: var(--b-white); }
+.b-dash-hi { font-size: 12px; color: var(--b-muted); margin: -4px 0 12px; }
+.b-kpis.four { grid-template-columns: repeat(4, 1fr); }
+.rail-sep { width: 1px; height: 22px; background: var(--rail-off); margin: 0 4px; }
+.g-count { display: flex; gap: 10px; align-items: baseline; }
+.g-partlab { color: var(--accent); font-weight: 700; }
+.g-recap .g-part { color: var(--accent); font-weight: 700; font-size: 0.85rem; padding: 8px 6px 2px; }
+.b-set { display: grid; gap: 12px; }
+.b-sbox { background: var(--b-white); border: 1px solid var(--b-line); border-radius: 14px; padding: 14px 16px; }
+.b-sbox h4 { margin: 0 0 4px; font-size: 13.5px; display: flex; gap: 7px; align-items: center; }
+.b-sbox p { margin: 0 0 10px; color: var(--b-muted); font-size: 11.5px; }
+.b-shead { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.b-mini2 { font-size: 10px; font-weight: 800; letter-spacing: .03em; border: 1px solid var(--b-line); border-radius: 7px; padding: 5px 9px; color: #475569; display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; text-transform: uppercase; }
+.b-rolebar { display: inline-flex; gap: 4px; align-items: center; background: #fef9c3; border: 1px dashed #facc15; border-radius: 9px; padding: 4px 6px; margin-bottom: 10px; font-size: 10.5px; color: #854d0e; font-weight: 700; }
+.b-rolebar span { margin-right: 4px; }
+.b-rolebar button { all: unset; cursor: pointer; padding: 3px 9px; border-radius: 6px; background: var(--b-white); color: #475569; border: 1px solid #fde68a; }
+.b-rolebar button.on { background: #854d0e; color: #fff; border-color: #854d0e; }
+.b-fams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.b-fam { border: 1px solid var(--b-line); border-radius: 10px; padding: 10px; background: #f8fafc; }
+.b-fam h5 { margin: 0 0 6px; font-size: 11.5px; color: #334155; }
+.b-addrow { display: flex; gap: 6px; margin-bottom: 7px; } .b-addrow input { flex: 1; min-height: 28px; padding: 5px 8px; font-size: 11.5px; } .b-addrow .b-btn { padding: 5px 9px; }
+.b-chips2 { display: flex; gap: 4px; flex-wrap: wrap; }
+.b-chips2 span { font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 2px 4px 2px 9px; display: inline-flex; gap: 2px; align-items: center; }
+.b-chips2 span:not(:has(button)) { padding-right: 9px; }
+.b-chips2 button { all: unset; cursor: pointer; width: 15px; height: 15px; display: grid; place-items: center; border-radius: 99px; font-size: 9px; opacity: .6; }
+.b-chips2 button:hover { opacity: 1; background: rgba(0,0,0,.08); }
+.b-chips2 span.fresh { animation: flash 1s ease-out; outline: 2px solid #a5b4fc; }
+.b-res { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.b-res > div { border: 1px solid var(--b-line); border-radius: 10px; padding: 9px 10px; font-size: 11px; }
+.b-res b { display: flex; gap: 4px; align-items: center; font-size: 12px; color: var(--b-indigo); }
+.b-res small { display: block; color: var(--b-muted); margin-top: 2px; } .b-res em { display: block; font-style: normal; font-weight: 700; color: #059669; margin-top: 4px; font-size: 10.5px; }
+.b-ced { width: 760px; height: 590px; background: var(--b-white); border-radius: 14px; box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); display: flex; flex-direction: column; overflow: hidden; }
+.b-cedh { padding: 14px 18px; border-bottom: 1px solid var(--b-line); display: flex; justify-content: space-between; align-items: flex-start; }
+.b-cedh h3 { margin: 0; font-size: 15px; display: flex; gap: 7px; align-items: center; } .b-cedh small { color: var(--b-muted); font-size: 11px; }
+.b-edlist { padding: 14px 18px; display: grid; gap: 12px; align-content: start; overflow-y: auto; flex: 1; }
+.b-varbox { background: var(--b-indigo-50); border: 1px solid var(--b-indigo-200); border-radius: 10px; padding: 10px 12px; }
+.b-varbox .t { font-size: 10.5px; font-weight: 900; color: #4338ca; text-transform: uppercase; margin-bottom: 6px; }
+.b-varbox .v { display: flex; flex-wrap: wrap; gap: 5px; }
+.b-varbox code { background: var(--b-white); border: 1px solid var(--b-indigo-200); color: #4338ca; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.b-empty3 { border: 2px dashed var(--b-line); border-radius: 12px; padding: 26px; text-align: center; color: var(--b-faint); display: grid; gap: 4px; justify-items: center; font-size: 11.5px; }
+.b-empty3 .ico { font-size: 28px; } .b-empty3 b { color: #64748b; font-size: 13px; }
+.b-tplrow { display: flex; gap: 10px; align-items: center; border: 1px solid var(--b-line); border-radius: 10px; padding: 10px 12px; }
+.b-tplrow i { width: 10px; height: 34px; border-radius: 4px; }
+.b-tplrow div { flex: 1; } .b-tplrow b { display: block; font-size: 12.5px; } .b-tplrow small { color: var(--b-muted); font-size: 11px; }
+.b-tplrow .ic { color: #94a3b8; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; border: 1px solid var(--b-line); }
+.b-tplrow .ic.del { color: #ef4444; border-color: #fecaca; }
+.b-tplrow.fresh { animation: flash 1s ease-out; }
+.b-edform { padding: 12px 18px; display: grid; gap: 10px; overflow-y: auto; flex: 1; align-content: start; }
+.b-edtitle { display: flex; gap: 6px; align-items: center; font-weight: 800; font-size: 13px; color: #334155; }
+.b-edform .g3 { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; border-radius: 8px; }
+.b-sw { display: flex; gap: 5px; } .b-sw button { all: unset; cursor: pointer; width: 26px; height: 26px; border-radius: 6px; border: 2px solid transparent; }
+.b-sw button.on { border-color: var(--b-ink); box-shadow: inset 0 0 0 2px #fff; }
+.b-lab em { font-style: normal; font-weight: 600; text-transform: none; color: var(--b-faint); margin-left: 6px; }
+.b-body2 { min-height: 300px; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.5; resize: none; white-space: pre-wrap; }
+.b-edfoot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--b-line); padding-top: 10px; font-size: 10.5px; color: var(--b-faint); }
+</style>
+</head>
+<body>
+<main class="tour">
+  <header class="tour-head">
+    <h1>Les Paramètres dans Bob</h1>
+    <p>Modèles de contrat et listes de tags, pour les éditeurs et les lecteurs. Rien n’est enregistré dans votre base.</p>
+  </header>
+
+  <div class="stage">
+    <div class="frame" id="frame">
+      <div class="frame-scale" id="scaleBox">
+        <div class="bob" id="bob" aria-label="Réplique de l’application Bob"></div>
+      </div>
+    </div>
+
+    <aside class="guide" id="guide" aria-live="polite"></aside>
+  </div>
+
+  <nav class="rail" id="rail" aria-label="Étapes de la visite"></nav>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Icônes ---------- */
+  const P = {
+    chart: '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/>',
+    tasks: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
+    building: '<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M10 21v-4h4v4"/>',
+    book: '<path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><circle cx="12" cy="10" r="2.5"/><path d="M8.5 16a3.5 3.5 0 0 1 7 0"/>',
+    music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+    columns: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    calday: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><rect x="7" y="13" width="4" height="4" rx=".5"/>',
+    map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+    send: '<path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4z"/>',
+    cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+    shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+    file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/>',
+    check: '<path d="m5 12 5 5L20 7"/>',
+    checkc: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    circle: '<circle cx="12" cy="12" r="9"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    pointer: '<path d="M9 11V5a1.5 1.5 0 0 1 3 0v5"/><path d="M12 10V9a1.5 1.5 0 0 1 3 0v2"/><path d="M15 11a1.5 1.5 0 0 1 3 0v3a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-2L9 14"/>',
+    move: '<path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>',
+    left: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+    right: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    pdf: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M8.5 16v-3h1.2a1 1 0 0 1 0 2H8.5M13 13v3h.8a1.5 1.5 0 0 0 0-3zM17 13h-1.5v3M15.5 14.5H17"/>',
+    euro: '<path d="M18 7a6 6 0 1 0 0 10"/><path d="M4 10h9M4 14h9"/>',
+    star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    bars: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    note: '<path d="M4 4h16v11l-5 5H4z"/><path d="M15 20v-5h5"/>',
+    warn: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+    dcheck: '<path d="m2 12 5 5L18 6"/><path d="m11 16 1 1L23 6"/>',
+    hour: '<path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    pin: '<path d="M12 17v5M8 3h8l-1 6 3 3v2H6v-2l3-3z"/>'
+  };
+  const I = (n) => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>';
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  P.tag = '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>';
+  P.refresh = '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>';
+  P.pen = '<path d="M4 20h4L19 9l-4-4L4 16z"/>';
+  P.trash = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
+  P.ext = '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>';
+  P.eye = '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12"/><circle cx="12" cy="12" r="3"/>';
+
+  const VARS = ["{{artiste}}", "{{lieu}}", "{{ville}}", "{{date}}", "{{heure}}", "{{cachet}}", "{{cachetType}}", "{{producteur}}", "{{teamSize}}", "{{duree}}", "{{fraisRoute}}", "{{dateAujourdhui}}", "{{contactNom}}", "{{clauses}}"];
+  const BODY = "ENTRE LES SOUSSIGNÉS :\n\nLa production : {{producteur}} d’une part,\nET l’organisateur : {{lieu}} à {{ville}} d’autre part.\n\n# ARTICLE 1 : OBJET\nL’organisateur engage la production pour la représentation du spectacle « {{artiste}} »\nDate : {{date}} à {{heure}}\nDurée : {{duree}}\n\n# ARTICLE 2 : CONDITIONS FINANCIÈRES\nL’organisateur s’engage à verser à la production un cachet de :\n{{cachet}} {{cachetType}}\n\n# ARTICLE 3 : CONDITIONS TECHNIQUES\nLa fiche technique sera transmise à la signature du présent contrat.\nÉquipe en déplacement : {{teamSize}} personne(s)\nFrais de route : {{fraisRoute}}\n\n# ARTICLE 4 : CLAUSES PARTICULIÈRES\n{{clauses}}\n\n# ARTICLE 5 : DISPOSITIONS GÉNÉRALES\nLe présent contrat est soumis à la législation française.";
+  const COLORS = ["#4f46e5", "#db2777", "#0284c7", "#059669", "#ea580c", "#1e293b"];
+  const TAGS0 = () => ({
+    tagCategories: ["Théâtre", "MJC", "Salle municipale", "Festival", "Médiathèque"],
+    tagGenres: ["Jeune public", "Musiques actuelles", "Arts de la rue"],
+    tagReseaux: ["Réseau jeune public 43", "Fédération des MJC"],
+    tagKeywords: ["À relancer en janvier", "Partenaire fidèle"]
+  });
+  const FAMS = [["tagCategories", "Catégories de Lieux", "#2563eb", "#eff6ff"], ["tagGenres", "Genres (Programmation)", "#7c3aed", "#f5f3ff"], ["tagReseaux", "Réseaux & Adhérences", "#059669", "#ecfdf5"], ["tagKeywords", "Mots-clés Internes", "#d97706", "#fffbeb"]];
+  const RES = [["Base BASILIC", "Ministère de la Culture — milliers de lieux culturels géolocalisés", "Importable directement depuis l’app"], ["RéseauIC", "Annuaire des indépendants culturels", "Export CSV importable"], ["Syndeac", "Entreprises artistiques et culturelles", "Export CSV importable"], ["FEDELIMA", "Lieux de musiques actuelles", "Export CSV importable"], ["Fédurok", "Scènes rock et musiques actuelles", "Export CSV importable"], ["HorsLesMurs / Artcena", "Arts de la rue et arts du cirque", "Export CSV importable"]];
+
+  let tags = TAGS0();
+  let tpls = [];
+  let S = {};
+  const base = () => ({ tab: "dashboard", editor: false, editing: false, filled: false, color: "#4f46e5", role: "editeur", swal: null, delTag: null, toast: null, fresh: null, sec: null });
+  const TPL = { name: "Contrat Cession Standard", title: "CONTRAT DE CESSION" };
+
+  const STEPS = [
+    { part: "Paramètres", title: "Ouvrir Paramètres",
+      body: "<p>Les Paramètres règlent ce qui sert partout dans Bob : vos modèles de contrat et les listes de tags de l’annuaire.</p>",
+      doText: "Cliquez sur Paramètres dans le menu.",
+      setup: () => ({}), target: () => '[data-act="nav-settings"]', act: { "nav-settings": () => advance() } },
+    { part: "Paramètres", title: "Trois rubriques",
+      body: "<p><strong>Modèles de contrats</strong> : les textes de vos contrats PDF. <strong>Tags & étiquettes</strong> : les listes qui classent les structures. <strong>Ressources</strong> : des annuaires gratuits pour enrichir la base.</p>",
+      doText: "Repérez les trois rubriques, puis faites Suivant.",
+      free: true, setup: () => ({ tab: "settings" }), target: () => ".b-set", act: {} },
+    { part: "Modèles de contrat", title: "Gérer les modèles",
+      body: "<p>Un modèle de contrat est un texte avec des <strong>variables</strong> : Bob les remplace par les informations de l’affaire au moment de générer le PDF.</p><p>Vos modèles sont <strong>personnels</strong> : chacun crée les siens, un collègue ne voit pas les vôtres.</p>",
+      doText: "Cliquez sur Gérer les modèles.",
+      setup: () => ({ tab: "settings" }), target: () => '[data-act="open-editor"]', act: { "open-editor": () => advance() } },
+    { part: "Modèles de contrat", title: "Nouveau modèle",
+      body: "<p>La fenêtre liste vos modèles et rappelle les variables disponibles. Pour l’instant, il n’y en a aucun.</p>",
+      doText: "Cliquez sur Nouveau modèle.",
+      setup: () => ({ tab: "settings", editor: true }), target: () => '[data-act="new-tpl"]', act: { "new-tpl": () => advance() } },
+    { part: "Modèles de contrat", title: "Nommer le modèle",
+      body: "<p>Le <strong>nom du modèle</strong> sert à le choisir au moment de générer un contrat ; il est obligatoire. Le <strong>titre dans le PDF</strong> s’affiche en haut du document, et la <strong>couleur d’en-tête</strong> colore sa bande.</p><p>Bob propose un texte de départ, à adapter.</p>",
+      doText: "Cliquez dans la zone entourée pour remplir l’exemple, puis choisissez une couleur.",
+      setup: () => ({ tab: "settings", editor: true, editing: true }), target: () => '[data-zone="tplhead"]',
+      act: { "fill-tpl": () => { if (S.filled) return; S.filled = true; S.keep = true; render(); flash('[data-zone="tplhead"]'); } },
+      next: () => { if (!S.filled) { STEPS[step].act["fill-tpl"](); setTimeout(advance, 600); } else advance(); } },
+    { part: "Modèles de contrat", title: "Le texte et ses variables",
+      body: "<p>Rédigez le contrat librement. Une ligne qui commence par <strong>#</strong> devient un titre de section dans le PDF.</p><p>Placez les variables entre doubles accolades : <code>{{lieu}}</code> devient le nom du lieu, <code>{{cachet}}</code> le cachet de l’affaire (à défaut, celui du projet), <code>{{producteur}}</code> votre nom, <code>{{contactNom}}</code> le contact choisi dans l’affaire, <code>{{clauses}}</code> les clauses particulières saisies dans l’affaire (« Néant » si elles sont vides).</p>",
+      doText: "Modifiez le texte si vous voulez, puis faites Suivant.",
+      free: true, setup: (p) => ({ tab: "settings", editor: true, editing: true, filled: true, color: p.color || "#4f46e5", sec: "body" }), target: () => '[data-zone="tplbody"]', act: {} },
+    { part: "Modèles de contrat", title: "Enregistrer",
+      body: "<p>Le modèle rejoint la liste. Depuis une fiche affaire enregistrée, le bouton <strong>Contrat</strong> vous le proposera, puis téléchargera le PDF rempli.</p>",
+      doText: "Cliquez sur Enregistrer.",
+      setup: (p) => ({ tab: "settings", editor: true, editing: true, filled: true, color: p.color || "#4f46e5", sec: "save" }), target: () => '[data-act="save-tpl"]',
+      act: { "save-tpl": () => { tpls = [{ name: TPL.name, title: TPL.title, color: S.color }]; S.editing = false; S.fresh = "tpl"; toast("Modèle enregistré ✓"); setTimeout(advance, 800); } } },
+    { part: "Modèles de contrat", title: "Modifier ou supprimer",
+      body: "<p>Le <strong>crayon</strong> rouvre un modèle. La <strong>corbeille</strong> le supprime, après confirmation.</p><p>Si vous aviez créé des modèles avant la version 48, recréez-les : ils n’étaient pas encore enregistrés.</p>",
+      doText: "Repérez le crayon et la corbeille, puis faites Suivant.",
+      free: true, setup: (p) => ({ tab: "settings", editor: true, color: p.color || "#4f46e5" }), target: () => '[data-zone="tplrow"]', act: {} },
+    { part: "Tags & étiquettes", title: "Ajouter un terme",
+      body: "<p>Les quatre listes de tags servent dans les fiches CRM, les filtres de l’annuaire, la carte et les campagnes. Elles sont <strong>communes à toute l’équipe</strong>.</p><p>Avant d’ajouter un terme, vérifiez qu’un terme voisin n’existe pas déjà : des listes nettes donnent des filtres fiables.</p>",
+      doText: "Tapez un terme dans Genres (ou laissez vide), puis Ajouter.",
+      setup: () => ({ tab: "settings", sec: "tags" }), target: () => '[data-fam="tagGenres"]',
+      act: { "add-tag": (fam) => addTag(fam || "tagGenres") } },
+    { part: "Tags & étiquettes", title: "Retirer un terme",
+      body: "<p>La croix d’un terme le retire, après confirmation. Le terme n’est plus proposé ; les fiches qui le portaient déjà le gardent.</p>",
+      doText: () => S.swal ? "Confirmez avec Supprimer." : "Cliquez sur la croix d’un terme.",
+      setup: () => ({ tab: "settings", sec: "tags" }), target: () => S.swal ? '[data-act="del-ok"]' : '[data-zone="tags"]',
+      act: { "del-tag": (fam, t) => { S.delTag = [fam, t]; S.swal = "del"; S.keep = true; render(); }, "del-ok": () => { const [f, t] = S.delTag; tags[f] = tags[f].filter((x) => x !== t); S.swal = null; S.keep = true; toast("Tag supprimé"); setTimeout(advance, 800); } },
+      next: () => { if (!S.swal) return STEPS[step].act["del-tag"]("tagKeywords", tags.tagKeywords[tags.tagKeywords.length - 1]); STEPS[step].act["del-ok"](); } },
+    { part: "Tags & étiquettes", title: "Ce que voit un lecteur",
+      body: "<p>Un compte <strong>Lecteur</strong> voit les mêmes listes, sans boutons Ajouter ni croix : seuls les éditeurs et les administrateurs les modifient.</p><p>Le bouton <strong>Rafraîchir les données cloud</strong> recharge les listes si un collègue vient de les changer.</p>",
+      doText: "Basculez entre Éditeur et Lecteur avec le sélecteur de démonstration, puis faites Suivant.",
+      free: true, setup: () => ({ tab: "settings", sec: "tags" }), target: () => '[data-zone="rolebar"]', act: {} },
+    { part: "Ressources", title: "Ressources & annuaires",
+      body: "<p>Des sources gratuites pour enrichir l’annuaire. La base <strong>Basilic</strong> du ministère de la Culture s’importe directement depuis Structures & Lieux (Import Culture.gouv.fr). Pour celles marquées « Export CSV importable », téléchargez leur fichier puis importez-le dans Bob.</p>",
+      doText: "Parcourez la liste, puis faites Suivant.",
+      free: true, setup: () => ({ tab: "settings", sec: "res" }), target: () => '[data-zone="res"]', act: {} },
+    { part: "Récapitulatif", title: "C’est fait", final: true, body: "",
+      setup: () => ({ tab: "settings", sec: "tags" }), target: () => null, act: {} }
+  ];
+
+  function addTag(fam) {
+    const i = document.getElementById("in-" + fam);
+    const t = (i && i.value.trim()) || "Cirque";
+    if (!tags[fam].includes(t)) tags[fam] = tags[fam].concat([t]);
+    S.fresh = fam + ":" + t; S.keep = true; render(); setTimeout(advance, 900);
+  }
+
+  let step = 0;
+  const seen = new Set([0]);
+  const bob = document.getElementById("bob");
+
+  function nav(icon, label, key, color) {
+    const act = key ? ' data-act="nav-' + key + '"' : "";
+    return '<div class="b-nav' + (S.tab === key ? " on" : "") + '"' + act + '><span style="color:' + (color || "inherit") + '">' + I(icon) + "</span> " + label + "</div>";
+  }
+  function sidebar() {
+    return '<div class="b-side"><div class="b-logo"><span>' + I("music") + "</span> Bob</div>" +
+      '<div class="b-navh">Pilotage</div>' + nav("chart", "Tableau de bord", "dashboard") + nav("tasks", "Tâches & Suivi") +
+      '<div class="b-navh">Données</div>' + nav("building", "Structures & Lieux") + nav("book", "Annuaire Pro") + nav("music", "Mes Projets") +
+      '<div class="b-navh">Production</div>' + nav("columns", "Pipeline Commercial", null, "#facc15") + nav("calendar", "Agendas partagés") +
+      nav("map", "Carte & Invitations", null, "#34d399") + nav("send", "Campagnes Email", null, "#60a5fa") + nav("cog", "Paramètres", "settings", "#94a3b8") + "</div>";
+  }
+
+  function settingsHTML() {
+    const ed = S.role === "editeur";
+    const fam = ([k, label, fg, bg]) => '<div class="b-fam" data-fam="' + k + '"><h5>' + label + "</h5>" +
+      (ed ? '<div class="b-addrow"><input id="in-' + k + '" class="b-field" placeholder="Nouveau terme…" autocomplete="off"><button class="b-btn indigo" data-act="add-tag" data-f="' + k + '">' + I("plus") + " Ajouter</button></div>" : "") +
+      '<div class="b-chips2">' + tags[k].map((t) => '<span class="' + (S.fresh === k + ":" + t ? "fresh" : "") + '" style="background:' + bg + ";color:" + fg + '">' + esc(t) + (ed ? '<button data-act="del-tag" data-f="' + k + '" data-t="' + esc(t) + '" aria-label="Retirer ' + esc(t) + '">' + I("x") + "</button>" : "") + "</span>").join("") + "</div></div>";
+    return '<div class="b-set"><div class="b-sbox" id="sec-tpl"><h4>' + I("file") + ' Modèles de contrats</h4><p>Créez des modèles réutilisables avec des variables automatiques.</p><button class="b-btn indigo" data-act="open-editor">' + I("file") + " Gérer les modèles</button></div>" +
+      '<div class="b-sbox" id="sec-tags" data-zone="tags"><div class="b-shead"><div><h4>' + I("tag") + ' Gestion des Tags & Étiquettes</h4><p>Personnalisez les listes déroulantes de vos fiches CRM.</p></div><span class="b-mini2">' + I("refresh") + " Rafraîchir les données cloud</span></div>" +
+        '<div class="b-rolebar" data-zone="rolebar"><span>Démonstration : afficher comme</span><button data-act="role-ed" class="' + (ed ? "on" : "") + '">Éditeur</button><button data-act="role-lec" class="' + (ed ? "" : "on") + '">Lecteur</button></div>' +
+        '<div class="b-fams">' + FAMS.map(fam).join("") + "</div></div>" +
+      '<div class="b-sbox" id="sec-res" data-zone="res"><h4>' + I("book") + ' Ressources & Annuaires Professionnels</h4><p>Sources gratuites pour enrichir votre base de structures et contacts.</p><div class="b-res">' +
+        RES.map(([n, d, x]) => '<div><b>' + esc(n) + " " + I("ext") + "</b><small>" + esc(d) + "</small>" + (x ? "<em>→ " + esc(x) + "</em>" : "") + "</div>").join("") + "</div></div></div>";
+  }
+
+  function editorHTML() {
+    let inner;
+    if (!S.editing) {
+      inner = '<div class="b-edlist"><div class="b-varbox"><div class="t">Variables disponibles</div><div class="v">' + VARS.map((v) => "<code>" + v + "</code>").join("") + "</div></div>" +
+        '<div class="b-shead"><b>' + tpls.length + ' modèle(s)</b><button class="b-btn indigo" data-act="new-tpl">' + I("plus") + " Nouveau modèle</button></div>" +
+        (tpls.length ? tpls.map((t) => '<div class="b-tplrow' + (S.fresh === "tpl" ? " fresh" : "") + '" data-zone="tplrow"><i style="background:' + t.color + '"></i><div><b>' + esc(t.name) + "</b><small>" + esc(t.title) + '</small></div><span class="ic">' + I("pen") + "</span><span class=\"ic del\">" + I("trash") + "</span></div>").join("")
+          : '<div class="b-empty3">' + I("file") + "<b>Aucun modèle de contrat</b><span>Créez votre premier modèle pour personnaliser vos contrats PDF.</span></div>") + "</div>";
+    } else {
+      const f = S.filled;
+      inner = '<div class="b-edform" id="edform"><div class="b-edtitle">' + I("left") + ' <span>Nouveau modèle</span></div>' +
+        '<div class="g3" data-zone="tplhead" data-act="fill-tpl"><div><span class="b-lab">Nom du modèle</span><div class="b-field' + (f ? "" : " empty") + '">' + (f ? TPL.name : "Ex: Contrat Cession Standard") + '</div></div>' +
+        '<div><span class="b-lab">Titre dans le PDF</span><div class="b-field' + (f ? "" : " empty") + '">' + (f ? TPL.title : "Ex: CONTRAT DE CESSION") + "</div></div>" +
+        '<div><span class="b-lab">Couleur d’en-tête</span><div class="b-sw">' + COLORS.map((c) => '<button data-color="' + c + '" class="' + (S.color === c ? "on" : "") + '" style="background:' + c + '" aria-label="Couleur ' + c + '"></button>').join("") + "</div></div></div>" +
+        '<div data-zone="tplbody" id="sec-body"><span class="b-lab">Corps du contrat <em>Utilisez # pour les titres de sections</em></span><textarea id="tpl-body" class="b-field b-body2">' + esc(BODY) + "</textarea></div>" +
+        '<div class="b-edfoot" id="sec-save"><span>Les modèles sont sauvegardés dans votre base de données.</span><div style="display:flex;gap:6px"><button class="b-btn ghost">Annuler</button><button class="b-btn indigo" data-act="save-tpl">Enregistrer</button></div></div></div>';
+    }
+    return '<div class="b-overlay"><div class="b-ced"><div class="b-cedh"><div><h3>' + I("file") + ' Modèles de contrats</h3><small>Créez des modèles réutilisables avec des variables automatiques.</small></div><span style="color:var(--b-faint)">' + I("x") + "</span></div>" + inner + "</div></div>";
+  }
+
+  function swalHTML() {
+    if (S.swal === "del") {
+      return '<div class="b-swal-wrap"><div class="b-swal"><h3>Supprimer ce tag ?</h3><p>Le tag « ' + esc(S.delTag[1]) + ' » ne sera plus proposé.</p><div class="acts"><button class="b-btn" style="background:#ef4444;color:#fff" data-act="del-ok">Supprimer</button><button class="b-btn grey" data-act="del-no">Annuler</button></div></div></div>';
+    }
+    return "";
+  }
+  function dashHTML() {
+    const t = new Date();
+    return '<p class="b-dash-hi">Bonjour — ' + t.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) + "</p>" +
+      '<div class="b-kpis four"><div class="b-kpi"><small>CA Confirmé</small><b>4 900 €</b></div><div class="b-kpi"><small>Dates confirmées</small><b>3</b></div><div class="b-kpi"><small>En négociation</small><b>3</b></div><div class="b-kpi"><small>Tâches urgentes</small><b>1</b></div></div>' +
+      '<div class="b-dash-note">Prochaines dates, relances et activité récente s’affichent ici.</div>';
+  }
+
+  function render() {
+    const cont = document.getElementById("setbody"); const prevTop = cont ? cont.scrollTop : 0;
+    const ef = document.getElementById("edform"); const prevEf = ef ? ef.scrollTop : 0;
+    bob.innerHTML = sidebar() +
+      '<div class="b-main"><div class="b-top"><h2>' + (S.tab === "settings" ? "Paramètres du CRM" : "Tableau de bord") + '</h2><span></span></div>' +
+      '<div class="b-content" id="setbody"' + (S.tab === "settings" ? ' style="background:var(--b-body);overflow-y:auto"' : "") + ">" + (S.tab === "settings" ? settingsHTML() : dashHTML()) + "</div></div>" +
+      (S.editor ? editorHTML() : "") + swalHTML() + (S.toast ? '<div class="b-toast">' + I("check") + " " + S.toast + "</div>" : "") +
+      '<div class="spot off" id="spot"></div>';
+    const c = document.getElementById("setbody");
+    if (c) {
+      if (S.keep) c.scrollTop = prevTop;
+      else if (S.sec && !S.editor) { const t = document.getElementById("sec-" + S.sec); if (t) c.scrollTop += (t.getBoundingClientRect().top - c.getBoundingClientRect().top) / (scale || 1) - 8; }
+      c.addEventListener("scroll", placeSpot, { passive: true });
+    }
+    const e2 = document.getElementById("edform");
+    if (e2) {
+      if (S.keep) e2.scrollTop = prevEf;
+      else if (S.sec) { const t = document.getElementById("sec-" + S.sec); if (t) e2.scrollTop += (t.getBoundingClientRect().top - e2.getBoundingClientRect().top) / (scale || 1) - 8; }
+      e2.addEventListener("scroll", placeSpot, { passive: true });
+    }
+    S.keep = false;
+    FAMS.forEach(([k]) => { const i = document.getElementById("in-" + k); if (i) i.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && STEPS[step].act["add-tag"]) { ev.preventDefault(); STEPS[step].act["add-tag"](k); } }); });
+    requestAnimationFrame(placeSpot);
+    renderGuide();
+  }
+
+  function placeSpot() {
+    const spot = document.getElementById("spot");
+    if (!spot) return;
+    const sel = STEPS[step].target && STEPS[step].target();
+    const el = sel ? bob.querySelector(sel) : null;
+    if (!el) { spot.classList.add("off"); return; }
+    const b = bob.getBoundingClientRect(), r = el.getBoundingClientRect(), s = scale || 1, pad = 5;
+    const x = Math.max(3, (r.left - b.left) / s - pad), y = Math.max(3, (r.top - b.top) / s - pad);
+    const x2 = Math.min(1037, (r.right - b.left) / s + pad), y2 = Math.min(637, (r.bottom - b.top) / s + pad);
+    spot.style.left = x + "px"; spot.style.top = y + "px";
+    spot.style.width = Math.max(0, x2 - x) + "px"; spot.style.height = Math.max(0, y2 - y) + "px";
+    spot.classList.remove("off");
+  }
+  function flash(sel) { const el = bob.querySelector(sel); if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); } }
+  let toastTimer = null;
+  function toast(msg) { S.toast = msg; S.keep = true; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; const t = bob.querySelector(".b-toast"); if (t) t.remove(); }, 2200); }
+
+  const guide = document.getElementById("guide"), rail = document.getElementById("rail");
+  function renderGuide() {
+    const st = STEPS[step];
+    let h = '<div class="g-count"><span class="g-partlab">' + st.part + "</span><span>Étape " + (step + 1) + " sur " + STEPS.length + "</span></div>" + '<h2 class="g-title">' + st.title + "</h2>";
+    if (st.final) {
+      let lp = "";
+      h += '<div class="g-body"><p>Vous savez créer vos modèles de contrat et entretenir les listes de tags. Pour revoir une étape :</p></div><ol class="g-recap">' +
+        STEPS.slice(0, -1).map((s, i) => { const head = s.part !== lp ? '<li class="g-part">' + s.part + "</li>" : ""; lp = s.part; return head + '<li><button data-go="' + i + '"><span>' + (i + 1) + "</span>" + s.title + "</button></li>"; }).join("") + "</ol>" +
+        '<p class="g-tip">Pour générer un contrat à partir de votre modèle, voyez la visite « Gérer une affaire dans Bob ».</p>';
+    } else {
+      const doText = typeof st.doText === "function" ? st.doText() : st.doText;
+      h += '<div class="g-body">' + st.body + "</div>" + '<div class="g-do">' + I("pointer") + "<span>" + doText + "</span></div>" +
+        (st.free ? "" : '<p class="g-tip">Vous pouvez aussi faire Suivant : la visite le fera à votre place.</p>');
+    }
+    h += '<div class="g-nav"><button class="g-btn" data-nav="prev"' + (step === 0 ? " disabled" : "") + ">" + I("left") + " Précédent</button>" +
+      (st.final ? '<button class="g-btn primary" data-go="0">Recommencer</button>' : '<button class="g-btn primary" data-nav="next">Suivant ' + I("right") + "</button>") + "</div>";
+    guide.innerHTML = h;
+    let lp = "";
+    rail.innerHTML = STEPS.map((s, i) => { const gap = s.part !== lp && i > 0 ? '<span class="rail-sep" aria-hidden="true"></span>' : ""; lp = s.part;
+      return gap + '<button data-go="' + i + '" class="' + (i === step ? "cur" : seen.has(i) ? "seen" : "") + '" aria-label="Étape ' + (i + 1) + " : " + s.title + '"' + (i === step ? ' aria-current="step"' : "") + ' title="' + s.part + " : " + s.title + '">' + (i + 1) + "</button>"; }).join("") +
+      '<span class="rail-hint">Flèches ← → du clavier pour naviguer</span>';
+  }
+
+  function go(i) {
+    step = Math.max(0, Math.min(STEPS.length - 1, i));
+    seen.add(step);
+    const iSave = STEPS.findIndex((x) => x.title === "Enregistrer");
+    if (step <= iSave) tpls = []; else if (!tpls.length) tpls = [{ name: TPL.name, title: TPL.title, color: S.color || "#4f46e5" }];
+    if (step <= STEPS.findIndex((x) => x.title === "Ajouter un terme")) tags = TAGS0();
+    const prev = S;
+    S = Object.assign(base(), { toast: prev.toast }, STEPS[step].setup(prev));
+    render();
+  }
+  function advance() { go(step + 1); }
+  function next() {
+    const st = STEPS[step];
+    if (st.free || st.final) return advance();
+    if (st.next) return st.next();
+    const k = Object.keys(st.act)[0];
+    if (k) st.act[k](); else advance();
+  }
+  guide.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.nav === "prev") go(step - 1); else if (b.dataset.nav === "next") next(); else if (b.dataset.go !== undefined) go(Number(b.dataset.go));
+  });
+  rail.addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) go(Number(b.dataset.go)); });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest && e.target.closest("input, select, textarea")) return;
+    if (e.key === "ArrowRight") next(); else if (e.key === "ArrowLeft") go(step - 1);
+  });
+
+  bob.addEventListener("click", (e) => {
+    const st = STEPS[step];
+    const co = e.target.closest("[data-color]");
+    if (co) { S.color = co.dataset.color; if (st.act["fill-tpl"] && !S.filled) S.filled = true; S.keep = true; render(); return; }
+    if (e.target.closest("input, textarea")) return;
+    const a = e.target.closest("[data-act]"); if (!a) return;
+    const act = a.dataset.act;
+    if (act === "role-ed" || act === "role-lec") { S.role = act === "role-ed" ? "editeur" : "lecteur"; S.keep = true; render(); return; }
+    if (act === "del-no") { S.swal = null; S.keep = true; render(); return; }
+    if (act === "add-tag") { if (st.act["add-tag"]) st.act["add-tag"](a.dataset.f); return; }
+    if (act === "del-tag") { if (st.act["del-tag"]) st.act["del-tag"](a.dataset.f, a.dataset.t); return; }
+    if (st.act[act]) st.act[act]();
+  });
+
+  let scale = 1;
+  const frame = document.getElementById("frame"), box = document.getElementById("scaleBox");
+  function fit() { scale = Math.min(1.15, frame.clientWidth / 1040); bob.style.transform = "scale(" + scale + ")"; box.style.height = 640 * scale + "px"; placeSpot(); }
+  new ResizeObserver(fit).observe(frame);
+  window.addEventListener("resize", fit);
+
+  go(0);
+  fit();
+})();
+
+</script>
+</body>
+</html>

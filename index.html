@@ -140,7 +140,7 @@
 
         worker-src  'self' blob:;
 
-        frame-src   'none';
+        frame-src   'self';
         object-src  'none';
         base-uri    'self';
     ">
@@ -280,6 +280,7 @@
             <div @click="tab='mailing'" data-tooltip="Campagnes email et mailings" :class="['nav-item', tab==='mailing'?'active':'']"><i class="fas fa-paper-plane text-blue-400"></i> Campagnes Email</div>
             <div @click="tab='settings'" :class="['nav-item', tab==='settings'?'active':'']"><i class="fas fa-cog text-slate-400"></i> Paramètres</div>
             <div v-if="isAdmin" @click="tab='admin'; loadAdminUsers()" :class="['nav-item', tab==='admin'?'active':'']"><i class="fas fa-shield-alt text-red-400"></i> Administration</div>
+            <div @click="tab='aide'" data-tooltip="Mode d'emploi et visites guidées" :class="['nav-item', tab==='aide'?'active':'']"><i class="fas fa-life-ring text-sky-400"></i> Aide</div>
         </nav>
         <div class="p-4 bg-slate-900 border-t border-slate-800 space-y-2">
 
@@ -327,6 +328,13 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <h2 class="text-xl font-bold text-slate-800 truncate hidden sm:block">{{ pageTitle }}</h2>
+                <!-- Aide de l'écran courant : visite guidée ou chapitre du mode d'emploi -->
+                <button v-if="helpPageFor(tab)" @click="openHelp(helpPageFor(tab))"
+                        :data-tooltip="helpPageFor(tab).startsWith('visite') ? 'Visite guidée de cet écran' : 'Aide sur cet écran'"
+                        aria-label="Aide sur cet écran"
+                        class="flex-shrink-0 w-8 h-8 rounded-full border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition flex items-center justify-center">
+                    <i class="fas fa-question"></i>
+                </button>
 
                 <!-- Largeur souple : la barre occupait 384 px fixes, soit la
                      moitié d'un iPad en portrait à elle seule. -->
@@ -403,6 +411,54 @@
                         class="text-indigo-200 hover:text-white ml-6 flex-shrink-0">
                     <i class="fas fa-times"></i>
                 </button>
+            </div>
+
+            <!-- ── ONGLET AIDE ── -->
+            <div v-if="tab==='aide'" class="p-8 h-full overflow-y-auto bg-slate-50 w-full custom-scrollbar">
+                <div class="max-w-5xl mx-auto">
+                    <h2 class="text-3xl font-black text-slate-800 mb-2"><i class="fas fa-life-ring text-sky-500 mr-3"></i>Aide</h2>
+                    <p class="text-slate-500 mb-8">Le mode d'emploi décrit tout Bob, écran par écran. Les visites guidées font faire les gestes sur une copie de Bob : rien n'est enregistré dans vos données. Sur chaque écran, le bouton <i class="fas fa-question-circle text-slate-400"></i> à côté du titre ouvre directement la bonne visite.</p>
+
+                    <button @click="openHelp('mode-emploi.html')"
+                            class="w-full text-left bg-white border border-slate-200 rounded-2xl p-6 flex items-center gap-5 hover:border-indigo-300 hover:shadow-md transition mb-10">
+                        <span class="w-14 h-14 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-2xl flex-shrink-0"><i class="fas fa-book-open"></i></span>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-lg font-bold text-slate-800">Mode d'emploi</span>
+                            <span class="block text-sm text-slate-500">Les onze chapitres du menu et les questions fréquentes. Imprimable ou enregistrable en PDF.</span>
+                        </span>
+                        <i class="fas fa-chevron-right text-slate-300"></i>
+                    </button>
+
+                    <h3 class="text-sm font-bold text-slate-500 mb-3">Visites guidées</h3>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <button v-for="t in helpTours" :key="t.file" @click="openHelp(t.file)"
+                                class="text-left bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-300 hover:shadow-md transition flex flex-col gap-3">
+                            <span :class="['w-10 h-10 rounded-lg flex items-center justify-center text-lg', t.bg, t.color]"><i :class="['fas', t.icon]"></i></span>
+                            <span class="font-bold text-slate-800">{{ t.title }}</span>
+                            <span class="text-sm text-slate-500 leading-snug">{{ t.text }}</span>
+                            <span class="mt-auto text-xs font-bold text-indigo-600"><i class="fas fa-play mr-1"></i> Lancer la visite</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── FENÊTRE D'AIDE (mode d'emploi ou visite, par-dessus Bob) ── -->
+            <div v-if="helpViewer" class="fixed inset-0 z-[70] bg-slate-900/60 flex items-stretch justify-center p-0 lg:p-6" @click.self="closeHelp()">
+                <div class="bg-white w-full max-w-[1500px] lg:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+                    <div class="h-12 flex items-center gap-2 px-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+                        <button v-if="helpViewer.history.length" @click="helpBack()" class="px-3 py-1.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-200 transition">
+                            <i class="fas fa-arrow-left mr-1"></i> Retour
+                        </button>
+                        <span class="flex-1 min-w-0 truncate font-bold text-slate-800 text-sm px-2">{{ helpViewer.title }}</span>
+                        <a :href="helpViewer.current" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 transition hidden sm:inline-block">
+                            <i class="fas fa-external-link-alt mr-1"></i> Nouvel onglet
+                        </a>
+                        <button @click="closeHelp()" aria-label="Fermer l'aide" class="w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition text-lg">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <iframe ref="helpFrame" :src="helpViewer.src" @load="onHelpFrameLoad" :title="helpViewer.title" class="flex-1 w-full border-0 bg-slate-100"></iframe>
+                </div>
             </div>
 
             <!-- ── ONGLET ADMIN ── -->
@@ -4763,7 +4819,7 @@
     </div>
 
 </div><!-- /#app -->
-<script type="module" src="./js/app.js?v=51"></script>
+<script type="module" src="./js/app.js?v=52"></script>
     <script>
         // Enregistrement du Service Worker (PWA)
         if ('serviceWorker' in navigator) {
