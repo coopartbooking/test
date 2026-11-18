@@ -1,0 +1,1199 @@
+// app.js — Coop'Art Booking CRM
+// Architecture modulaire disponible dans js/modules/ :
+//   appComputed.js   | crmMethods.js    | adminMethods.js
+//   mapMethods.js    | importMethods.js | gouvMethods.js  
+//   searchMethods.js | projectMethods.js| venueMethods.js
+// ─────────────────────────────────────────────────────────
+
+// app.js — Point d'entrée Vue.js — Coop'Art Booking
+
+// --- IMPORTS FIREBASE ---
+import { auth, dbFirestore }                                              from './firebase.js?v=52';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword,
+         onAuthStateChanged, signOut }                                    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { doc, setDoc, getDoc, getDocs, deleteDoc, writeBatch, onSnapshot, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+const { createApp, nextTick } = Vue;
+
+// --- IMPORTS MODULES ---
+import { utilsMethods }                         from './utils.js?v=52';
+import { contactsComputed, contactsMethods }    from './contacts.js?v=52';
+import { planningComputed, planningMethods }    from './planning.js?v=52';
+import { adminMethods }                           from './modules/adminMethods.js?v=52';
+import { mapMethods }                             from './modules/mapMethods.js?v=52';
+import { annuaireMethods }                       from './modules/annuaireMethods.js?v=52';
+import { importMethods }                         from './modules/importMethods.js?v=52';
+import { gouvMethods }                           from './modules/gouvMethods.js?v=52';
+import { searchMethods }                         from './modules/searchMethods.js?v=52';
+import { projectMethods }                        from './modules/projectMethods.js?v=52';
+import { venueMethods }                          from './modules/venueMethods.js?v=52';
+import { crmMethods }                            from './modules/crmMethods.js?v=52';
+import { appComputed }                           from './modules/appComputed.js?v=52';
+import { collaboratorMethods }                   from './modules/collaboratorMethods.js?v=52';
+import { icalMethods }                            from './modules/icalMethods.js?v=52';
+import { updateMethods }                          from './modules/updateMethods.js?v=52';
+import { helpMethods, HELP_TOURS }                from './modules/helpMethods.js?v=52';
+
+// Plafond d'affichage des longues listes (annuaire, structures).
+// Au-delà, un bouton « Afficher 100 de plus » apparaît en bas de liste.
+// Tant que la base tient sous ce seuil, RIEN ne change à l'écran : le
+// mécanisme dort. Il protège du jour où un import de fédération ou de
+// Culture.gouv (86 000 lieux disponibles) ferait franchir le seuil d'un coup.
+const LISTE_PLAFOND = 100;
+
+// --- CONSTANTE COULEURS PAR DÉFAUT ---
+const DEFAULT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
+
+// =============================================================================
+createApp({
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DATA
+    // ─────────────────────────────────────────────────────────────────────────
+    data() {
+        return {
+            // Navigation & auth
+            pageTitle: 'Tableau de bord',
+            // Aide : fenêtre des pages d'aide (null = fermée) et liste des visites
+            helpViewer: null,
+            helpTours: HELP_TOURS,
+            currentUser: null,
+            currentUserName: '',
+            tab: 'dashboard',
+            // Barre latérale — trois états :
+            //   null  → automatique : le CSS décide (masquée sous 1024 px,
+            //           visible au-delà). La rotation de la tablette est donc
+            //           gérée sans dépendre d'un événement JavaScript.
+            //   true  → ouverte à la demande (superposition sur écran étroit)
+            //   false → repliée à la demande, y compris sur grand écran, utile
+            //           sur les onglets ayant déjà un panneau latéral (Carte…)
+            sidebarOpen: null,
+            // Panneaux latéraux internes aux vues, même logique à trois états
+            // que la barre latérale (null = le CSS décide). Ils occupent une
+            // largeur fixe qui devient coûteuse sur tablette : le sous-onglet
+            // Recherches en empile deux (288 px chacun), la Carte en a un de
+            // 384 px sur un écran où la place est précieuse.
+            panelOpen: { searches: null, criteria: null, geo: null, selections: null, mailing: null },
+            authEmail: '', authPassword: '', isLoginMode: true,
+
+            // Base de données locale (miroir Firestore)
+            db: {
+            projects: [],
+            contractTemplates: [],
+            structures: [],
+            tasks: [],
+            events: [],
+            templates: [
+                    { id: 't1', name: 'Prise de contact', subject: 'Proposition de spectacle', body: "Bonjour {{contactFirstName}},\n\nJe me permets de vous contacter concernant la programmation de {{structName}}.\nNous sommes en préparation de notre prochaine tournée...\n\nBien à vous,\n{{userName}}" }
+                ],
+            campaignHistory: [],
+            tagCategories: [],
+            tagGenres:     [],
+            tagReseaux:    [],
+            tagKeywords:   [],
+            savedSearches: [],
+            selections:    [],
+        },
+
+            // Planning & calendrier
+            viewMode: 'calendar',
+            currentDate: new Date(),
+            showTasksInCalendar: true,
+            selectedProjectIds: [],
+            planningSearch: '',
+            planningStatusFilter: 'all',
+            planningPeriod: 'all',
+
+            // Pipeline
+            pipelineFilterProj: '', pipelineSearch: '', draggedEventId: null,
+            pipelineCols: [
+                { id: 'lead',      name: 'À contacter',    dotColor: 'bg-slate-400'   },
+                { id: 'contacted', name: 'Contact établi', dotColor: 'bg-blue-400'    },
+                { id: 'nego',      name: 'En négociation', dotColor: 'bg-purple-400'  },
+                { id: 'option',    name: 'Option posée',   dotColor: 'bg-orange-400'  },
+                { id: 'contract',  name: 'Contrat envoyé', dotColor: 'bg-yellow-400'  },
+                { id: 'won',       name: 'Confirmé',       dotColor: 'bg-emerald-500' },
+            ],
+
+            // Annuaire & contacts
+            searchContact: '', searchStruct: '',
+            // Copies différées (200 ms) des champs de recherche : les computed
+            // lisent CELLES-CI, jamais les champs bruts. Le texte saisi s'affiche
+            // instantanément, mais la base n'est refiltrée et retriée qu'une fois
+            // la frappe terminée. Voir le bloc watch plus bas.
+            searchContactDebounced: '', searchStructDebounced: '',
+            // Nombre de lignes réellement rendues (voir LISTE_PLAFOND).
+            // Remis au plafond dès qu'un filtre change : après avoir déplié une
+            // longue liste, une nouvelle recherche repart du début.
+            structVisible:  LISTE_PLAFOND,
+            contactVisible: LISTE_PLAFOND,
+            // Fusion de doublons
+            showDuplicatesModal:  false,
+            duplicatePairs:       [],
+            expandedDupStruct:    null,
+            duplicateMergeSource: null,
+            duplicateMergeTarget: null,
+
+            // Filtres avancés structures
+            structFilterCat:         '',
+            structFilterGenre:       '',
+            structFilterReseau:      '',
+            structFilterCity:        '',
+            structFilterStatus:      '',
+            structFilterGPS:         false,
+            structFilterHasContacts: false,
+            structFiltersOpen:       false,
+            structSortField:         'name',   // 'name' | 'city'
+            structSortDir:           'asc',    // 'asc' | 'desc'
+            contactSortField:        'name',   // 'name' | 'structName' | 'structCity'
+            contactSortDir:          'asc',    // 'asc' | 'desc'
+            // --- Mise à jour de l'application ---
+            appVersion:              '',
+            serverVersion:           '',
+            updateAvailable:         false,
+            updateNotes:             '',
+            updateDismissedVersion:  '',
+            contactViewMode: 'grid',
+            contactSubTab: 'annuaire',
+            currentSearch: { name: '', criteria: [], filterCity: '', filterStatus: '', filterRegion: '' },
+            currentSearchId: null,
+            searchResults: [],
+            currentSelectionId: null,
+            showAddToSelection: false,
+            addToSelectionSearch: '',
+            addToSelectionCat: '',
+            addToSelectionGenre: '',
+            addToSelectionPicked: [],
+
+            // Modales
+            showTaskModal:    false, editTaskData:    {},
+            showEventModal:   false, editEventData:   {}, eventReturnTo: null, crmStageMenuFor: null, crmShowCancelled: false,
+            showProjectModal: false, editProjectData: {}, isEditingProject: false,
+            // Contrats personnalisables
+            showContractEditor:    false,
+            contractTemplates:     [],
+            editingContractTpl:    null,
+            contractPreviewEvent:  null,
+            projectTab: 'resume',
+            projectNoteText: '',
+            // Action planifiée depuis l'onglet Notes d'un projet (devient une tâche liée au projet)
+            showProjectActionForm: false,
+            projectActionForm: { text: '', type: 'call', dueDate: '', dueTime: '' },
+            // Notes & actions dans la fiche affaire (journal propre à l'affaire)
+            eventNoteText: '',
+            showEventActionForm: false,
+            eventActionForm: { text: '', type: 'call', dueDate: '', dueTime: '' },
+            showEventProjectNotes: false,
+            showCrmModal:     false, currentCrmStruct: null, currentCrmContact: null,
+            showTemplateModal: false, editTemplateData: {},
+            showInactiveProjects: false,
+
+            // CRM
+            newCrmComment: '',
+            newContactComment: '',
+
+            // Mailing
+            mailingSearch: '',
+            mailingActiveTab: 'compose',
+            selectedMailingContacts: [],
+            selectedTemplateId: '',
+            mailSubject: '', mailBody: '',
+            previewContactIndex: 0,
+            mailingProgress: 0,
+            mailingProgressTotal: 0,
+            mailingInProgress: false,
+            mailingTagFilter: {},
+            mailingAddUnsubscribe: true,  // Inclure un lien de désinscription
+            mailingRightTab: 'contacts',
+
+            // Carte géographique
+            map: null, miniMap: null,
+            searchRadius: 50, searchCenter: null,
+            geoResults: [], mapMarkers: [], searchCircle: null,
+            geoTagFilter: {},
+            filterByViewport: false,  // Si true, la liste des contacts ne montre que les structures dans la zone visible
+
+            // Recherche globale (omnibox)
+            omniSearch: '', omniSearchDebounced: '', showOmniDropdown: false,
+
+           
+
+            // Icônes projets
+            projectIcons: ['fas fa-music', 'fas fa-guitar', 'fas fa-theater-masks', 'fas fa-microphone', 'fas fa-drum', 'fas fa-compact-disc', 'fas fa-star', 'fas fa-bolt'],
+
+            // Dropdowns modales (non utilisés mais référencés dans certains templates)
+            taskRelSearch: '', showRelDropdown: false,
+            eventProjectSearch: '', showEventProjectDropdown: false,
+            eventVenueSearch: '', showEventVenueDropdown: false,
+
+            // Statut de synchronisation Firebase : 'idle' | 'saving' | 'saved' | 'error'
+            saveStatus: 'idle',
+            // Fonctions de désabonnement des listeners Firestore (pour logout propre)
+            _firestoreUnsubs: [],
+            // Debounce saveDB : évite les sauvegardes en rafale sur Firestore
+            _saveDebounceTimer: null,
+            // Déconnexion automatique après inactivité
+            _inactivityTimer: null,
+            // Vérification périodique du token (détecte révocation de session)
+            _tokenCheckTimer: null,
+            _inactivityDelay: 2 * 60 * 60 * 1000, // 2 heures en millisecondes
+            saveStatusMessage: '',
+
+            // Import Culture.gouv.fr
+            showGouvImport: false,
+            // Recherche structure dans modal Affaire
+            venueSearch: '',
+            venueSearchResults: [],
+            showVenueDropdown: false,
+            showVenueBrowser: false,
+            venueBrowserRegion: '',
+            venueBrowserCat: '',
+            gouvImport: {
+                loading: false,
+                error: '',
+                results: [],
+                selected: [],
+                totalFound: 0,
+                page: 0,
+                searchName: '',
+                filterType: '',
+                filterDept: '',
+                filterRegion: '',
+                filterDomaine: '',
+                filterCity: '',
+                activeTab: 'gouv',
+            },
+            // Import CSV libre
+            csvImport: {
+                headers: [],
+                rows: [],
+                mapping: {},
+                fileName: '',
+                mappingFields: [
+                    { key: 'name',     label: 'Nom',         icon: 'fas fa-building',        required: true  },
+                    { key: 'address',  label: 'Adresse',     icon: 'fas fa-map-marker-alt',  required: false },
+                    { key: 'zip',      label: 'Code postal', icon: 'fas fa-mail-bulk',        required: false },
+                    { key: 'city',     label: 'Ville',       icon: 'fas fa-city',            required: false },
+                    { key: 'country',  label: 'Pays',        icon: 'fas fa-globe',           required: false },
+                    { key: 'phone',    label: 'Téléphone',   icon: 'fas fa-phone',           required: false },
+                    { key: 'email',    label: 'Email',       icon: 'fas fa-envelope',        required: false },
+                    { key: 'website',  label: 'Site web',    icon: 'fas fa-link',            required: false },
+                    { key: 'capacity', label: 'Jauge',       icon: 'fas fa-users',           required: false },
+                    { key: 'category', label: 'Catégorie',   icon: 'fas fa-tag',             required: false },
+                    { key: 'genre',    label: 'Genre musical',icon: 'fas fa-music',          required: false },
+                    { key: 'source',   label: 'Source',      icon: 'fas fa-database',        required: false },
+                ],
+            },
+
+            // Export avec mapping
+            showExportMapping: false,
+            exportMapping: {
+                source: 'geo',
+                contacts: [],
+                cols: [],
+                format: 'xlsx',
+                filterStatus: '',
+                filterStruct: '',
+                filterCat: '',
+                filterGenre: '',
+                availableCols: [
+                    { key: 'firstName',  label: 'Prénom',       example: 'Marie' },
+                    { key: 'lastName',   label: 'Nom',          example: 'DUPONT' },
+                    { key: 'role',       label: 'Fonction',     example: 'Programmatrice' },
+                    { key: 'structName', label: 'Structure',    example: 'Le Théâtre' },
+                    { key: 'structCity', label: 'Ville struct.', example: 'Lyon' },
+                    { key: 'structZip',  label: 'CP struct.',   example: '69001' },
+                    { key: 'emailPro',   label: 'Email pro',    example: 'm.dupont@theatre.fr' },
+                    { key: 'emailPerso', label: 'Email perso',  example: 'marie@gmail.com' },
+                    { key: 'phoneDirect',label: 'Tél. direct',  example: '04 72 00 00 00' },
+                    { key: 'mobilePro',  label: 'Mobile pro',   example: '06 00 00 00 00' },
+                    { key: 'structAddress', label: 'Adresse',   example: '1 rue de la Paix' },
+                    { key: 'structPhone',label: 'Tél. structure',example: '04 72 00 00 01' },
+                    { key: 'website',    label: 'Site web',     example: 'www.theatre.fr' },
+                    { key: 'isVip',      label: 'VIP',          example: 'Oui / Non' },
+                    { key: 'visibility', label: 'Visibilité',   example: 'Public / Privé' },
+                    { key: 'suiviPar',   label: 'Suivi par',    example: 'Pierre' },
+                ],
+            },
+
+            // Admin & permissions
+            isAdmin:   false,
+            userRole:  'lecteur',   // 'admin' | 'editeur' | 'lecteur'
+            // Collaborateurs
+            collaboratorsList:    [],
+            // Historique des modifications
+            activityLog:          [],
+            // Notification tâches (flag pour n'afficher qu'une fois)
+            _tasksAlertShown:     false,
+            // Tooltips d'aide (activables/désactivables)
+            tooltipsEnabled:      true,
+            // Statut connexion internet
+            isOnline:             true,
+            collaboratorsLoading: false,
+            adminEmails: [],
+            allowedEmails: [],          // Liste blanche des emails autorisés à s'inscrire
+            newAllowedEmail: '',
+            adminUsers: [],
+            adminChangelog: [],
+            newChangelogEntry: '',
+            newAdminEmail: '',
+            showChangelogBanner: false,
+            latestChangelog: null,
+            changelogDismissed: false,
+        };
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // COMPUTED
+    // ─────────────────────────────────────────────────────────────────────────
+    computed: {
+        ...contactsComputed,
+        ...planningComputed,
+        ...appComputed,
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WATCHERS
+    // ─────────────────────────────────────────────────────────────────────────
+    watch: {
+        // ── Différé des champs de recherche (200 ms) ──
+        // Sans cela, chaque frappe refiltrait ET retriait toute la base : sur
+        // 2 000 structures, un mot de 8 lettres déclenchait 8 tris complets.
+        // Un vidage (champ effacé, goOmni) est répercuté immédiatement, pour
+        // que la liste complète réapparaisse sans délai.
+        // Un changement de filtre ramène l'affichage aux 100 premières lignes
+        _structFilterKey()  { this.structVisible  = LISTE_PLAFOND; },
+        _contactFilterKey() { this.contactVisible = LISTE_PLAFOND; },
+
+        searchStruct(val)  { this._debounceSearch('searchStructDebounced', val); },
+        searchContact(val) { this._debounceSearch('searchContactDebounced', val); },
+        omniSearch(val)    { this._debounceSearch('omniSearchDebounced', val); },
+
+        // Sauvegarde la préférence tooltips
+        tooltipsEnabled(val) {
+            localStorage.setItem('coopArtTooltips', val ? '1' : '0');
+        },
+        // Recharge le menu quand le statut admin change
+        isAdmin(newVal, oldVal) {
+            if (oldVal !== undefined && newVal !== oldVal) {
+                // Forcer la mise à jour du menu sans recharger la page
+                this.$forceUpdate();
+            }
+        },
+        tab(newVal) {
+            // Sur écran étroit la barre latérale recouvre le contenu : une fois
+            // la destination choisie, on repasse en automatique — elle s'efface
+            // seule sous 1024 px et reste en place au-dessus.
+            this.sidebarOpen = null;
+            if (newVal === 'geo') { nextTick(() => { setTimeout(() => { this.initMap(); }, 300); }); }
+        },
+        searchRadius() {
+            if (this.tab === 'geo') this.updateMap();
+        },
+        'db.structures': {
+            deep: true,
+            handler() { if (this.tab === 'geo') this.updateMap(); }
+        },
+        // Persistance des sous-entités de la fiche ouverte.
+        // currentCrmStruct est un CLONE (openCrmView) détaché de db.structures.
+        // Les sous-entités (contacts, commentaires, tags, salles) s'enregistrent
+        // immédiatement → on les recopie dans l'objet vivant de db.structures puis on sauve.
+        // Les champs scalaires (nom, notes, etc.) ne sont PAS recopiés ici : ils gardent
+        // le comportement "clone modifiable annulable" jusqu'au bouton Enregistrer de la fiche.
+        'currentCrmStruct': {
+            deep: true,
+            handler(s) {
+                if (!s || s.id == null) return;
+                const idx = this.db.structures.findIndex(x => x.id === s.id);
+                if (idx < 0) return;            // fiche nouvelle pas encore enregistrée
+                const live = this.db.structures[idx];
+                const subs = {
+                    contacts: s.contacts || [],
+                    comments: s.comments || [],
+                    tags:     s.tags     || { categories: [], genres: [], reseaux: [], keywords: [] },
+                    venues:   s.venues   || [],
+                };
+                const liveSubs = {
+                    contacts: live.contacts || [],
+                    comments: live.comments || [],
+                    tags:     live.tags     || { categories: [], genres: [], reseaux: [], keywords: [] },
+                    venues:   live.venues   || [],
+                };
+                // Rien de neuf dans les sous-entités → ne pas déclencher de sauvegarde
+                if (JSON.stringify(subs) === JSON.stringify(liveSubs)) return;
+                const copy = JSON.parse(JSON.stringify(subs));
+                live.contacts = copy.contacts;
+                live.comments = copy.comments;
+                live.tags     = copy.tags;
+                live.venues   = copy.venues;
+                this.saveDB();
+            }
+        },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // METHODS
+    // Les méthodes des modules sont spreadées en premier.
+    // Les méthodes inline ci-dessous les surchargent si nécessaire.
+    // ─────────────────────────────────────────────────────────────────────────
+    methods: {
+        ...utilsMethods,
+        ...contactsMethods,
+        ...planningMethods,
+        ...adminMethods,
+        ...mapMethods,
+        ...annuaireMethods,
+        ...importMethods,
+        ...gouvMethods,
+        ...searchMethods,
+        ...projectMethods,
+        ...venueMethods,
+        ...crmMethods,
+        ...collaboratorMethods,
+        ...icalMethods,
+        ...updateMethods,
+        ...helpMethods,
+
+        // --- AUTHENTIFICATION FIREBASE ---
+        async handleAuth() {
+            try {
+                if (this.isLoginMode) {
+                    // ── Connexion ──────────────────────────────────────────
+                    await signInWithEmailAndPassword(auth, this.authEmail, this.authPassword);
+                    Swal.fire('Succès', 'Ravi de vous revoir !', 'success');
+                } else {
+                    // ── Inscription : vérification liste blanche ───────────
+                    const emailLower = this.authEmail.trim().toLowerCase();
+
+                    // Si la liste blanche est activée (non vide), vérifier l'email
+                    if (this.allowedEmails.length > 0) {
+                        const isAllowed = this.allowedEmails
+                            .map(e => e.toLowerCase())
+                            .includes(emailLower);
+                        if (!isAllowed) {
+                            return Swal.fire({
+                                title: 'Accès refusé',
+                                html: `Cet email n'est pas autorisé à créer un compte.<br><small class="text-slate-400">Contactez un administrateur pour obtenir l'accès.</small>`,
+                                icon: 'error',
+                                confirmButtonColor: '#ef4444',
+                            });
+                        }
+                    }
+
+                    await createUserWithEmailAndPassword(auth, this.authEmail, this.authPassword);
+                    Swal.fire('Bienvenue', 'Votre compte a été créé avec succès.', 'success');
+                }
+                this.authEmail = '';
+                this.authPassword = '';
+            } catch (error) {
+                Swal.fire('Erreur', 'Email ou mot de passe incorrect (ou compte déjà existant).', 'error');
+            }
+        },
+
+        // --- NOTIFICATIONS DE TÂCHES ---
+
+        // Demande la permission pour les notifications navigateur
+        async requestNotificationPermission() {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'default') {
+                await Notification.requestPermission();
+            }
+        },
+
+        // Envoie une notification navigateur
+        sendBrowserNotification(title, body, onClick = null) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            const notif = new Notification(title, {
+                body,
+                icon: '/favicon.ico',
+                badge: '/favicon.ico',
+            });
+            if (onClick) notif.onclick = onClick;
+            setTimeout(() => notif.close(), 8000);
+        },
+
+        // Vérifie les tâches en retard et notifie si nécessaire
+        checkOverdueTasks() {
+            const overdue = this.tasksOverdue || [];
+            const today   = this.tasksToday   || [];
+            if (overdue.length === 0 && today.length === 0) return;
+
+            // Notification navigateur
+            if (overdue.length > 0) {
+                this.sendBrowserNotification(
+                    `⚠️ ${overdue.length} tâche(s) en retard`,
+                    overdue.slice(0, 3).map(t => t.text).join('\n'),
+                    () => { this.tab = 'tasks'; window.focus(); }
+                );
+            }
+        },
+
+        // Affiche l'alerte de tâches en retard au démarrage (une seule fois)
+        showTasksAlert() {
+            const overdue = this.tasksOverdue || [];
+            const today   = this.tasksToday   || [];
+            if (overdue.length === 0 && today.length === 0) return;
+
+            const lines = [];
+            if (overdue.length > 0) lines.push(`<li class="text-red-600 font-bold">⚠ ${overdue.length} tâche(s) en retard</li>`);
+            if (today.length  > 0) lines.push(`<li class="text-orange-600">📅 ${today.length} tâche(s) pour aujourd'hui</li>`);
+            const nRel = overdue.concat(today).filter(t => t.type === 'relance').length;
+            if (nRel > 0) lines.push(`<li class="text-slate-500 text-sm">dont ${nRel} relance(s) d'affaire</li>`);
+
+            Swal.fire({
+                title: 'Tâches à traiter',
+                html: `<ul class="text-left space-y-2 mt-2">${lines.join('')}</ul>
+                       <p class="text-xs text-slate-400 mt-3">Cliquez sur "Voir les tâches" pour y accéder.</p>`,
+                icon: overdue.length > 0 ? 'warning' : 'info',
+                showCancelButton:  true,
+                confirmButtonText: 'Voir les tâches',
+                cancelButtonText:  'Plus tard',
+                confirmButtonColor: overdue.length > 0 ? '#ef4444' : '#f59e0b',
+            }).then(r => {
+                if (r.isConfirmed) this.tab = 'tasks';
+            });
+        },
+
+        // --- VÉRIFICATION PÉRIODIQUE DU TOKEN ---
+        // Détecte si le token a été révoqué côté serveur (changement de rôle)
+        _startTokenCheck() {
+            this._tokenCheckTimer = setInterval(async () => {
+                if (!this.currentUser) return;
+                try {
+                    // `auth` est déjà importé en tête de module : pas d'import
+                    // dynamique, qui créerait une seconde instance de firebase.js.
+                    const user = auth.currentUser;
+                    if (!user) return;
+                    // Force le rafraîchissement du token
+                    await user.getIdToken(true);
+                } catch (e) {
+                    // Token révoqué ou invalide → déconnecter
+                    if (e.code === 'auth/user-token-expired' ||
+                        e.code === 'auth/user-disabled' ||
+                        e.code === 'auth/id-token-revoked') {
+                        await this.logout();
+                    }
+                }
+            }, 30000); // Vérifie toutes les 30 secondes
+        },
+
+        _stopTokenCheck() {
+            if (this._tokenCheckTimer) {
+                clearInterval(this._tokenCheckTimer);
+                this._tokenCheckTimer = null;
+            }
+        },
+
+        // --- DÉCONNEXION AUTOMATIQUE PAR INACTIVITÉ ---
+        _resetInactivityTimer() {
+            if (!this.currentUser) return;
+            clearTimeout(this._inactivityTimer);
+            this._inactivityTimer = setTimeout(() => {
+                Swal.fire({
+                    title: 'Session expirée',
+                    html: `Vous avez été déconnecté automatiquement après 2 heures d'inactivité.`,
+                    icon: 'info',
+                    confirmButtonColor: '#4f46e5',
+                    confirmButtonText: 'Se reconnecter',
+                    allowOutsideClick: false,
+                }).then(() => this.logout());
+            }, this._inactivityDelay);
+        },
+
+        _startInactivityWatcher() {
+            const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+            const reset  = () => this._resetInactivityTimer();
+            events.forEach(ev => window.addEventListener(ev, reset, { passive: true }));
+            this._resetInactivityTimer(); // Démarre le timer initial
+        },
+
+        _stopInactivityWatcher() {
+            clearTimeout(this._inactivityTimer);
+            this._inactivityTimer = null;
+        },
+
+        async logout() {
+            this._stopTokenCheck();
+            this._stopInactivityWatcher();
+            // Désabonner tous les listeners Firestore AVANT la déconnexion
+            // pour éviter les erreurs "permission-denied" sur les snapshots actifs
+            this._firestoreUnsubs.forEach(unsub => { try { unsub(); } catch(e) {} });
+            this._firestoreUnsubs = [];
+            await signOut(auth);
+            this.currentUser = null;
+        },
+
+        // --- PERSISTANCE FIRESTORE ---
+
+        // saveDB() : version debouncée — attend 1.5s avant de sauvegarder
+        // Si appelée plusieurs fois en rafale, seul le dernier appel déclenche la sauvegarde
+        saveDB() {
+            clearTimeout(this._saveDebounceTimer);
+            this._saveDebounceTimer = setTimeout(() => this._saveDBNow(), 1500);
+        },
+
+        // _saveDBNow() : sauvegarde immédiate (utilisée par logout et saveData)
+        // --- HISTORIQUE DES MODIFICATIONS ---
+        async logActivity(action, details = '') {
+            if (!this.currentUser) return;
+            try {
+                await addDoc(collection(dbFirestore, "activity_log"), {
+                    uid:       this.currentUser,
+                    user:      this.currentUserName,
+                    action,
+                    details,
+                    timestamp: serverTimestamp(),
+                    date:      new Date().toISOString(),
+                });
+            } catch (e) { /* log silencieux */ }
+        },
+
+        async _saveDBNow() {
+            if (!this.currentUser) return;
+            this.saveStatus = 'saving';
+            this.saveStatusMessage = 'Synchronisation…';
+            try {
+                // 1. Sauvegarde des données propres à l'utilisateur
+                // AJOUT DE .uid ICI
+                await setDoc(doc(dbFirestore, "users", this.currentUser), {
+                    projects:        this.db.projects,
+                    tasks:           this.db.tasks,
+                    events:          this.db.events,
+                    templates:       this.db.templates       || [],
+                    campaignHistory: this.db.campaignHistory || [],
+                    savedSearches:   this.db.savedSearches   || [],
+                    selections:      this.db.selections      || [],
+                    // Modèles de contrat (personnels, comme les modèles d'email).
+                    // Absents de cette écriture avant la v48 : ils disparaissaient à la sauvegarde suivante.
+                    contractTemplates: this.db.contractTemplates || [],
+                });
+
+                // 2. Sauvegarde différentielle des structures (sous-collection) + meta (tags + index)
+                // Réservée aux éditeurs : les règles Firestore refusent l'écriture de
+                // shared/meta et structures aux lecteurs, ce qui affichait « Erreur de
+                // sauvegarde » à chaque enregistrement alors que leurs données personnelles
+                // (étape 1) étaient bien enregistrées.
+                if (this.canEdit) await this._saveStructuresDiff();
+
+                this.saveStatus = 'saved';
+                this.saveStatusMessage = 'Synchronisé · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle'; }, 4000);
+            } catch (error) {
+                // ... reste de votre gestion d'erreur
+                console.error("Erreur sauvegarde cloud");
+                this.saveStatus = 'error';
+                this.saveStatusMessage = 'Erreur de sauvegarde !';
+                Swal.fire({
+                    title: 'Erreur Firebase',
+                    html: 'Les données n\'ont pas pu être sauvegardées.<br><small>' + error.message + '</small>',
+                    icon: 'error',
+                    confirmButtonText: 'Réessayer',
+                    showCancelButton: true,
+                    cancelButtonText: 'Ignorer'
+                }).then(r => { if (r.isConfirmed) this.saveDB(); });
+            }
+        },
+        // ═══════════════════════════════════════════════════════════════════
+        // COUCHE DONNÉES ANNUAIRE — sous-collection structures/{id}
+        //   • cache local IndexedDB (affichage instantané, 0 lecture)
+        //   • shared/meta = { tags + structIndex { id: rev } } (1 lecture/session)
+        //   • sync différentielle : on ne (re)lit/écrit que ce qui a changé
+        //   • shared/annuaire reste GELÉ (filet de rollback, plus lu ni écrit)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── IndexedDB : petit cache clé/valeur ──
+        _idb() {
+            if (this.__idbPromise) return this.__idbPromise;
+            this.__idbPromise = new Promise((resolve, reject) => {
+                const req = indexedDB.open('coopArtCache', 1);
+                req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror   = () => reject(req.error);
+            });
+            return this.__idbPromise;
+        },
+        async _idbGet(key) {
+            try {
+                const db = await this._idb();
+                return await new Promise((resolve, reject) => {
+                    const rq = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+                    rq.onsuccess = () => resolve(rq.result != null ? rq.result : null);
+                    rq.onerror   = () => reject(rq.error);
+                });
+            } catch (e) { return null; }
+        },
+        async _idbSet(key, val) {
+            try {
+                const db = await this._idb();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction('kv', 'readwrite');
+                    tx.objectStore('kv').put(JSON.parse(JSON.stringify(val)), key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror    = () => reject(tx.error);
+                });
+            } catch (e) { /* cache best-effort */ }
+        },
+
+        // ── Hash rapide (djb2) pour détecter les structures modifiées ──
+        _hash(str) {
+            let h = 5381, i = str.length;
+            while (i) h = (h * 33) ^ str.charCodeAt(--i);
+            return (h >>> 0).toString(36);
+        },
+        _structKey(s) { return this._hash(JSON.stringify(s)); },
+
+        // Photo de l'état courant : { id: hash } — sert à détecter les modifs à écrire
+        _takeStructSnapshot() {
+            const snap = {};
+            for (const s of this.db.structures) snap[String(s.id)] = this._structKey(s);
+            this._structSnapshot = snap;
+        },
+
+        // ── Initialisation au login ──
+        async _initAnnuaire() {
+            if (this._revCounter == null) this._revCounter = 0;
+
+            // 1) Affichage instantané depuis le cache local (0 lecture Firestore)
+            const cached = await this._idbGet('structures');
+            if (Array.isArray(cached) && cached.length) this.db.structures = cached;
+            this._takeStructSnapshot();
+            this._lastIndex = (await this._idbGet('metaIndex')) || {};
+
+            // 2) Listener temps réel sur shared/meta (tags + index des révisions)
+            this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "meta"), async (snap) => {
+                if (!snap.exists()) {
+                    // Première bascule : meta pas encore créé → on le construit
+                    await this._buildMeta();
+                    return;
+                }
+                const m = snap.data();
+                this.db.tagCategories = m.tagCategories || this.db.tagCategories;
+                this.db.tagGenres     = m.tagGenres     || this.db.tagGenres;
+                this.db.tagReseaux    = m.tagReseaux    || this.db.tagReseaux;
+                this.db.tagKeywords   = m.tagKeywords   || this.db.tagKeywords;
+                await this._syncStructuresFromIndex(m.structIndex || {});
+            }));
+        },
+
+        // ── Première bascule : meta absent → lit la collection une fois et le crée ──
+        async _buildMeta() {
+            try {
+                // Récupérer les tags depuis l'ancien annuaire (gelé) une dernière fois
+                const annu = await getDoc(doc(dbFirestore, "shared", "annuaire"));
+                if (annu.exists()) {
+                    const a = annu.data();
+                    this.db.tagCategories = a.tagCategories || this.db.tagCategories;
+                    this.db.tagGenres     = a.tagGenres     || this.db.tagGenres;
+                    this.db.tagReseaux    = a.tagReseaux    || this.db.tagReseaux;
+                    this.db.tagKeywords   = a.tagKeywords   || this.db.tagKeywords;
+                }
+                // Lire la sous-collection (une seule fois) et bâtir l'index
+                const qs = await getDocs(collection(dbFirestore, "structures"));
+                const list = [], index = {};
+                qs.forEach(d => { list.push(d.data()); index[d.id] = Date.now() + '.' + (++this._revCounter); });
+                this.db.structures = list;
+                this._takeStructSnapshot();
+                this._lastIndex = index;
+                this._idbSet('structures', this.db.structures);
+                this._idbSet('metaIndex', index);
+
+                // Tenter d'écrire meta (réservé aux éditeurs/admins ; sinon lecture seule)
+                await setDoc(doc(dbFirestore, "shared", "meta"), {
+                    tagCategories: this.db.tagCategories,
+                    tagGenres:     this.db.tagGenres,
+                    tagReseaux:    this.db.tagReseaux,
+                    tagKeywords:   this.db.tagKeywords,
+                    structIndex:   index,
+                    updatedAt:     new Date().toISOString(),
+                });
+            } catch (e) {
+                // Un lecteur (rôle non-éditeur) ne peut pas créer meta : il a déjà
+                // chargé structures + tags ci-dessus, il fonctionne en lecture seule.
+                console.warn('meta non créé (probablement rôle lecteur) :', e.message);
+            }
+        },
+
+        // ── Applique les changements distants : ne télécharge que les structures modifiées ──
+        async _syncStructuresFromIndex(index) {
+            const prev = this._lastIndex || {};
+            const toFetch = [], toRemove = [];
+            for (const id in index)  if (prev[id] !== index[id]) toFetch.push(id);
+            for (const id in prev)   if (!(id in index))         toRemove.push(id);
+            if (!toFetch.length && !toRemove.length) return;
+
+            const fetched = [];
+            for (const id of toFetch) {
+                try {
+                    const ds = await getDoc(doc(dbFirestore, "structures", id));
+                    if (ds.exists()) fetched.push(ds.data());
+                } catch (e) { /* lecture unitaire silencieuse */ }
+            }
+
+            const byId = {};
+            for (const s of this.db.structures) byId[String(s.id)] = s;
+            for (const s of fetched)            byId[String(s.id)] = s;
+            for (const id of toRemove)          delete byId[id];
+            this.db.structures = Object.values(byId);
+
+            this._lastIndex = { ...index };
+            this._takeStructSnapshot();
+            this._idbSet('structures', this.db.structures);
+            this._idbSet('metaIndex', this._lastIndex);
+        },
+
+        // ── Sauvegarde différentielle : n'écrit que les structures modifiées ──
+        async _saveStructuresDiff() {
+            if (this._revCounter == null) this._revCounter = 0;
+            const prev    = this._structSnapshot || {};
+            const index   = { ...(this._lastIndex || {}) };
+            const current = {};
+            const changed = [], removed = [];
+
+            for (const s of this.db.structures) {
+                const id = String(s.id);
+                const h  = this._structKey(s);
+                current[id] = h;
+                if (prev[id] !== h) { changed.push(s); index[id] = Date.now() + '.' + (++this._revCounter); }
+            }
+            for (const id in prev) if (!(id in current)) { removed.push(id); delete index[id]; }
+
+            // Écritures par lots de 400 (set des modifiées + delete des retirées)
+            const ops = [];
+            changed.forEach(s  => ops.push({ type: 'set', id: String(s.id), data: s }));
+            removed.forEach(id => ops.push({ type: 'del', id }));
+            for (let i = 0; i < ops.length; i += 400) {
+                const wb = writeBatch(dbFirestore);
+                ops.slice(i, i + 400).forEach(op => {
+                    const ref = doc(dbFirestore, "structures", op.id);
+                    if (op.type === 'set') wb.set(ref, op.data); else wb.delete(ref);
+                });
+                await wb.commit();
+            }
+
+            // Meta : tags + index (petit document, toujours réécrit)
+            await setDoc(doc(dbFirestore, "shared", "meta"), {
+                tagCategories: this.db.tagCategories,
+                tagGenres:     this.db.tagGenres,
+                tagReseaux:    this.db.tagReseaux,
+                tagKeywords:   this.db.tagKeywords,
+                structIndex:   index,
+                updatedAt:     new Date().toISOString(),
+            });
+
+            // Rafraîchir photo + index appliqué + cache local
+            this._structSnapshot = current;
+            this._lastIndex      = index;
+            this._idbSet('structures', this.db.structures);
+            this._idbSet('metaIndex', index);
+        },
+
+        async refreshTags() {
+    this.saveStatus = 'saving';
+    this.saveStatusMessage = 'Actualisation des tags...';
+    try {
+        const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js");
+        const docRef = doc(dbFirestore, "shared", "meta");
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const d = docSnap.data();
+            this.db.tagCategories = d.tagCategories || this.db.tagCategories;
+            this.db.tagGenres     = d.tagGenres     || this.db.tagGenres;
+            this.db.tagReseaux    = d.tagReseaux    || this.db.tagReseaux;
+            this.db.tagKeywords   = d.tagKeywords   || this.db.tagKeywords;
+            
+            this.saveStatus = 'saved';
+            Swal.fire({ title: 'Tags actualisés', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        }
+    } catch (error) {
+        console.error("Erreur refresh tags");
+        this.saveStatus = 'error';
+    }
+},
+        async saveData() {
+            // Sauvegarde manuelle = immédiate (bypass debounce)
+            clearTimeout(this._saveDebounceTimer);
+            await this._saveDBNow();
+            if (this.saveStatus === 'saved') {
+                Swal.fire({ title: 'Enregistré sur Firebase ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+            }
+        },
+
+       // --- TAGS & PARAMÈTRES ---
+async addGlobalTag(familyName) {
+    const r = await Swal.fire({
+        title: 'Nouveau tag', 
+        input: 'text', 
+        inputPlaceholder: 'Entrez le nom du tag...',
+        showCancelButton: true, 
+        confirmButtonText: 'Ajouter', 
+        cancelButtonText: 'Annuler'
+    });
+    
+    
+    if (r.isConfirmed && r.value.trim()) {
+        // CORRECTION : On modifie dans this.db[familyName]
+        if (!this.db[familyName]) this.db[familyName] = [];
+        
+        // On crée une nouvelle copie du tableau dans db pour la réactivité
+        this.db[familyName] = [...this.db[familyName], this.sanitizeText(r.value, 80)];
+        
+        // Sauvegarde de l'objet db (qui contient maintenant le nouveau tag)
+        await this.saveDB();
+        
+        Swal.fire({ 
+            title: 'Tag sauvegardé ✓', 
+            icon: 'success', 
+            toast: true, 
+            position: 'top-end', 
+            timer: 1500, 
+            showConfirmButton: false 
+        });
+    }
+},
+
+async removeGlobalTag(familyName, tag) {
+    const r = await Swal.fire({
+        title: 'Supprimer ce tag ?', 
+        text: `Le tag "${tag}" ne sera plus proposé.`,
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonColor: '#ef4444', 
+        confirmButtonText: 'Supprimer'
+    });
+    
+    if (r.isConfirmed) {
+        // CORRECTION : On filtre dans this.db[familyName]
+        if (this.db[familyName]) {
+            this.db[familyName] = this.db[familyName].filter(t => t !== tag);
+            await this.saveDB();
+        }
+    }
+},
+
+        // --- OMNIBOX ---
+        // Reporte une valeur de recherche dans sa copie différée.
+        // Un champ vidé est propagé sans attendre : l'utilisateur qui efface
+        // veut revoir la liste complète tout de suite.
+        _debounceSearch(target, val) {
+            if (!this._searchTimers) this._searchTimers = {};
+            clearTimeout(this._searchTimers[target]);
+            if (!val) { this[target] = ''; return; }
+            this._searchTimers[target] = setTimeout(() => { this[target] = val; }, 200);
+        },
+
+        // Bascule de la barre latérale. En état automatique (null), on déduit
+        // ce que le CSS affiche actuellement pour basculer vers l'inverse :
+        // au-dessus de 1024 px elle est visible, en dessous elle est masquée.
+        toggleSidebar() {
+            if (this.sidebarOpen === null) {
+                this.sidebarOpen = !this._isWideScreen();
+            } else {
+                this.sidebarOpen = !this.sidebarOpen;
+            }
+        },
+
+        // Au-dessus de 1024 px : les panneaux sont visibles par défaut (CSS).
+        _isWideScreen() {
+            return !window.matchMedia || window.matchMedia('(min-width: 1024px)').matches;
+        },
+
+        // Bascule d'un panneau latéral interne à une vue. Même raisonnement que
+        // toggleSidebar : en état automatique on déduit ce que le CSS affiche
+        // pour basculer vers l'inverse.
+        togglePanel(key) {
+            const v = this.panelOpen[key];
+            this.panelOpen[key] = (v === null) ? !this._isWideScreen() : !v;
+        },
+
+        voirPlusStructures() { this.structVisible  += LISTE_PLAFOND; },
+        voirPlusContacts()   { this.contactVisible += LISTE_PLAFOND; },
+
+        // « Tout afficher » : nécessaire pour chercher dans la page entière
+        // (⌘F) ou imprimer. Sur une très grande liste le rendu sera lent —
+        // c'est un choix explicite de l'utilisateur, pas le comportement par
+        // défaut. Sans ce raccourci, 2 000 lignes demanderaient 19 clics.
+        toutAfficherStructures() { this.structVisible  = this.filteredStructures.length; },
+        toutAfficherContacts()   { this.contactVisible = this.filteredContacts.length; },
+
+        goOmni(item) {
+            this.showOmniDropdown = false;
+            this.omniSearch = '';
+            if (item.type === 'structure') { this.tab = 'structures'; this.openCrmView(item.original); }
+            if (item.type === 'contact')   { const s = this.db.structures.find(st => st.id === item.original.structId); if (s) { this.tab = 'structures'; this.openCrmView(s); } }
+            if (item.type === 'project')   { this.tab = 'projects'; this.openProjectModal(item.original); }
+            if (item.type === 'event')     { this.tab = 'pipeline'; this.openEventModal(null, item.original); }
+            if (item.type === 'task')      { this.tab = 'tasks';    this.openTaskModal(item.original); }
+        },
+
+        hideOmni() {
+            setTimeout(() => { this.showOmniDropdown = false; }, 200);
+        },
+    },
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LIFECYCLE
+    // ─────────────────────────────────────────────────────────────────────────
+    mounted() {
+        // Surveillance des nouvelles versions déployées (indépendante de la connexion)
+        this.startUpdateChecker();
+
+        // Échap ferme la fenêtre d'aide
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.helpViewer) this.closeHelp();
+        });
+
+        // Franchissement du seuil de 1024 px (rotation de la tablette) : on
+        // revient à l'état automatique, pour que le CSS reprenne la main. Sans
+        // cela, un menu replié à la main en paysage resterait replié en
+        // portrait, et inversement.
+        // matchMedia plutôt que l'événement resize : il écoute directement le
+        // moteur des media queries, et se déclenche là où resize peut manquer.
+        try {
+            const mq = window.matchMedia('(min-width: 1024px)');
+            const onBreakpoint = () => {
+                this.sidebarOpen = null;
+                Object.keys(this.panelOpen).forEach(k => { this.panelOpen[k] = null; });
+            };
+            mq.addEventListener ? mq.addEventListener('change', onBreakpoint)
+                                : mq.addListener(onBreakpoint);
+        } catch (e) { /* navigateur sans matchMedia : le CSS suffit */ }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                this.currentUser     = user.uid;
+                this.currentUserName = user.displayName || user.email || user.uid;
+                this._startInactivityWatcher(); // Démarre la surveillance d'inactivité
+                // Charger préférence tooltips
+                const savedTooltips = localStorage.getItem('coopArtTooltips');
+                if (savedTooltips !== null) this.tooltipsEnabled = savedTooltips === '1';
+                this.requestNotificationPermission(); // Demande permission notifications
+
+                // Surveillance de la connexion internet
+                this.isOnline = navigator.onLine;
+                window.addEventListener('online',  () => {
+                    this.isOnline = true;
+                    Swal.fire({ title: 'Connexion rétablie ✓', icon: 'success', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                });
+                window.addEventListener('offline', () => {
+                    this.isOnline = false;
+                    Swal.fire({ title: 'Hors ligne', html: 'Vous travaillez en mode hors ligne.<br><small>Les modifications seront synchronisées au retour de la connexion.</small>', icon: 'warning', toast: true, position: 'top-end', timer: 4000, showConfirmButton: false });
+                });
+                this._startTokenCheck();           // Démarre la vérification du token
+
+                // ── Enregistrement de l'utilisateur dans le registre ──
+                try {
+                    const userRef  = doc(dbFirestore, "users_registry", user.uid);
+                    const userSnap = await getDoc(userRef);
+                    const prevCount = userSnap.exists() ? (userSnap.data().loginCount || 0) : 0;
+                    await setDoc(userRef, {
+                        uid:        user.uid,
+                        email:      user.email,
+                        lastLogin:  new Date().toISOString(),
+                        createdAt:  user.metadata?.creationTime || new Date().toISOString(),
+                        loginCount: prevCount + 1,
+                    }, { merge: true });
+                } catch (e) { /* enregistrement registre silencieux */ }
+
+
+
+                // ── Écoute de la config admin (changelog + adminEmails) ──
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "shared", "config"), async (snap) => {
+                    if (snap.exists()) {
+                        const cfg = snap.data();
+                        this.adminEmails    = cfg.adminEmails  || [];
+                        this.allowedEmails  = cfg.allowedEmails || [];
+                        this.adminChangelog = cfg.changelog    || [];
+                        this.isAdmin        = this.adminEmails.includes(user.email);
+                        if (this.adminChangelog.length > 0 && !this.changelogDismissed) {
+                            this.latestChangelog    = this.adminChangelog[0];
+                            this.showChangelogBanner = true;
+                        }
+                    } else {
+                        this.adminEmails = [user.email];
+                        this.isAdmin     = true;
+                        this.saveAdminConfig();
+                    }
+                    // ── Rôle chargé depuis userRoles dans shared/config ──
+                    const cfg2       = snap.exists() ? snap.data() : {};
+                    const userRoles  = cfg2.userRoles || {};
+                    const inUserRoles = userRoles.hasOwnProperty(user.email);
+                    // Priorité : userRoles > adminEmails > editeur par défaut
+                    // Priorité : userRoles > adminEmails > lecteur par défaut.
+                    // ⚠️ Le défaut DOIT rester 'lecteur' : c'est celui des règles
+                    // Firestore (userRoles.get(email, 'lecteur')). Tout autre défaut
+                    // rendrait l'interface plus permissive que la base, et l'utilisateur
+                    // verrait ses enregistrements échouer sans comprendre pourquoi.
+                    const newRole = inUserRoles
+                        ? userRoles[user.email]
+                        : (this.adminEmails.includes(user.email) ? 'admin' : 'lecteur');
+                    const prevRole = this.userRole;
+                    this.userRole  = newRole;
+                    // Si le rôle a changé après le chargement initial → recharger
+                    if (prevRole && prevRole !== 'lecteur' && prevRole !== newRole) {
+                        window.location.reload();
+                    }
+                }));
+                // ── Données privées (projets, tâches, affaires, templates) ──
+                this._firestoreUnsubs.push(onSnapshot(doc(dbFirestore, "users", this.currentUser), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        this.db.projects        = data.projects        || [];
+                    this.db.contractTemplates = data.contractTemplates || [];
+                    this.contractTemplates    = this.db.contractTemplates;
+                        this.db.tasks           = data.tasks           || [];
+                        this.db.events          = data.events          || [];
+                        this.db.templates       = data.templates       || this.db.templates;
+                        this.db.campaignHistory = data.campaignHistory || [];
+                        this.db.savedSearches   = data.savedSearches   || [];
+                        this.db.selections      = data.selections      || [];
+                    } else {
+                        const savedPrivate = localStorage.getItem(`coopArtBookingDB_${this.currentUser}`);
+                        if (savedPrivate) {
+                            try {
+                                const parsed = JSON.parse(savedPrivate);
+                                this.db.projects = parsed.projects || [];
+                                this.db.tasks    = parsed.tasks    || [];
+                                this.db.events   = parsed.events   || [];
+                                this.saveDB();
+                            } catch (e) { /* migration locale silencieuse */ }
+                        } else {
+                            this.db.projects = []; this.db.tasks = []; this.db.events = [];
+                        }
+                    }
+                    // Anciennes relances d'affaire → tâches (v44, sans effet ensuite)
+                    if (this._migrateRelancesToTasks && this._migrateRelancesToTasks()) this.saveDB();
+                    if (this.selectedProjectIds.length === 0 && this.db.projects.length > 0) {
+                        this.selectedProjectIds = this.db.projects.map(p => p.id);
+                    }
+                    // Vérifier les tâches en retard après chargement initial
+                    if (!this._tasksAlertShown) {
+                        this._tasksAlertShown = true;
+                        this.$nextTick(() => {
+                            setTimeout(() => {
+                                this.checkOverdueTasks();
+                                const tasksAlert = (this.tasksOverdue || []).length > 0;
+                                if (tasksAlert) {
+                                    this.showTasksAlert();
+                                }
+                                // Relances en attente (si l'alerte des tâches, qui les inclut, n'est pas déjà affichée)
+                                if (!tasksAlert && !this.relanceAlertShown && (this.affairesToRelance || []).length > 0) {
+                                    this.relanceAlertShown = true;
+                                    this.showRelanceAlert();
+                                }
+                            }, 2500);
+                        });
+                    }
+                }));
+
+                // ── Annuaire : cache local (IndexedDB) + sync différentielle via shared/meta ──
+                this._initAnnuaire();
+
+            } else {
+                this.currentUser = null;
+                this.currentUserName = '';
+            }
+        });
+    },
+
+}).mount('#app');
